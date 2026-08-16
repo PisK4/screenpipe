@@ -4,7 +4,7 @@
 
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ConnectedShareDialog } from "@/components/connected-share-dialog";
 import type { ConnectedShareArtifact } from "@/lib/connected-share";
 
@@ -42,8 +42,39 @@ function jsonResponse(body: unknown, ok = true) {
   return { ok, json: async () => body } as Response;
 }
 
+/**
+ * A fresh remembered-destination store per test.
+ *
+ * The dialog writes where it last sent, so any test that completes a send
+ * leaves a destination behind for the next one. Under a runtime that really
+ * has `localStorage` that leak is real: a later test opening on a recalled
+ * destination instead of "choose where this goes" is the dialog behaving
+ * correctly and the suite lying about the starting state.
+ *
+ * It stayed hidden because the two runtimes disagree. The local runner has no
+ * `localStorage` at all, so recall silently no-ops and every test starts clean;
+ * CI has one, so state carries. Stubbing it here removes the divergence rather
+ * than papering over it: both runtimes now get the same empty store, and a
+ * test that wants a memory says so.
+ */
+const originalLocalStorage = Object.getOwnPropertyDescriptor(
+  window,
+  "localStorage",
+);
+let storageBacking = new Map<string, string>();
+
 describe("ConnectedShareDialog", () => {
   beforeEach(() => {
+    storageBacking = new Map();
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => storageBacking.get(key) ?? null,
+        setItem: (key: string, value: string) =>
+          void storageBacking.set(key, value),
+        removeItem: (key: string) => void storageBacking.delete(key),
+      } as Storage,
+    });
     vi.clearAllMocks();
     mocks.showChatWithPrefill.mockResolvedValue(undefined);
     mocks.localFetch.mockImplementation(async (path: string) => {
@@ -75,6 +106,14 @@ describe("ConnectedShareDialog", () => {
       }
       throw new Error(`unexpected request: ${path}`);
     });
+  });
+
+  afterEach(() => {
+    if (originalLocalStorage) {
+      Object.defineProperty(window, "localStorage", originalLocalStorage);
+    } else {
+      delete (window as { localStorage?: unknown }).localStorage;
+    }
   });
 
   // Destinations moved from seven always-visible tiles into one grouped menu,
@@ -303,7 +342,10 @@ describe("ConnectedShareDialog", () => {
     ).toBe(false);
   });
 
-  it("keeps clipboard available and recovers when connection discovery fails", async () => {
+  // A failed check used to resolve to the clipboard, so the dialog quietly
+  // offered a local write under a button that says send. It now says it could
+  // not check and offers retry, and nothing is sendable until it succeeds.
+  it("stays unsendable and recovers when connection discovery fails", async () => {
     mocks.localFetch
       .mockRejectedValueOnce(new Error("local service unavailable"))
       .mockResolvedValueOnce(jsonResponse({ data: [] }));
@@ -315,13 +357,77 @@ describe("ConnectedShareDialog", () => {
     const error = await screen.findByTestId(
       "connected-share-connections-error",
     );
-    expect(error).toHaveTextContent("Clipboard still works");
-    expect(screen.getByRole("button", { name: "copy snapshot" })).toBeEnabled();
+    expect(error).toHaveTextContent("local service unavailable");
+    expect(
+      screen.queryByRole("button", { name: /copy snapshot/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("connected-share-confirm")).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "retry" }));
     await screen.findByTestId("connected-share-empty");
     expect(
       screen.queryByTestId("connected-share-connections-error"),
+    ).not.toBeInTheDocument();
+    // Still nothing connected, so still nothing to send to.
+    expect(screen.getByTestId("connected-share-confirm")).toBeDisabled();
+    expect(screen.getByTestId("connected-share-confirm")).toHaveTextContent(
+      "connect an app to send",
+    );
+  });
+
+  // `no destination` has two causes and they need opposite instructions.
+  // Telling someone to connect an app while two connected apps sit in the menu
+  // below is worse than saying nothing.
+  it("asks which app rather than which to connect when several are ready", async () => {
+    mocks.localFetch.mockImplementation(async (path: string) => {
+      if (path === "/connections") {
+        return jsonResponse({
+          data: [
+            { id: "slack", connected: true },
+            { id: "notion", connected: true },
+          ],
+        });
+      }
+      if (path === "/connections/slack/instances") {
+        return jsonResponse({ instances: [] });
+      }
+      if (path.startsWith("/connections/slack/conversations")) {
+        return jsonResponse({ channels: [] });
+      }
+      throw new Error(`unexpected request: ${path}`);
+    });
+
+    render(
+      <ConnectedShareDialog open onOpenChange={vi.fn()} artifact={artifact} />,
+    );
+
+    const row = await screen.findByTestId("connected-share-destination");
+    expect(row).toHaveTextContent("choose where this goes");
+    expect(row).not.toHaveTextContent("connect an app to send");
+
+    const confirm = screen.getByTestId("connected-share-confirm");
+    expect(confirm).toBeDisabled();
+    expect(confirm).toHaveTextContent("choose a destination");
+  });
+
+  // The clipboard had a destination row of its own, which made the send dialog
+  // a fourth way to copy — in a third serialization — behind a glyph that
+  // promises the snapshot leaves the machine.
+  it("offers no local destination", async () => {
+    render(
+      <ConnectedShareDialog open onOpenChange={vi.fn()} artifact={artifact} />,
+    );
+
+    await openDestinations();
+    await screen.findByTestId("connected-share-destination-slack");
+    expect(
+      screen.queryByTestId("connected-share-destination-copy"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: /clipboard/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /copy snapshot/i }),
     ).not.toBeInTheDocument();
   });
 
@@ -518,12 +624,145 @@ describe("ConnectedShareDialog", () => {
 
       // Nothing is a peer of it until it is opened.
       expect(
-        screen.queryByTestId("connected-share-destination-copy"),
+        screen.queryByTestId("connected-share-destination-slack"),
       ).not.toBeInTheDocument();
       await openDestinations();
       expect(
-        await screen.findByTestId("connected-share-destination-copy"),
+        await screen.findByTestId("connected-share-destination-slack"),
       ).toBeVisible();
+    });
+  });
+
+  /**
+   * The point of remembering is the second send, not the first.
+   *
+   * Recall is read when the connection check resolves, but the channel and team
+   * lists load after that and reset their own selection when they arrive. That
+   * ordering silently ate the remembered channel: the destination app came back
+   * but the channel fell to "my Slack messages" every time, so the weekly
+   * standup still had to be re-aimed. These assert on the request body rather
+   * than the label, because where the message actually lands is the thing that
+   * regressed.
+   */
+  describe("recall", () => {
+    const seedStorage = (value: unknown) => {
+      storageBacking.set(
+        "screenpipe.connected-share.last.meeting",
+        JSON.stringify(value),
+      );
+    };
+
+    const sendBody = () => {
+      const call = mocks.localFetch.mock.calls.find(
+        ([path]) => path === "/connections/slack/send",
+      );
+      return JSON.parse(call?.[1]?.body as string);
+    };
+
+    it("sends to the remembered channel without asking again", async () => {
+      seedStorage({ destination: "slack", target: "C1", instance: "acme" });
+      render(
+        <ConnectedShareDialog open onOpenChange={vi.fn()} artifact={artifact} />,
+      );
+
+      // No destination pick and no channel pick: recall answered both.
+      const confirm = await screen.findByTestId("connected-share-confirm");
+      await waitFor(() =>
+        expect(
+          mocks.localFetch.mock.calls.some(([path]) =>
+            String(path).startsWith("/connections/slack/conversations"),
+          ),
+        ).toBe(true),
+      );
+      fireEvent.click(confirm);
+
+      await screen.findByText("sent to Slack");
+      expect(sendBody()).toMatchObject({ channel: "C1", instance: "acme" });
+    });
+
+    it("falls back to the private self-send when the channel is gone", async () => {
+      // Remembered a channel this account can no longer see. Leaving it
+      // selected would fail at send time; dropping it silently is the honest
+      // outcome, because a self-send cannot leak into the wrong room.
+      seedStorage({ destination: "slack", target: "C-deleted" });
+      render(
+        <ConnectedShareDialog open onOpenChange={vi.fn()} artifact={artifact} />,
+      );
+
+      const confirm = await screen.findByTestId("connected-share-confirm");
+      await waitFor(() =>
+        expect(
+          mocks.localFetch.mock.calls.some(([path]) =>
+            String(path).startsWith("/connections/slack/conversations"),
+          ),
+        ).toBe(true),
+      );
+      fireEvent.click(confirm);
+
+      await screen.findByText("sent to Slack");
+      expect(sendBody()).not.toHaveProperty("channel");
+    });
+
+    it("does not aim a recalled channel at a destination the user re-picked", async () => {
+      // Slack is remembered but no longer connected, so the destination falls
+      // back to a question. The stale channel must not survive that.
+      seedStorage({ destination: "slack", target: "C1" });
+      mocks.localFetch.mockImplementation(
+        async (path: string, init?: RequestInit) => {
+        if (path === "/connections") {
+          return jsonResponse({
+            data: [
+              { id: "slack", connected: false },
+              { id: "linear", connected: true },
+            ],
+          });
+        }
+        if (path === "/connections/linear/proxy/graphql") {
+          const body = JSON.parse((init as RequestInit)?.body as string);
+          if (body?.variables?.input) {
+            return jsonResponse({
+              data: {
+                issueCreate: {
+                  success: true,
+                  issue: { id: "i1", identifier: "COR-1", title: "Roadmap" },
+                },
+              },
+            });
+          }
+          return jsonResponse({
+            data: { teams: { nodes: [{ id: "T1", name: "Core", key: "COR" }] } },
+          });
+        }
+        throw new Error(`unexpected request: ${path}`);
+        },
+      );
+
+      render(
+        <ConnectedShareDialog open onOpenChange={vi.fn()} artifact={artifact} />,
+      );
+
+      await openDestinations();
+      fireEvent.click(
+        await screen.findByTestId("connected-share-destination-linear"),
+      );
+      await waitFor(() =>
+        expect(
+          mocks.localFetch.mock.calls.some(
+            ([path]) => path === "/connections/linear/proxy/graphql",
+          ),
+        ).toBe(true),
+      );
+      fireEvent.click(await screen.findByTestId("connected-share-confirm"));
+
+      // The team list chose its own first team; the Slack channel id never
+      // leaked across into the issue.
+      await waitFor(() => {
+        const create = mocks.localFetch.mock.calls
+          .filter(([path]) => path === "/connections/linear/proxy/graphql")
+          .map(([, init]) => JSON.parse((init as RequestInit)?.body as string))
+          .find((body) => body?.variables?.input);
+        expect(create?.variables.input.teamId).toBe("T1");
+      });
     });
   });
 });

@@ -8,6 +8,7 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -15,7 +16,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Copy,
   ExternalLink,
   Loader2,
   Plus,
@@ -66,11 +66,23 @@ import {
   preferredShareDestination,
   readRememberedShare,
   writeRememberedShare,
+  type RememberedShare,
 } from "@/lib/connected-share-preference";
 import { showChatWithPrefill } from "@/lib/chat-utils";
-import { commands } from "@/lib/utils/tauri";
 
-type Destination = "slack" | "linear" | "copy" | "chat-linear" | "chat-notion";
+/**
+ * Where a reviewed snapshot can go.
+ *
+ * `copy` used to live here and it was the default: the state initialised to it,
+ * every open reset to it, and a failed connection check fell back to it. So the
+ * send button's default happy path was a clipboard write, and its primary
+ * action read `copy snapshot` — the same verb as the copy button two slots to
+ * its left on the same rule. The clipboard already had a dedicated control with
+ * three labelled payloads; this was a fourth, in a third serialization, behind
+ * a glyph that promises a destination. Destinations are now only things this
+ * dialog can send to, and `null` means nothing is connected yet.
+ */
+type Destination = "slack" | "linear" | "chat-linear" | "chat-notion";
 
 type SlackInstance = {
   instance: string | null;
@@ -229,7 +241,7 @@ export function ConnectedShareDialog({
   const [selectedSectionIds, setSelectedSectionIds] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [slackMessage, setSlackMessage] = useState("");
-  const [destination, setDestination] = useState<Destination>("copy");
+  const [destination, setDestination] = useState<Destination | null>(null);
   const [availability, setAvailability] = useState(EMPTY_AVAILABILITY);
   const [connectionsLoading, setConnectionsLoading] = useState(true);
   const [connectionsChecked, setConnectionsChecked] = useState(false);
@@ -256,6 +268,50 @@ export function ConnectedShareDialog({
   const [linearTeamId, setLinearTeamId] = useState("");
   const [linearTitle, setLinearTitle] = useState(artifact.title);
 
+  /**
+   * The remembered destination, held until the list that owns it has loaded.
+   *
+   * Recall has to survive the two fetches that follow it. Both the Slack
+   * channel list and the Linear team list reset their own selection when they
+   * resolve — correctly, because switching workspace must not keep a channel
+   * from the previous one — and that reset used to land *after* the remembered
+   * target was restored, throwing it away before the user ever saw it. Only the
+   * destination app survived, so the weekly standup still had to re-pick its
+   * channel every time.
+   *
+   * Parking it in a ref lets each list claim its own value exactly once, after
+   * it can check the value still exists. A later switch by the user finds the
+   * recall already spent and resets as before.
+   */
+  const pendingRecallRef = useRef<RememberedShare | null>(null);
+
+  /**
+   * Claim the remembered target for a destination, once.
+   *
+   * Gated on the destination matching because `target` holds a Slack channel or
+   * a Linear team depending on where the last send went; a channel id must not
+   * be offered to the team list. Consumed even when it turns out to be stale so
+   * a failed match is not retried on the next reload.
+   */
+  const claimRecalledTarget = useCallback(
+    (forDestination: Destination): string | null => {
+      const pending = pendingRecallRef.current;
+      if (!pending?.target || pending.destination !== forDestination) {
+        return null;
+      }
+      pendingRecallRef.current = { ...pending, target: undefined };
+      return pending.target;
+    },
+    [],
+  );
+
+  const claimRecalledInstance = useCallback((): string | null => {
+    const pending = pendingRecallRef.current;
+    if (!pending?.instance) return null;
+    pendingRecallRef.current = { ...pending, instance: undefined };
+    return pending.instance;
+  }, []);
+
   const resetPreview = useCallback(
     (ids: string[]) => {
       const rendered = renderConnectedShareArtifact(artifact, ids);
@@ -274,9 +330,12 @@ export function ConnectedShareDialog({
 
   useEffect(() => {
     if (!open) return;
+    pendingRecallRef.current = null;
     resetPreview(allSectionIds);
     setLinearTitle(artifact.title);
-    setDestination("copy");
+    // Stays null until the connection check says what is actually reachable.
+    // There is no longer a local destination to fall back to.
+    setDestination(null);
     setConnectionsError(null);
     setReceipt(null);
     setActionError(null);
@@ -333,22 +392,35 @@ export function ConnectedShareDialog({
         // recalled; the explicit final send still stands in front of the write.
         const remembered = readRememberedShare(artifact.surface);
         const connected: string[] = [
-          "copy",
           ...(ready.direct.slack ? ["slack"] : []),
           ...(ready.direct.linear ? ["linear"] : []),
           ...(ready.chat.linear ? ["chat-linear"] : []),
           ...(ready.chat.notion ? ["chat-notion"] : []),
         ];
-        setDestination(
-          preferredShareDestination(remembered, connected) as Destination,
-        );
-        if (remembered?.target) setSlackTarget(remembered.target);
+        const nextDestination = preferredShareDestination(
+          remembered,
+          connected,
+        ) as Destination | null;
+        setDestination(nextDestination);
+        // Park the rest of the recall for the channel and team lists to claim
+        // once they can confirm the remembered value still exists. Dropped when
+        // the destination is gone, so a revoked Slack connection cannot leave a
+        // channel selected under a destination the user has to re-pick anyway.
+        pendingRecallRef.current =
+          remembered && nextDestination === remembered.destination
+            ? remembered
+            : null;
+        // The workspace is safe to apply now: it decides which channel list is
+        // fetched, so waiting would fetch the wrong workspace and refetch.
         if (remembered?.instance) setSlackInstance(remembered.instance);
       })
       .catch((error) => {
         if (cancelled) return;
         setAvailability(EMPTY_AVAILABILITY);
-        setDestination("copy");
+        // A failed check used to silently become a clipboard write. Now it
+        // surfaces the error and offers retry instead of quietly doing
+        // something the user did not pick.
+        setDestination(null);
         setConnectionsError(
           didTimeout
             ? "Connection check timed out."
@@ -387,20 +459,36 @@ export function ConnectedShareDialog({
           }));
         if (cancelled) return;
         setSlackInstances(instances);
-        setSlackInstance(instances[0]?.instance ?? DEFAULT_SLACK_INSTANCE);
+        // Keep the remembered workspace when it is still connected; a stale one
+        // falls back to the first rather than selecting nothing.
+        const recalled = claimRecalledInstance();
+        const stillConnected =
+          recalled !== null &&
+          instances.some(
+            (entry) => (entry.instance ?? DEFAULT_SLACK_INSTANCE) === recalled,
+          );
+        setSlackInstance(
+          stillConnected
+            ? recalled
+            : (instances[0]?.instance ?? DEFAULT_SLACK_INSTANCE),
+        );
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [availability.direct.slack, open]);
+  }, [availability.direct.slack, claimRecalledInstance, open]);
 
   useEffect(() => {
     if (!open || !availability.direct.slack || destination !== "slack") return;
     let cancelled = false;
     setSlackChannelsLoading(true);
     setSlackChannelsError(null);
-    setSlackTarget(SELF_SLACK_TARGET);
+    // Clear the selection while the list reloads, so a channel from the
+    // workspace being switched away from cannot stay selected. Held back when a
+    // recall is still pending: that one is applied below, once it can be
+    // checked against the channels that actually came back.
+    if (!pendingRecallRef.current?.target) setSlackTarget(SELF_SLACK_TARGET);
     const instanceQuery =
       slackInstance !== DEFAULT_SLACK_INSTANCE
         ? `&instance=${encodeURIComponent(slackInstance)}`
@@ -428,11 +516,27 @@ export function ConnectedShareDialog({
           })) as SlackChannel[];
       })
       .then((channels) => {
-        if (!cancelled) setSlackChannels(channels);
+        if (cancelled) return;
+        setSlackChannels(channels);
+        // A remembered channel is only restored once the list proves it is
+        // still there. A deleted or now-inaccessible channel falls back to the
+        // private self-send rather than sitting selected and failing on send.
+        const recalled = claimRecalledTarget("slack");
+        if (recalled) {
+          setSlackTarget(
+            channels.some((channel) => channel.id === recalled)
+              ? recalled
+              : SELF_SLACK_TARGET,
+          );
+        }
       })
       .catch((error) => {
         if (cancelled) return;
         setSlackChannels([]);
+        // The recall cannot be checked against a list that failed to load, so
+        // spend it and fall back rather than leaving a channel selected that
+        // may no longer exist.
+        if (claimRecalledTarget("slack")) setSlackTarget(SELF_SLACK_TARGET);
         setSlackChannelsError(
           error instanceof Error
             ? error.message
@@ -447,6 +551,7 @@ export function ConnectedShareDialog({
     };
   }, [
     availability.direct.slack,
+    claimRecalledTarget,
     destination,
     open,
     slackInstance,
@@ -476,7 +581,12 @@ export function ConnectedShareDialog({
       .then((teams) => {
         if (cancelled) return;
         setLinearTeams(teams);
-        setLinearTeamId(teams[0]?.id ?? "");
+        // Same rule as the Slack channel: the remembered team is used only if
+        // it is still in the list this account can see.
+        const recalled = claimRecalledTarget("linear");
+        const stillVisible =
+          recalled !== null && teams.some((team) => team.id === recalled);
+        setLinearTeamId(stillVisible ? recalled : (teams[0]?.id ?? ""));
       })
       .catch((error) => {
         if (cancelled) return;
@@ -494,7 +604,13 @@ export function ConnectedShareDialog({
     return () => {
       cancelled = true;
     };
-  }, [availability.direct.linear, destination, linearRefresh, open]);
+  }, [
+    availability.direct.linear,
+    claimRecalledTarget,
+    destination,
+    linearRefresh,
+    open,
+  ]);
 
   const setSectionChecked = (id: string, checked: boolean) => {
     const next = checked
@@ -540,20 +656,6 @@ export function ConnectedShareDialog({
         },
       }),
     );
-  };
-
-  const copy = async () => {
-    await commands.copyTextToClipboard(message);
-    setReceipt({
-      title: "copied",
-      detail: "The reviewed snapshot is on your clipboard.",
-    });
-    posthog.capture("connected_share_completed", {
-      surface: artifact.surface,
-      destination: "copy",
-      section_count: selectedSectionIds.length,
-    });
-    toast({ title: "copied snapshot" });
   };
 
   const sendToSlack = async () => {
@@ -636,7 +738,7 @@ export function ConnectedShareDialog({
   };
 
   const submit = async () => {
-    if (!outgoingMessage.trim() || sending) return;
+    if (!destination || !outgoingMessage.trim() || sending) return;
     setSending(true);
     setReceipt(null);
     setActionError(null);
@@ -646,7 +748,6 @@ export function ConnectedShareDialog({
       section_count: selectedSectionIds.length,
     });
     try {
-      if (destination === "copy") await copy();
       if (destination === "slack") await sendToSlack();
       if (destination === "linear") await sendToLinear();
       if (destination === "chat-linear") await prepareInChat("linear");
@@ -689,6 +790,7 @@ export function ConnectedShareDialog({
   };
 
   const canSubmit =
+    destination !== null &&
     outgoingMessage.trim().length > 0 &&
     outgoingMessage.length <= 39_000 &&
     selectedSectionIds.length > 0 &&
@@ -736,11 +838,6 @@ export function ConnectedShareDialog({
           },
         ]
       : []),
-    {
-      value: "copy" as Destination,
-      name: "Clipboard",
-      icon: <Copy className="h-4 w-4" />,
-    },
   ];
   const chatOptions: Array<{
     value: Destination;
@@ -767,11 +864,16 @@ export function ConnectedShareDialog({
       : []),
   ];
 
-  const currentOption =
-    [...directOptions, ...chatOptions].find(
-      (option) => option.value === destination,
-    ) ?? directOptions[directOptions.length - 1];
-  const currentIsChat = destination.startsWith("chat-");
+  const currentOption = [...directOptions, ...chatOptions].find(
+    (option) => option.value === destination,
+  );
+  const currentIsChat = destination?.startsWith("chat-") ?? false;
+  // "Nothing is connected" and "more than one thing is connected and you have
+  // not said which" are both `destination === null`, but they need opposite
+  // instructions. Telling someone to connect an app while Slack and Notion sit
+  // in the open menu below is the kind of wrong that erodes trust in the rest
+  // of the dialog.
+  const hasAnyDestination = directOptions.length + chatOptions.length > 0;
   // The second line of the destination row: which channel, team, or nothing.
   const currentTarget =
     destination === "slack"
@@ -783,18 +885,24 @@ export function ConnectedShareDialog({
           "choose a team")
         : currentIsChat
           ? "prepare a prompt in Chat"
-          : "this machine";
+          : hasAnyDestination
+            ? "choose where this goes"
+            : "connect an app to send";
 
+  // Every label is a send verb now. `copy snapshot` was the odd one out and it
+  // collided with the copy button on the same rule.
   const submitLabel =
-    destination === "copy"
-      ? "copy snapshot"
-      : destination === "slack"
-        ? "send to Slack"
-        : destination === "linear"
-          ? "create Linear issue"
-          : destination === "chat-linear"
-            ? "prepare Linear in Chat"
-            : "prepare Notion in Chat";
+    destination === "slack"
+      ? "send to Slack"
+      : destination === "linear"
+        ? "create Linear issue"
+        : destination === "chat-linear"
+          ? "prepare Linear in Chat"
+          : destination === "chat-notion"
+            ? "prepare Notion in Chat"
+            : hasAnyDestination
+              ? "choose a destination"
+              : "connect an app to send";
 
   const contentsSummary = `${
     selectedSectionIds.length === artifact.sections.length
@@ -838,7 +946,7 @@ export function ConnectedShareDialog({
                   connected apps could not be checked
                 </p>
                 <p className="mt-0.5 text-muted-foreground">
-                  {connectionsError} Clipboard still works.
+                  {connectionsError} Retry, or use copy on the rule above.
                 </p>
               </div>
             </div>
@@ -871,7 +979,7 @@ export function ConnectedShareDialog({
                   <span className="flex min-w-0 items-center gap-2">
                     {currentOption?.icon}
                     <span className="shrink-0 text-sm">
-                      {currentOption?.name}
+                      {currentOption?.name ?? "no destination"}
                     </span>
                     <span className="shrink-0 text-muted-foreground">·</span>
                     <span className="truncate text-xs text-muted-foreground">
@@ -956,8 +1064,9 @@ export function ConnectedShareDialog({
                 className="text-[11px] text-muted-foreground"
                 data-testid="connected-share-empty"
               >
-                Nothing is connected for sharing yet. Clipboard works now, or
-                connect an app for the next snapshot.
+                Nothing is connected for sharing yet. Connect an app to send
+                this snapshot, or use copy on the rule above to put it on your
+                clipboard.
               </p>
             )}
             {currentIsChat && (
@@ -1152,7 +1261,7 @@ export function ConnectedShareDialog({
           <SummaryRow
             label="message"
             value={
-              destination.startsWith("chat-")
+              currentIsChat
                 ? "what Chat will review"
                 : destination === "slack"
                   ? "Slack-formatted"
@@ -1292,7 +1401,7 @@ export function ConnectedShareDialog({
           >
             {sending ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : destination.startsWith("chat-") ? (
+            ) : currentIsChat ? (
               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
             ) : (
               <Send className="mr-1.5 h-3.5 w-3.5" />
