@@ -52,6 +52,7 @@ import { useSettings } from "@/lib/hooks/use-settings";
 import { pickPipePreset } from "@/lib/utils/pick-pipe-preset";
 import { cn } from "@/lib/utils";
 import { commands, type AIPreset } from "@/lib/utils/tauri";
+import { isLocalLearningMode } from "@/lib/local-learning-mode";
 
 const SUMMARY_CACHE_PREFIX = "screenpipe:timeline-daily-summary:pi-v2:";
 export const TIMELINE_DISMISS_TOP_OVERLAY_EVENT =
@@ -69,6 +70,20 @@ export function dailySummaryTimeRange(date: Date, now = new Date()) {
 	const end = isSameDay(date, now) && now < dayEnd ? now : dayEnd;
 
 	return { start: start.toISOString(), end: end.toISOString() };
+}
+
+export function pickDailySummaryPreset(
+	presets: AIPreset[] | null | undefined,
+): AIPreset | null {
+	if (!presets || presets.length === 0) return null;
+
+	// A user-selected default is an explicit choice and must win over the
+	// dedicated pipes preset. This matters for local/custom API setups, where
+	// the daily summary should use the same model the user chose for chat.
+	return (
+		presets.find((preset) => preset.defaultPreset && preset.provider !== "acp") ??
+		pickPipePreset(presets)
+	);
 }
 
 function readCachedSummary(date: Date): string {
@@ -155,10 +170,11 @@ export function TimelineDailySummary({
 	const panelRef = useRef<HTMLElement | null>(null);
 	const handledOpenRequestRef = useRef<number | undefined>(undefined);
 	const dateId = format(currentDate, "yyyy-MM-dd");
+	const localLearning = isLocalLearningMode();
 	const enhancedAI = settings?.enhancedAI ?? false;
 	const userToken = settings?.user?.token ?? "";
 	const dailySummaryPreset = useMemo(
-		() => pickPipePreset((settings?.aiPresets ?? []) as AIPreset[]),
+		() => pickDailySummaryPreset((settings?.aiPresets ?? []) as AIPreset[]),
 		[settings?.aiPresets],
 	);
 	const isGenerating = status === "gathering";
@@ -187,8 +203,8 @@ export function TimelineDailySummary({
 	}, [dateId]);
 
 	const generate = useCallback(
-		async (token = userToken) => {
-			if (!token) {
+		async (token = localLearning ? null : userToken) => {
+			if (!localLearning && !token) {
 				setEnableDialogOpen(true);
 				return;
 			}
@@ -264,7 +280,7 @@ export function TimelineDailySummary({
 				});
 			}
 		},
-		[currentDate, dailySummaryPreset, dateId, userToken],
+		[currentDate, dailySummaryPreset, dateId, localLearning, userToken],
 	);
 
 	const handleTriggerClick = useCallback(() => {
@@ -285,7 +301,7 @@ export function TimelineDailySummary({
 			return;
 		}
 
-		if (!enhancedAI || !userToken) {
+		if (!localLearning && (!enhancedAI || !userToken)) {
 			setEnableDialogOpen(true);
 			posthog.capture("timeline_daily_summary_enable_prompt_opened", {
 				selected_date: dateId,
@@ -300,7 +316,16 @@ export function TimelineDailySummary({
 		}
 
 		void generate();
-	}, [currentDate, dateId, enhancedAI, generate, isGenerating, summary, userToken]);
+	}, [
+		currentDate,
+		dateId,
+		enhancedAI,
+		generate,
+		isGenerating,
+		localLearning,
+		summary,
+		userToken,
+	]);
 
 	useEffect(() => {
 		if (
@@ -313,6 +338,12 @@ export function TimelineDailySummary({
 	}, [handleTriggerClick, openRequest]);
 
 	const handleEnableAndGenerate = async () => {
+		if (localLearning) {
+			setEnableDialogOpen(false);
+			await generate(null);
+			return;
+		}
+
 		if (!userToken) {
 			setEnableDialogOpen(false);
 			await commands.showWindow({ Home: { page: "account" } });
@@ -406,7 +437,7 @@ export function TimelineDailySummary({
 	};
 
 	const retryGeneration = () => {
-		if (!enhancedAI) {
+		if (!localLearning && !enhancedAI) {
 			setPanelOpen(false);
 			setEnableDialogOpen(true);
 			return;
@@ -416,7 +447,7 @@ export function TimelineDailySummary({
 
 	const tooltipText = summary
 		? "Open this day's summary"
-		: !enhancedAI
+		: !localLearning && !enhancedAI
 			? "Turn on Enhanced AI to generate a summary for this day"
 			: isGenerating
 				? "Generating this day's summary"

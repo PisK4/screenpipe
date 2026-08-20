@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	dailySummaryCacheKey,
 	dailySummaryTimeRange,
+	pickDailySummaryPreset,
 	presentGenerationError,
 	TIMELINE_DISMISS_TOP_OVERLAY_EVENT,
 	TimelineDailySummary,
@@ -98,6 +99,19 @@ vi.mock("@/components/markdown", () => ({
 }));
 
 describe("daily summary helpers", () => {
+	it("prefers an explicit default preset over the dedicated pipes preset", () => {
+		const custom = {
+			...PIPE_PRESET,
+			id: "custom",
+			provider: "custom" as const,
+			url: "http://127.0.0.1:8787/v1",
+			model: "local-model",
+			defaultPreset: true,
+		};
+
+		expect(pickDailySummaryPreset([PIPE_PRESET, custom])).toEqual(custom);
+	});
+
 	it("versions cached summaries with the parsed-first prompt", () => {
 		expect(dailySummaryCacheKey(new Date(2026, 6, 25))).toBe(
 			"screenpipe:timeline-daily-summary:pi-v2:2026-07-25",
@@ -338,6 +352,37 @@ describe("TimelineDailySummary", () => {
 				runtime: "pi-agent",
 				model: "auto",
 				format_valid: true,
+			}),
+		);
+	});
+
+	it("runs a local default preset without login or Enhanced AI", async () => {
+		vi.stubEnv("NEXT_PUBLIC_SCREENPIPE_LOCAL_LEARNING", "true");
+		const selectedDate = new Date(2026, 6, 25);
+		const custom = {
+			...PIPE_PRESET,
+			id: "custom",
+			provider: "custom" as const,
+			url: "http://127.0.0.1:8787/v1",
+			model: "local-model",
+			defaultPreset: true,
+		};
+		mocks.settings.enhancedAI = false;
+		mocks.settings.user = null;
+		mocks.settings.aiPresets = [PIPE_PRESET, custom];
+
+		render(<TimelineDailySummary currentDate={selectedDate} />);
+		fireEvent.click(screen.getByTestId("timeline-daily-summary-trigger"));
+
+		await waitFor(() => {
+			expect(screen.getByText(/focused implementation session/i)).toBeInTheDocument();
+		});
+		expect(mocks.showWindow).not.toHaveBeenCalled();
+		expect(mocks.setEnhancedAiSuggestions).not.toHaveBeenCalled();
+		expect(mocks.runDailySummaryWithPi).toHaveBeenCalledWith(
+			expect.objectContaining({
+				preset: custom,
+				userToken: null,
 			}),
 		);
 	});
