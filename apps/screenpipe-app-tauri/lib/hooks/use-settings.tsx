@@ -57,6 +57,7 @@ import {
 	DEFAULT_SIDEBAR_NAV_LAYOUT,
 	type SidebarNavLayout,
 } from "@/lib/utils/sidebar-nav-layout";
+import { isLocalLearningMode } from "@/lib/local-learning-mode";
 export type VadSensitivity = "low" | "medium" | "high";
 
 export type AIProviderType =
@@ -107,6 +108,7 @@ export type AIPreset = {
 	  }
 	| {
 			provider: "native-ollama";
+			apiKey?: string;
 	  }
 	| {
 			provider: "screenpipe-cloud";
@@ -598,6 +600,20 @@ const PIPES_PRESET_ID = "pipes";
 const SCREENPIPE_PRESET_ID = "screenpipe";
 
 export function makeDefaultPresets(isPro: boolean): AIPreset[] {
+	if (isLocalLearningMode()) {
+		return [
+			{
+				id: "local",
+				provider: "native-ollama",
+				url: "http://localhost:11434/v1",
+				model: "qwen3.5:9b",
+				apiKey: "",
+				maxContextChars: 200000,
+				defaultPreset: true,
+				prompt: "",
+			},
+		];
+	}
 	if (isPro) {
 		return [
 			{
@@ -714,7 +730,7 @@ let DEFAULT_SETTINGS: Settings = {
 			ignoredMeetingApps: [],
 			teamFilters: { ignoredWindows: [], includedWindows: [], ignoredUrls: [] },
 
-			analyticsEnabled: true,
+			analyticsEnabled: !isLocalLearningMode(),
 			remoteLogCollectionEnabled: false,
 			remoteLogCollectionUserId: null,
 			audioChunkDuration: 30,
@@ -1213,7 +1229,12 @@ function createSettingsStore() {
 		const hasCloudPreset = settings.aiPresets?.some(
 			(p: any) => p.id === "screenpipe-cloud" || p.provider === "screenpipe-cloud"
 		);
-		if (settings.aiPresets && settings.aiPresets.length > 0 && !hasCloudPreset) {
+		if (
+			!isLocalLearningMode() &&
+			settings.aiPresets &&
+			settings.aiPresets.length > 0 &&
+			!hasCloudPreset
+		) {
 			// Only set as default if no other preset is already default
 			const hasDefault = settings.aiPresets.some((p: any) => p.defaultPreset);
 			const cloudPreset = { ...DEFAULT_CLOUD_PRESET, defaultPreset: !hasDefault };
@@ -1549,6 +1570,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 	const authGenerationRef = useRef(0);
 
 	useEffect(() => {
+		if (isLocalLearningMode()) return;
 		installAuthInterceptor(
 			() => settingsRef.current.user?.token ?? undefined,
 			async () => {
@@ -1587,6 +1609,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 	// Retries with exponential backoff so transient network failures don't
 	// leave the user stuck on a stale tier for the entire session.
 	useEffect(() => {
+		if (isLocalLearningMode()) return;
 		if (!isSettingsLoaded) return;
 		const token = settings.user?.token;
 		if (!token) return;
@@ -1631,6 +1654,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 	// desktop-app profile. Before switching, alias the machine analyticsId to
 	// the clerk_id so prior anonymous app events also merge forward.
 	useEffect(() => {
+		if (isLocalLearningMode()) return;
 		if (!settings.analyticsId) return;
 
 		// Cache the stable per-install id so posthog.init() in providers.tsx can

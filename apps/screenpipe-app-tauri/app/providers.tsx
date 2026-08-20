@@ -25,6 +25,7 @@ import { resolveTelemetryDisabledByEnv } from "@/lib/telemetry-env";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
 import { DesktopRemoteControl } from "@/components/desktop-remote-control";
+import { isLocalLearningMode } from "@/lib/local-learning-mode";
 
 /// Global mount point for the updater event listener. Lives here (not in
 /// per-page hooks) so the listener is registered for the lifetime of the
@@ -35,6 +36,10 @@ import { DesktopRemoteControl } from "@/components/desktop-remote-control";
 function UpdateListenerMount() {
   useUpdateListener();
   return null;
+}
+
+function AuthBoundary({ children }: { children: React.ReactNode }) {
+  return isLocalLearningMode() ? <>{children}</> : <AuthGuard>{children}</AuthGuard>;
 }
 
 export const Providers = forwardRef<
@@ -70,6 +75,10 @@ export const Providers = forwardRef<
   useEffect(() => {
     if (typeof window !== "undefined") {
       const isDebug = process.env.TAURI_ENV_DEBUG === "true";
+      // The local learning edition must not initialize PostHog at all. This
+      // is stronger than opting out after init: no client queue, identity
+      // bootstrap, or outbound telemetry request is created.
+      if (isLocalLearningMode()) return;
       // Skip in E2E too: the suite runs a release-like build, so posthog would
       // otherwise init, load the live `app-announcement` flag, and pop a modal
       // over every spec (clean localStorage each run = empty dismissed-set) —
@@ -129,7 +138,7 @@ export const Providers = forwardRef<
           <QueryClientProvider client={queryClient}>
             <SettingsProvider>
               <ManagedPolicyProvider>
-                <AuthGuard>
+                <AuthBoundary>
                   <ThemeProvider
                     defaultTheme="system"
                     storageKey="screenpipe-ui-theme"
@@ -150,7 +159,7 @@ export const Providers = forwardRef<
                       </PermissionMonitorProvider>
                     </ChangelogDialogProvider>
                   </ThemeProvider>
-                </AuthGuard>
+                </AuthBoundary>
               </ManagedPolicyProvider>
             </SettingsProvider>
           </QueryClientProvider>

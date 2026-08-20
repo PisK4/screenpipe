@@ -5,6 +5,11 @@
 import "@testing-library/jest-dom/vitest";
 import { JSDOM } from "jsdom";
 
+// Keep the existing hosted-account unit fixtures explicit. Production and
+// packaged builds default to local learning; individual tests can opt into it
+// with vi.stubEnv("NEXT_PUBLIC_SCREENPIPE_LOCAL_LEARNING", "true").
+process.env.NEXT_PUBLIC_SCREENPIPE_LOCAL_LEARNING = "false";
+
 class ResizeObserverMock implements ResizeObserver {
   observe() {}
   unobserve() {}

@@ -144,6 +144,12 @@ fn recording_access_policy(
 /// Enterprise builds keep their native entitlement guard, and consumer builds
 /// still reject accounts that are required to use an enterprise binary.
 pub(crate) fn recording_access_allowed(store: &SettingsStore) -> bool {
+    // The local learning edition owns its capture data locally and must not
+    // require a cloud account. Enterprise builds deliberately keep their
+    // separate native policy even though Cargo defaults include this feature.
+    if cfg!(feature = "local-learning") && !cfg!(feature = "enterprise-build") {
+        return true;
+    }
     recording_access_policy(
         cfg!(feature = "enterprise-build"),
         cfg!(debug_assertions),

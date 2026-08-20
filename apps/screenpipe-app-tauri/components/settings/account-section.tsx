@@ -70,6 +70,7 @@ import {
   isLegacySyncKeyMismatch,
   SyncKeyRecovery,
 } from "./sync-key-recovery";
+import { isLocalLearningMode } from "@/lib/local-learning-mode";
 
 const ACCOUNT_URL = screenpipeWebUrl("/account", "https://screenpipe.com");
 const BILLING_URL = screenpipeWebUrl("/account/billing", "https://screenpipe.com");
@@ -137,7 +138,7 @@ function syncErrorDescription(e: unknown): string {
   return msg;
 }
 
-export function AccountSection() {
+function CloudAccountSection() {
   const { settings, updateSettings, loadUser } = useSettings();
   const { isServerDown } = useHealthCheck();
   const [pipeSyncing, setPipeSyncing] = useState(false);
@@ -937,4 +938,9 @@ export function AccountSection() {
       )}
     </div>
   );
+}
+
+export function AccountSection() {
+  if (isLocalLearningMode()) return null;
+  return <CloudAccountSection />;
 }

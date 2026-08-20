@@ -13,6 +13,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useSettings } from "@/lib/hooks/use-settings";
 import { commands } from "@/lib/utils/tauri";
 import { screenpipeWebUrl } from "@/lib/web-url";
+import { isLocalLearningMode } from "@/lib/local-learning-mode";
 
 interface ReferralData {
   code: string;
@@ -22,7 +23,7 @@ interface ReferralData {
   maxRedemptions: number;
 }
 
-export function ReferralCard() {
+function CloudReferralCard() {
   const { settings } = useSettings();
   const [referral, setReferral] = useState<ReferralData | null>(null);
   const [noCode, setNoCode] = useState(false);
@@ -299,4 +300,9 @@ export function ReferralCard() {
       </div>
     </Card>
   );
+}
+
+export function ReferralCard() {
+  if (isLocalLearningMode()) return null;
+  return <CloudReferralCard />;
 }

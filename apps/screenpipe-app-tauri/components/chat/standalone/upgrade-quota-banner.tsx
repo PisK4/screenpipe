@@ -18,6 +18,7 @@ import { clearQuotaUpgrade, useQuotaUpgrade } from "@/lib/chat/quota-upgrade";
 import { openExternalUrl } from "@/lib/open-external-url";
 import { openBusinessUpgradeSurface } from "@/lib/upgrade-flow";
 import { quotaPlanLabel } from "@/lib/chat/quota-errors";
+import { isLocalLearningMode } from "@/lib/local-learning-mode";
 
 
 /**
@@ -55,6 +56,8 @@ export function UpgradeQuotaBanner() {
     ? usage?.hosted_ai?.upgrade ?? null
     : null;
   const serverBlocked = cloudflareBlocked || legacyCostBlocked;
+
+  if (isLocalLearningMode()) return null;
 
   if (!blockedUpgrade) {
     if (dismissed) return null;

@@ -347,9 +347,22 @@ describe("Ollama preflight", () => {
     );
 
     await expect(
-      preflightChatProvider({ provider: "native-ollama", model: "GEMMA4:31B" }, fetcher)
+      preflightChatProvider(
+        {
+          provider: "native-ollama",
+          url: "http://127.0.0.1:11434/v1",
+          model: "GEMMA4:31B",
+          apiKey: "local-server-secret",
+        },
+        fetcher,
+      )
     ).resolves.toEqual({ ok: true });
-    expect(fetcher).toHaveBeenCalledWith("http://localhost:11434/api/tags", expect.any(Object));
+    expect(fetcher).toHaveBeenCalledWith(
+      "http://127.0.0.1:11434/api/tags",
+      expect.objectContaining({
+        headers: { Authorization: "Bearer local-server-secret" },
+      }),
+    );
   });
 
   it("fails before Pi when the selected local model is missing", async () => {

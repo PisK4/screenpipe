@@ -21,6 +21,7 @@ import { commands } from "@/lib/utils/tauri";
 import { onboardingFunnel } from "@/lib/analytics/onboarding-funnel";
 import type { AppUser } from "@/lib/app-entitlement";
 import { readOnboardingCheckoutStatus } from "@/lib/onboarding-checkout-navigation";
+import { isLocalLearningMode } from "@/lib/local-learning-mode";
 
 type SlideKey =
   "login" | "acquisition" | "permissions" | "timeline" | "engine" | "plan";
@@ -115,7 +116,133 @@ const applyOnboardingWindowSize = async () => {
   }
 };
 
-export default function OnboardingPage() {
+function LocalLearningOnboarding() {
+  const { onboardingData, isLoading, loadOnboardingStatus, completeOnboarding } =
+    useOnboarding();
+  const { settings, isSettingsLoaded } = useSettings();
+  const [currentSlide, setCurrentSlide] = useState<string>("permissions");
+  const [isVisible, setIsVisible] = useState(true);
+  const [permissionsProgress, setPermissionsProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+  const transitioningRef = React.useRef(false);
+  const timelineChoiceVisible = settings.deviceTier === "low";
+  const visibleOrder: string[] = useMemo(
+    () =>
+      timelineChoiceVisible
+        ? ["permissions", "timeline", "engine"]
+        : ["permissions", "engine"],
+    [timelineChoiceVisible],
+  );
+
+  useEffect(() => {
+    if (!isSettingsLoaded) return;
+    let cancelled = false;
+    void (async () => {
+      await loadOnboardingStatus();
+      if (cancelled) return;
+      const savedStep = useOnboarding.getState().onboardingData.currentStep;
+      const savedSlide =
+        savedStep === "timeline" && timelineChoiceVisible
+          ? "timeline"
+          : savedStep === "engine"
+            ? "engine"
+            : "permissions";
+      setCurrentSlide(savedSlide);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSettingsLoaded, loadOnboardingStatus, timelineChoiceVisible]);
+
+  useEffect(() => {
+    if (!onboardingData.isCompleted) return;
+    commands
+      .showWindow({ Home: { page: "brain" } })
+      .then(() => window.close())
+      .catch(() => {});
+  }, [onboardingData.isCompleted]);
+
+  useEffect(() => {
+    void applyOnboardingWindowSize();
+  }, []);
+
+  const handlePermissionsProgress = useCallback(
+    (done: number, total: number) => setPermissionsProgress({ done, total }),
+    [],
+  );
+
+  const handleNextSlide = useCallback(async () => {
+    if (transitioningRef.current) return;
+    transitioningRef.current = true;
+
+    const currentIndex = (visibleOrder as readonly string[]).indexOf(currentSlide);
+    const nextSlide = visibleOrder[currentIndex + 1];
+    if (!nextSlide) {
+      await completeOnboarding({ method: "setup_finished" });
+      transitioningRef.current = false;
+      return;
+    }
+
+    try {
+      await commands.setOnboardingStep(nextSlide);
+    } catch {
+      // The in-memory state is enough to finish this run if persistence is
+      // unavailable; the next launch will resume from the prior step.
+    }
+    setIsVisible(false);
+    setTimeout(() => {
+      setCurrentSlide(nextSlide);
+      setIsVisible(true);
+      transitioningRef.current = false;
+    }, 300);
+  }, [completeOnboarding, currentSlide, visibleOrder]);
+
+  if (isLoading || !isSettingsLoaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="h-6 w-6 animate-spin rounded-full border border-foreground border-t-transparent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-background">
+      <div className="w-full bg-background p-3" data-tauri-drag-region />
+      <div
+        data-testid="onboarding-scroll-region"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-6"
+      >
+        <div
+          className={`mx-auto flex min-h-full w-full max-w-lg flex-col justify-center transition-opacity duration-300 ${
+            isVisible ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          <EndowedProgress
+            step={Math.max(1, visibleOrder.indexOf(currentSlide) + 1)}
+            total={visibleOrder.length}
+            sub={currentSlide === "permissions" ? permissionsProgress : null}
+          />
+          {currentSlide === "permissions" && (
+            <PermissionsStep
+              handleNextSlide={handleNextSlide}
+              onProgressChange={handlePermissionsProgress}
+            />
+          )}
+          {currentSlide === "timeline" && (
+            <TimelineChoice handleNextSlide={handleNextSlide} />
+          )}
+          {currentSlide === "engine" && (
+            <EngineStartup handleNextSlide={handleNextSlide} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HostedOnboardingPage() {
   const { toast } = useToast();
   const [checkoutReturnStatus] = useState(() =>
     typeof window === "undefined"
@@ -574,4 +701,8 @@ export default function OnboardingPage() {
       </div>
     </div>
   );
+}
+
+export default function OnboardingPage() {
+  return isLocalLearningMode() ? <LocalLearningOnboarding /> : <HostedOnboardingPage />;
 }

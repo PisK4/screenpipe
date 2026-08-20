@@ -6,6 +6,36 @@ import { describe, expect, it, vi } from "vitest";
 import { testAiPresetConnection } from "./ai-preset-connection";
 
 describe("testAiPresetConnection", () => {
+  it("uses a custom Ollama endpoint and optional API key", async () => {
+    const request = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: "hi" } }] }),
+        { status: 200 },
+      ));
+
+    await expect(
+      testAiPresetConnection(
+        {
+          provider: "native-ollama",
+          url: "http://127.0.0.1:11434/v1",
+          model: "qwen3.5:9b",
+          apiKey: "local-server-secret",
+        },
+        { fetch: request },
+      ),
+    ).resolves.toMatchObject({ reply: "hi" });
+
+    expect(request).toHaveBeenCalledWith(
+      "http://127.0.0.1:11434/v1/chat/completions",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer local-server-secret",
+        }),
+      }),
+    );
+  });
+
   it("tests the exact custom model against its chat endpoint", async () => {
     const request = vi.fn(async () =>
       new Response(

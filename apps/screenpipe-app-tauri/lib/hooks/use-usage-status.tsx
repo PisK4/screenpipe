@@ -10,6 +10,7 @@ import {
   validateQuotaUpgradeAction,
   type QuotaUpgradeAction,
 } from "@/lib/chat/quota-errors";
+import { isLocalLearningMode } from "@/lib/local-learning-mode";
 
 /**
  * Daily quota snapshot from the ai-proxy worker's /v1/usage endpoint.
@@ -193,18 +194,20 @@ export function useUsageStatusQuery(): UsageStatusQuery {
   const query = useQuery({
     queryKey: ["hosted-ai-usage", requestKey],
     queryFn: () => fetchUsageStatus(token ?? undefined),
-    enabled: requestKey !== null,
+    enabled: requestKey !== null && !isLocalLearningMode(),
     refetchInterval: POLL_INTERVAL_MS,
     retry: false,
   });
 
   return {
     usage: query.data ?? null,
-    isLoading: requestKey !== null && query.isLoading,
-    isRefreshing: query.isFetching && query.data !== undefined,
-    isUnavailable: query.isError && query.data === undefined,
+    isLoading: !isLocalLearningMode() && requestKey !== null && query.isLoading,
+    isRefreshing:
+      !isLocalLearningMode() && query.isFetching && query.data !== undefined,
+    isUnavailable:
+      !isLocalLearningMode() && query.isError && query.data === undefined,
     refresh: async () => {
-      await query.refetch();
+      if (!isLocalLearningMode()) await query.refetch();
     },
   };
 }

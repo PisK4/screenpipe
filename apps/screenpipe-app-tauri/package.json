@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 1420",
+    "dev:enterprise": "bun scripts/dev-enterprise.ts",
     "dev:web": "bun scripts/dev-web.ts mock",
     "dev:web:live": "bun scripts/dev-web.ts live",
     "dev:tauri": "bun scripts/native-build-queue.ts dev",

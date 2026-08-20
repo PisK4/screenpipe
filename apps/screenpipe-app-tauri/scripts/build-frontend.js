@@ -32,6 +32,10 @@ import fs from 'fs/promises'
 import os from 'os'
 import path from 'path'
 
+if (process.argv.includes('--enterprise')) {
+	process.env.NEXT_PUBLIC_SCREENPIPE_LOCAL_LEARNING = 'false'
+}
+
 const appRoot = path.resolve(__dirname, '..')
 const outDir = path.join(appRoot, 'out')
 

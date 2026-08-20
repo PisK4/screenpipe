@@ -36,6 +36,7 @@ import { useManagedPolicy } from "@/lib/hooks/use-managed-policy";
 import { isPrimaryWindow } from "@/lib/utils/is-primary-window";
 import { commands } from "@/lib/utils/tauri";
 import { EnterpriseLicensePrompt } from "@/components/enterprise-license-prompt";
+import { isLocalLearningMode } from "@/lib/local-learning-mode";
 
 const E2E_ACCOUNT_USER_KEY = "screenpipe_e2e_account_user";
 const E2E_ACCOUNT_USER_EVENT = "screenpipe-e2e-seed-account-user";
@@ -99,7 +100,7 @@ function EntitlementShell({
   );
 }
 
-export function AppEntitlementGate({
+function CloudEntitlementGate({
   children,
 }: {
   children: React.ReactNode;
@@ -913,4 +914,18 @@ export function AppEntitlementGate({
       {devLoginBlock}
     </EntitlementShell>
   );
+}
+
+/**
+ * Local capture is a product capability, not an account entitlement. Keep the
+ * hosted gate available for the hosted build, but make the local learning
+ * edition render the app shell immediately and never stop its recorder.
+ */
+export function AppEntitlementGate({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  if (isLocalLearningMode()) return <>{children}</>;
+  return <CloudEntitlementGate>{children}</CloudEntitlementGate>;
 }

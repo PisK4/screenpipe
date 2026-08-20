@@ -282,7 +282,7 @@ futures-channel = "0.3.30"
 lazy_static = "1.5.0"
 
 [features]
-default = ["custom-protocol", "qwen3-asr", "parakeet"]
+default = ["custom-protocol", "qwen3-asr", "parakeet", "local-learning"]
 metal = ["screenpipe-audio/metal"]
 pulseaudio = ["screenpipe-audio/pulseaudio"]
 directml = ["screenpipe-engine/directml"]
@@ -296,6 +296,10 @@ custom-protocol = ["tauri/custom-protocol"]
 # Set by GitHub Actions release workflow - enables auto-updates
 # Source builds without this flag will show "auto-updates unavailable"
 official-build = []
+
+# Local learning edition: no account or subscription is required to start
+# local capture. Enterprise builds keep their separate native entitlement gate.
+local-learning = []
 
 # Enterprise build: updates are policy-managed (Intune/MDM or Screenpipe),
 # tauri.enterprise

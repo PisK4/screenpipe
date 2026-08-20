@@ -6,6 +6,7 @@ type ProviderLike = {
   provider?: string | null;
   url?: string | null;
   model?: string | null;
+  apiKey?: string | null;
   /** Display name of the ACP agent, so a refusal names it instead of saying
    *  "the agent". Absent for non-ACP presets. */
   agentName?: string | null;
@@ -402,6 +403,9 @@ export async function preflightChatProvider(
 
   try {
     const response = await fetcher(`${baseUrl}/api/tags`, {
+      headers: preset?.apiKey
+        ? { Authorization: `Bearer ${preset.apiKey}` }
+        : undefined,
       signal: controller?.signal,
     });
     if (!response.ok) {

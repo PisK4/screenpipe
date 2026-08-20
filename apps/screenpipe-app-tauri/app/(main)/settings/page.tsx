@@ -96,6 +96,7 @@ const ALL_SETTINGS_FIELDS: IndexedSettingsField[] = [
 import { useManagedPolicy } from "@/lib/hooks/use-managed-policy";
 import { usePlatform } from "@/lib/hooks/use-platform";
 import posthog from "posthog-js";
+import { isLocalLearningMode } from "@/lib/local-learning-mode";
 
 /**
  * Nav layout revision, stamped onto `settings_viewed`.
@@ -121,12 +122,16 @@ function SettingsContent() {
   // macOS TCC recovery only. Non-mac must not see the nav item, search hits,
   // or deep-link content. System Settings permissions are not a Windows/Linux surface.
   const showPermissions = isMac;
+  const localLearning = isLocalLearningMode();
 
   // `ai-settings` shares the legacy `ai` policy key so existing managed
   // deployments that hide AI continue to hide both destinations.
   const isSettingsSectionHidden = useCallback(
     (sectionId: SettingsSection) => {
       if (sectionId === "permissions" && !showPermissions) return true;
+      if (localLearning && ["account", "team", "referral"].includes(sectionId)) {
+        return true;
+      }
       const policySection = sectionId === "ai-settings"
         ? "ai"
         : sectionId === "audio"
@@ -134,7 +139,7 @@ function SettingsContent() {
           : sectionId;
       return isSectionHidden(policySection);
     },
-    [isSectionHidden, showPermissions],
+    [isSectionHidden, localLearning, showPermissions],
   );
 
   // Static default, not the remembered section: callers pass an explicit
@@ -213,10 +218,12 @@ function SettingsContent() {
         // org-managed; the desktop has nothing to manage. Admins use the
         // /enterprise dashboard on the web. On consumer builds we still
         // surface Team as a marketing entry point to /team.
-        ...(isManagedDeployment
+        ...(isManagedDeployment || localLearning
           ? []
           : [{ id: "team" as const, label: "Team", icon: <Users className="h-4 w-4" /> }]),
-        { id: "referral" as const, label: "Get free month", icon: <Gift className="h-4 w-4" /> },
+        ...(!localLearning
+          ? [{ id: "referral" as const, label: "Get free month", icon: <Gift className="h-4 w-4" /> }]
+          : []),
       ].filter((s) => !isSectionHidden(s.id)),
     },
     {
@@ -251,7 +258,19 @@ function SettingsContent() {
   const searchableFields = showPermissions
     ? ALL_SETTINGS_FIELDS
     : ALL_SETTINGS_FIELDS.filter((f) => f.section !== "permissions");
-  const results = searchSettingsNav(searchQuery, flatItems, searchableFields);
+  const visibleSearchableFields = localLearning
+    ? searchableFields.filter(
+        (field) =>
+          field.section !== "account" &&
+          field.section !== "team" &&
+          field.section !== "referral",
+      )
+    : searchableFields;
+  const results = searchSettingsNav(
+    searchQuery,
+    flatItems,
+    visibleSearchableFields,
+  );
 
   useEffect(() => {
     posthog.capture("settings_viewed", {

@@ -174,6 +174,17 @@ describe("BYOK connection validation", () => {
     ).toEqual({ url: "Please enter a valid URL" });
   });
 
+  it("allows an optional Ollama API key", () => {
+    expect(
+      validateAiPresetConnectionFields({
+        provider: "native-ollama",
+        url: "http://127.0.0.1:11434/v1",
+        model: "qwen3.5:9b",
+        apiKey: "local-server-secret",
+      }),
+    ).toEqual({});
+  });
+
   it("fingerprints only fields that change the provider connection", () => {
     const base = {
       provider: "custom" as const,

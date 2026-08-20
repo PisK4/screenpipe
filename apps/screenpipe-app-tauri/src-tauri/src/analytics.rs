@@ -514,6 +514,7 @@ pub fn start_analytics(
     // CI / automation (GitHub Actions, etc. — see
     // screenpipe_engine::analytics::telemetry_disabled_by_env).
     let should_enable_analytics = analytics_enabled
+        && !(cfg!(feature = "local-learning") && !cfg!(feature = "enterprise-build"))
         && !is_debug
         && !cfg!(debug_assertions)
         && !screenpipe_engine::analytics::telemetry_disabled_by_env();

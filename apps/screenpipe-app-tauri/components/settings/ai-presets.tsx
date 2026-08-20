@@ -149,6 +149,7 @@ import {
   ollamaContextWindowFromShow,
   resolveModelLimits,
 } from "@/lib/model-metadata";
+import { normalizeOllamaBaseUrl } from "@/lib/chat/provider-errors";
 
 // Helper to detect UUID-like strings and format preset names nicely
 const formatPresetName = (name: string): string => {
@@ -607,7 +608,11 @@ const AISection = ({
         newUrl = "https://api.openai.com/v1";
         break;
       case "native-ollama":
-        newUrl = "http://localhost:11434/v1";
+        newUrl =
+          settingsPreset?.provider === "custom" ||
+          settingsPreset?.provider === "native-ollama"
+            ? settingsPreset.url || "http://localhost:11434/v1"
+            : "http://localhost:11434/v1";
         break;
       case "custom":
         newUrl = settingsPreset?.url || "";
@@ -738,12 +743,15 @@ const AISection = ({
   useEffect(() => {
     if (settingsPreset?.provider !== "native-ollama" || !settingsPreset.model) return;
     let cancelled = false;
-    const ollamaBaseUrl = (settingsPreset.url || "http://localhost:11434/v1")
-      .replace(/\/v1\/?$/, "")
-      .replace(/\/$/, "");
+    const ollamaBaseUrl = normalizeOllamaBaseUrl(settingsPreset.url);
     void tauriFetchWithDeadline(`${ollamaBaseUrl}/api/show`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(settingsPreset.apiKey
+          ? { Authorization: `Bearer ${settingsPreset.apiKey}` }
+          : {}),
+      },
       body: JSON.stringify({ model: settingsPreset.model }),
     }).then(async (response) => {
       if (!response.ok || cancelled) return;
@@ -804,7 +812,7 @@ const AISection = ({
     const isAnthropic = settingsPreset?.provider === "anthropic";
     let modelsUrl: string;
     if (settingsPreset?.provider === "native-ollama") {
-      modelsUrl = "http://localhost:11434/api/tags";
+      modelsUrl = `${normalizeOllamaBaseUrl(settingsPreset.url)}/api/tags`;
     } else if (settingsPreset?.provider === "openai" || settingsPreset?.provider === "openai-chatgpt") {
       modelsUrl = "https://api.openai.com/v1/models";
     } else if (isAnthropic) {
@@ -1065,7 +1073,14 @@ const AISection = ({
           // Use native HTTP (Rust-side) — a browser fetch from the
           // tauri://localhost webview to http://localhost:11434 is blocked by
           // WKWebView (mixed-content / cross-origin), leaving the model list empty.
-          const ollamaResponse = await tauriFetchWithDeadline("http://localhost:11434/api/tags");
+          const ollamaResponse = await tauriFetchWithDeadline(
+            `${normalizeOllamaBaseUrl(settingsPreset.url)}/api/tags`,
+            {
+              headers: settingsPreset.apiKey
+                ? { Authorization: `Bearer ${settingsPreset.apiKey}` }
+                : {},
+            },
+          );
           if (!ollamaResponse.ok)
             throw new Error("Failed to fetch Ollama models");
           const ollamaData = (await ollamaResponse.json()) as {
@@ -1452,21 +1467,21 @@ const AISection = ({
         />
       )}
 
-      {settingsPreset?.provider === "custom" && (
+      {(settingsPreset?.provider === "custom" || settingsPreset?.provider === "native-ollama") && (
         <ValidatedInput
           id="customAiUrl"
-          label="Custom URL"
+          label={settingsPreset?.provider === "native-ollama" ? "Ollama Base URL" : "Custom URL"}
           value={settingsPreset?.url || ""}
-          onChange={(value, isValid) => updateSettingsPreset({ url: value })}
-          validation={(value) => validateAiProviderUrl(value, "custom")}
+          onChange={(value) => updateSettingsPreset({ url: value })}
+          validation={(value) => validateAiProviderUrl(value, settingsPreset?.provider)}
           placeholder="e.g. https://integrate.api.nvidia.com/v1 or http://localhost:11434/v1"
           required={true}
-          helperText={formErrors.url || "Base URL before /models and /chat/completions. Examples: Gemini https://generativelanguage.googleapis.com/v1beta/openai, NVIDIA NIM https://integrate.api.nvidia.com/v1, Ollama http://localhost:11434/v1"}
+          helperText={formErrors.url || "Base URL before /models and /chat/completions. Examples: Ollama http://localhost:11434/v1 or a compatible local/server endpoint."}
         />
       )}
 
 
-      {(settingsPreset?.provider === "anthropic" || settingsPreset?.provider === "custom" || (apiKeyRequired &&
+      {(settingsPreset?.provider === "anthropic" || settingsPreset?.provider === "custom" || settingsPreset?.provider === "native-ollama" || (apiKeyRequired &&
         settingsPreset?.provider === "openai")) && (
           <div className="w-full">
             <div className="flex flex-col gap-4 mb-4 w-full">

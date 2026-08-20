@@ -477,6 +477,12 @@ async fn main() {
     // the focus port. No-op in release builds. See `dev_isolation`.
     dev_isolation::apply();
 
+    // Local learning builds are fully offline by default. Set the shared
+    // engine guard before any server, capture, or analytics component can
+    // initialize so lower-level telemetry paths are disabled as well.
+    #[cfg(all(feature = "local-learning", not(feature = "enterprise-build")))]
+    std::env::set_var("SCREENPIPE_DISABLE_TELEMETRY", "1");
+
     #[cfg(target_os = "linux")]
     linux_webkit_env::configure();
 

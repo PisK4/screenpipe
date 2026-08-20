@@ -209,6 +209,9 @@ async function perform(mode: BuildMode, args: string[]): Promise<number> {
   }
 
   const env = localSccacheEnvironment();
+  // Consumer packages are the local learning edition by default. Hosted
+  // account packages can opt out explicitly at build time.
+  env.NEXT_PUBLIC_SCREENPIPE_LOCAL_LEARNING ??= "true";
   switch (mode) {
     case "build":
       return run(["bun", "tauri", "build", "--no-bundle", "--", "--profile", "debug-dev"], env);

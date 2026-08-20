@@ -2038,7 +2038,15 @@ async fn build_models_json_with_api_url(
                 // references; a bare name is sent to the provider as a literal
                 // API key (401 "Incorrect API key provided: CUSTOM_A**_KEY").
                 let api_key = match config.provider.as_str() {
-                    "native-ollama" => "ollama".to_string(),
+                    "native-ollama"
+                        if config
+                            .api_key
+                            .as_deref()
+                            .is_some_and(|key| !key.is_empty()) =>
+                    {
+                        "$OLLAMA_API_KEY".to_string()
+                    }
+                    "native-ollama" => "".to_string(),
                     "openai" => "$OPENAI_API_KEY".to_string(),
                     "openai-chatgpt" => "$OPENAI_CHATGPT_TOKEN".to_string(),
                     "anthropic" => "$ANTHROPIC_API_KEY".to_string(),
@@ -3174,6 +3182,9 @@ pub async fn pi_start_inner(
                     }
                     "custom" => {
                         cmd.env("CUSTOM_API_KEY", api_key);
+                    }
+                    "native-ollama" => {
+                        cmd.env("OLLAMA_API_KEY", api_key);
                     }
                     _ => {}
                 }
@@ -7146,6 +7157,20 @@ error: InstallFailed extracting tarball"#;
                 "provider {provider} must reference its key as {expected}"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn test_build_models_json_ollama_uses_optional_api_key_env_var() {
+        let mut pc = make_provider_config("native-ollama", "some-model");
+        pc.url = "http://127.0.0.1:11434/v1".to_string();
+        pc.api_key = Some("secret".to_string());
+        let config = build_models_json(None, Some(&pc)).await;
+        assert_eq!(config["providers"]["ollama"]["baseUrl"], pc.url);
+        assert_eq!(config["providers"]["ollama"]["apiKey"], "$OLLAMA_API_KEY");
+
+        pc.api_key = None;
+        let config = build_models_json(None, Some(&pc)).await;
+        assert_eq!(config["providers"]["ollama"]["apiKey"], "");
     }
 
     #[tokio::test]

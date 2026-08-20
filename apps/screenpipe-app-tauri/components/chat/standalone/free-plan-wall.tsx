@@ -30,6 +30,7 @@ import {
 import { formatAllowanceReset, useUsageStatus } from "@/lib/hooks/use-usage-status";
 import { openExternalUrl } from "@/lib/open-external-url";
 import { UpgradeVignette } from "@/components/chat/standalone/upgrade-vignettes";
+import { isLocalLearningMode } from "@/lib/local-learning-mode";
 
 const VALUE_CARDS = [
   { scene: "pipes", title: "scheduled automations" },
@@ -42,6 +43,7 @@ const VALUE_CARDS = [
 export function FreePlanCounterChip() {
   const usage = useUsageStatus();
   const wall = useFreeWall();
+  if (isLocalLearningMode()) return null;
   // Only for signed-in free-tier users with a small message-style allowance;
   // weighted paid allowances (hundreds of units) are not message counts.
   if (
@@ -70,6 +72,7 @@ export function FreePlanCounterChip() {
 /** Stage 2 — the wall strip. Not dismissible while the wall holds. */
 export function FreePlanWallStrip() {
   const wall = useFreeWall();
+  if (isLocalLearningMode()) return null;
   if (!wall) return null;
   const resets = formatAllowanceReset(wall.resetsAt);
   return (
@@ -121,6 +124,7 @@ export function FreeUpgradeSheet() {
     }
   }, [wall]);
 
+  if (isLocalLearningMode()) return null;
   if (!openFor) return null;
   const resets = formatAllowanceReset(openFor.resetsAt);
   const close = () => setOpenFor(null);
