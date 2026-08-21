@@ -95,6 +95,7 @@ import {
   buildActivitySummaryPath,
   canAddRecentActivity,
   minimumHistoryEntryCount,
+  presentActivityGenerationError,
   rangeForPreset,
 } from "@/components/activity-ledger";
 import {
@@ -309,6 +310,18 @@ async function generateActivities(): Promise<void> {
 }
 
 describe("activity history helpers", () => {
+  it("explains unusable AI activity output without exposing its contents", () => {
+    expect(
+      presentActivityGenerationError(
+        "activity history did not return structured episodes",
+      ),
+    ).toEqual({
+      kind: "invalid_activity_format",
+      message:
+        "Your AI provider returned an activity format Screenpipe could not use. Try again or choose a different AI preset.",
+    });
+  });
+
   it("keeps the last 24 hours rolling across midnight", () => {
     const anchor = new Date("2026-08-18T08:02:00.000Z");
     const range = rangeForPreset("24h", anchor, "", "");
@@ -874,6 +887,30 @@ describe("ActivityLedger", () => {
         source: "empty_state",
         error_kind: "daily",
       },
+    );
+  });
+
+  it("explains and safely logs rejected activity output", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.runDailySummaryWithPi.mockResolvedValue("not valid activity JSON");
+
+    render(<ActivityLedger />);
+    await generateActivities();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Your AI provider returned an activity format Screenpipe could not use.",
+    );
+    expect(log).toHaveBeenCalledWith(
+      "[activity-generation] failed",
+      expect.objectContaining({
+        stage: "activity_validation",
+        kind: "invalid_activity_format",
+        provider: "screenpipe-cloud",
+        model: "gpt-5.6-terra",
+      }),
+    );
+    expect(JSON.stringify(log.mock.calls)).not.toContain(
+      "not valid activity JSON",
     );
   });
 

@@ -72,6 +72,21 @@ import type { AIPreset } from "@/lib/utils/tauri";
 
 type RangePreset = "today" | "24h" | "7d" | "custom";
 type GenerationSource = "empty_state" | "refresh";
+type ActivityGenerationStage =
+  | "source_data"
+  | "ai_response"
+  | "activity_validation"
+  | "repair_response"
+  | "repair_validation"
+  | "meeting_validation"
+  | "persistence";
+type ActivityGenerationFailureKind =
+  | "empty_ai_response"
+  | "invalid_activity_format"
+  | "insufficient_evidence"
+  | "incomplete_meeting"
+  | "missing_model"
+  | "provider_request_failed";
 type ActivitySummaryResponse = {
   data_status: string;
   total_active_minutes: number;
@@ -117,6 +132,58 @@ function noActivityMessage(dataStatus: string): string {
       return "There is not enough recorded activity in this range to generate a history yet.";
   }
 }
+
+export function presentActivityGenerationError(rawError: string): {
+  kind: ActivityGenerationFailureKind;
+  message: string;
+} {
+  const normalized = rawError.trim().toLowerCase();
+  if (normalized.includes("ai returned an empty daily summary")) {
+    return {
+      kind: "empty_ai_response",
+      message:
+        "Your AI provider finished without returning activities. Try again or choose a different AI preset.",
+    };
+  }
+  if (
+    normalized.includes("activity history did not return structured episodes") ||
+    normalized.includes("activity history returned an invalid document") ||
+    /^unexpected (token|end of json input)/.test(normalized)
+  ) {
+    return {
+      kind: "invalid_activity_format",
+      message:
+        "Your AI provider returned an activity format Screenpipe could not use. Try again or choose a different AI preset.",
+    };
+  }
+  if (normalized.includes("not enough trustworthy evidence")) {
+    return {
+      kind: "insufficient_evidence",
+      message:
+        "The AI response did not include enough usable activity evidence. Try again after more recording is available.",
+    };
+  }
+  if (normalized.includes("history is still resolving a recorded meeting")) {
+    return {
+      kind: "incomplete_meeting",
+      message:
+        "A recorded meeting was not fully resolved yet. Try again in a moment.",
+    };
+  }
+  if (normalized.includes("no ai model is configured")) {
+    return {
+      kind: "missing_model",
+      message:
+        "Choose an AI preset with a configured model, then try again.",
+    };
+  }
+  return {
+    kind: "provider_request_failed",
+    message:
+      "The selected AI provider could not generate activities. Check its endpoint, API key, and model, then try again.",
+  };
+}
+
 type ActivityArtifact = ActivityHistoryEvidence & {
   browser_url?: string | null;
 };
@@ -989,6 +1056,7 @@ export function ActivityLedger({
     historyLoadingRef.current = true;
     setHistoryLoading(true);
     setHistoryError("");
+    let stage: ActivityGenerationStage = "source_data";
     try {
       const [summaryResponse, meetingsResponse] = await Promise.all([
         localFetch(buildActivitySummaryPath(generationRange), {
@@ -1043,6 +1111,7 @@ export function ActivityLedger({
         });
         return;
       }
+      stage = "ai_response";
       const raw = await runDailySummaryWithPi({
         date: generationRange.start,
         range: {
@@ -1056,6 +1125,7 @@ export function ActivityLedger({
         systemPrompt: ACTIVITY_REVIEW_AGENT_SYSTEM_PROMPT,
         prompt: buildActivityReviewAgentPrompt(reviewRange, generationMeetings),
       });
+      stage = "activity_validation";
       const minimumEntries = minimumHistoryEntryCount(
         generationSummary.total_active_minutes,
         generationRange,
@@ -1068,6 +1138,7 @@ export function ActivityLedger({
       let missingMeetings = missingRequiredMeetingIds(next, generationMeetings);
       if (next.entries.length < minimumEntries || missingMeetings.length > 0) {
         try {
+          stage = "repair_response";
           const repairedRaw = await runDailySummaryWithPi({
             date: generationRange.start,
             range: {
@@ -1087,6 +1158,7 @@ export function ActivityLedger({
               missingMeetings,
             ),
           });
+          stage = "repair_validation";
           const repaired = parseActivityHistoryResponse(
             repairedRaw,
             generationRange,
@@ -1102,6 +1174,7 @@ export function ActivityLedger({
           // it instead of turning a coverage-quality miss into a blank page.
         }
       }
+      stage = "meeting_validation";
       if (missingMeetings.length > 0) {
         throw new Error(
           "History is still resolving a recorded meeting. Try again in a moment.",
@@ -1109,6 +1182,7 @@ export function ActivityLedger({
       }
       let persisted;
       try {
+        stage = "persistence";
         persisted = await reconcilePersistedActivityHistory(
           ACTIVITY_REVIEW_PROMPT_VERSION,
           generationRange,
@@ -1145,13 +1219,22 @@ export function ActivityLedger({
       if (controller.signal.aborted) return;
       const rawError = reason instanceof Error ? reason.message : String(reason);
       const quota = presentQuotaError(rawError);
+      const failure = presentActivityGenerationError(rawError);
       const friendlyError = rawError
         .toLowerCase()
         .includes("hosted_ai_allowance_exceeded")
         ? "This AI preset has no usage left. Choose a different AI preset, then try again."
         : quota.kind !== "none"
           ? quota.message
-          : "History could not be updated. Try again.";
+          : failure.message;
+      // Keep local diagnostics useful without copying provider responses,
+      // captured activity, range timestamps, credentials, or prompt text.
+      console.error("[activity-generation] failed", {
+        stage,
+        kind: quota.kind !== "none" ? `quota_${quota.kind}` : failure.kind,
+        provider: reviewPreset.provider,
+        model: reviewPreset.model || "unset",
+      });
       setHistoryError(friendlyError);
       posthog.capture("activity_generation_failed", {
         range: preset,
