@@ -730,7 +730,7 @@ pub async fn restart_recording(app: tauri::AppHandle) {
 fn restart_failure_detail(error: &str) -> &'static str {
     let error = error.to_ascii_lowercase();
     if error.contains("screen recording permission was granted") {
-        "restart screenpipe to finish screen recording access"
+        "restart Cue to finish screen recording access"
     } else if error.contains("screen recording permission") {
         "screen recording permission is required"
     } else if error.contains("server not") {
@@ -744,7 +744,7 @@ fn is_specific_permission_restart_detail(detail: &str) -> bool {
     matches!(
         detail,
         "screen recording permission is required"
-            | "restart screenpipe to finish screen recording access"
+            | "restart Cue to finish screen recording access"
     )
 }
 
@@ -883,7 +883,7 @@ mod tests {
             "recording engine stopped",
             "recording stopped unexpectedly",
             "recording did not restart",
-            "restart screenpipe to finish screen recording access",
+            "restart Cue to finish screen recording access",
             "screen recording permission is required",
             "simulated recording failure",
             "updating database",
@@ -932,9 +932,9 @@ mod tests {
     fn restart_failure_surfaces_known_permission_and_engine_errors() {
         assert_eq!(
             restart_failure_detail(
-                "Screen recording permission was granted, but Screenpipe must restart before it can be used."
+                "Screen recording permission was granted, but Cue must restart before it can be used."
             ),
-            "restart screenpipe to finish screen recording access"
+            "restart Cue to finish screen recording access"
         );
         assert_eq!(
             restart_failure_detail("Screen recording permission required"),

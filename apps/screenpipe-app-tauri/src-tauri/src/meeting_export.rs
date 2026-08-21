@@ -78,7 +78,7 @@ async fn live_db(app: &tauri::AppHandle) -> Result<Arc<DatabaseManager>, String>
     let guard = state.server.lock().await;
     let core = guard
         .as_ref()
-        .ok_or("recording isn't running yet — start screenpipe, then export")?;
+        .ok_or("recording isn't running yet — start Cue, then export")?;
     Ok(core.db.clone())
 }
 

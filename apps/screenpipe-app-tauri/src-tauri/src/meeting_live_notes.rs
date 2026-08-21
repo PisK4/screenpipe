@@ -242,7 +242,7 @@ pub fn start(app: AppHandle) {
             };
             client::send_typed_with_actions_and_priority(
                 &header,
-                format!("screenpipe is ready to transcribe: {title}"),
+                format!("Cue is ready to transcribe: {title}"),
                 "meeting",
                 Some(30_000),
                 actions,
@@ -341,7 +341,7 @@ pub fn start(app: AppHandle) {
 
             client::send_typed_with_actions_and_priority(
                 "meeting detected",
-                format!("screenpipe is saving this meeting for transcription: {title}"),
+                format!("Cue is saving this meeting for transcription: {title}"),
                 "meeting",
                 Some(30_000),
                 actions,

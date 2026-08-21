@@ -79,7 +79,7 @@ fn handle_audio_stall(app: &AppHandle, event: StallEvent) {
         if let Err(e) = app_for_notify
             .notification()
             .builder()
-            .title("screenpipe is not capturing audio")
+            .title("Cue is not capturing audio")
             .body(format!(
                 "no audio reached the meeting after {elapsed}s — check mic permissions or restart the recorder"
             ))
@@ -104,7 +104,7 @@ fn handle_transcript_stall(app: &AppHandle, event: StallEvent) {
 
     client::send_typed_with_actions_and_priority(
         "live transcript not flowing",
-        format!("audio is still being captured, but the transcript is delayed by {elapsed}s — keep the meeting open while screenpipe retries"),
+        format!("audio is still being captured, but the transcript is delayed by {elapsed}s — keep the meeting open while Cue retries"),
         "meeting",
         Some(30_000),
         Vec::new(),

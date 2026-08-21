@@ -824,13 +824,13 @@ mod tests {
             Some("meeting"),
             None,
             "meeting detected",
-            "screenpipe is saving this meeting for transcription: Google Meet",
+            "Cue is saving this meeting for transcription: Google Meet",
         );
         let second = repeat_key(
             Some("meeting"),
             None,
             "meeting detected",
-            "screenpipe is saving this meeting for transcription: standup",
+            "Cue is saving this meeting for transcription: standup",
         );
         assert!(!check_and_record(&mut ledger, first.clone(), 0, cooldown));
         assert!(
@@ -918,7 +918,7 @@ mod tests {
             Some("meeting"),
             None,
             "meeting detected",
-            "screenpipe is saving this meeting for transcription: Google Meet",
+            "Cue is saving this meeting for transcription: Google Meet",
         );
 
         // `/notify` peeks: nothing recorded yet, so it passes it along.

@@ -134,7 +134,7 @@ fn show_fallback_engaged(app: AppHandle, data: Value) {
     mark_warned(key);
 
     let body = format!(
-        "\"{pinned}\" is offline, so screenpipe is recording from \"{fallback}\" \
+        "\"{pinned}\" is offline, so Cue is recording from \"{fallback}\" \
          to keep your audio. it'll switch back automatically when \"{pinned}\" returns."
     );
     let payload = serde_json::json!({
@@ -164,7 +164,7 @@ fn show_input_unavailable(app: AppHandle, data: Value) {
     let body = format!(
         "\"{pinned}\" went offline and there's no other microphone to record from, \
          so audio capture is paused. reconnect a mic (or enable one in settings) and \
-         screenpipe will resume automatically."
+         Cue will resume automatically."
     );
     let payload = serde_json::json!({
         "id": format!("audio_device_fallback:{NO_INPUT_KEY}"),
@@ -192,10 +192,10 @@ fn show_recovered(app: AppHandle, data: Value) {
     }
 
     let body = if key == NO_INPUT_KEY {
-        "a microphone is available again — screenpipe resumed recording.".to_string()
+        "a microphone is available again — Cue resumed recording.".to_string()
     } else {
         format!(
-            "\"{}\" is back — screenpipe is recording from your selected mic again.",
+            "\"{}\" is back — Cue is recording from your selected mic again.",
             display_name(pinned_raw)
         )
     };

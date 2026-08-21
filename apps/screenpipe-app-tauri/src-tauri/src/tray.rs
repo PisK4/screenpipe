@@ -895,7 +895,7 @@ fn create_dynamic_menu(
                 .build(app)?,
             )
             .item(&PredefinedMenuItem::separator(app)?)
-            .item(&MenuItemBuilder::with_id("quit", "Quit screenpipe").build(app)?);
+            .item(&MenuItemBuilder::with_id("quit", "Quit Cue").build(app)?);
 
         return menu_builder.build().map_err(Into::into);
     }
@@ -907,7 +907,7 @@ fn create_dynamic_menu(
     // --- Open screenpipe ---
     if !data.app_ui_hidden {
         menu_builder = menu_builder
-            .item(&MenuItemBuilder::with_id("open_app", "Open screenpipe").build(app)?)
+            .item(&MenuItemBuilder::with_id("open_app", "Open Cue").build(app)?)
             .item(&PredefinedMenuItem::separator(app)?);
     }
 
@@ -1374,7 +1374,7 @@ fn handle_menu_event(app_handle: &AppHandle, event: tauri::menu::MenuEvent) {
             let handle = tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(total).await;
                 let _ = app_for_resume.emit("shortcut-start-recording", ());
-                send_notify("Recording resumed", "screenpipe is recording again.");
+                send_notify("Recording resumed", "Cue is recording again.");
             });
             *PAUSE_TIMER.lock().unwrap_or_else(|e| e.into_inner()) = Some(PauseTimer {
                 handle,
@@ -1396,7 +1396,7 @@ fn handle_menu_event(app_handle: &AppHandle, event: tauri::menu::MenuEvent) {
             };
             send_notify(
                 "Recording paused",
-                format!("screenpipe will auto-resume in {}.", pretty),
+                format!("Cue will auto-resume in {}.", pretty),
             );
             // Repaint the tray so "Recording" flips to "Paused" immediately.
             let app_for_rebuild = app_handle.clone();

@@ -165,7 +165,7 @@ fn require_recording_access(store: &SettingsStore) -> Result<(), String> {
     }
 
     crate::health::set_recording_status(crate::health::RecordingStatus::Paused);
-    Err("account_required: sign in to start screenpipe recording".to_string())
+    Err("account_required: sign in to start Cue recording".to_string())
 }
 
 pub fn notify_audio_engine_fallback(store: &SettingsStore) {
@@ -1160,7 +1160,7 @@ async fn spawn_screenpipe_inner(
         crate::health::set_recording_status(crate::health::RecordingStatus::Error);
         let error = match &permissions_check.screen_recording {
             OSPermissionStatus::RestartRequired => {
-                "Screen recording permission was granted, but Screenpipe must restart before it can be used."
+                "Screen recording permission was granted, but Cue must restart before it can be used."
             }
             _ => {
                 "Screen recording permission required. Please grant permission and restart the app."
