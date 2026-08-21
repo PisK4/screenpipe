@@ -191,6 +191,7 @@ import { useOverlayData } from "@/app/shortcut-reminder/use-overlay-data";
 import { useOpenAIModels } from "./hooks/use-openai-models";
 import { useTranscriptionDiagnostics } from "./hooks/use-transcription-diagnostics";
 import { useVoiceTraining } from "./hooks/use-voice-training";
+import { useT } from "@/lib/i18n";
 
 type PermissionsStatus = {
   screenRecording: string;
@@ -227,7 +228,7 @@ const getOpenAICompatibleDraft = (settings: Settings): OpenAICompatibleDraft => 
 });
 
 const TRANSCRIPTION_ENGINE_LABELS: Record<string, string> = {
-  "screenpipe-cloud": "Screenpipe Cloud",
+  "screenpipe-cloud": "Cue Cloud",
   deepgram: "Deepgram",
   "whisper-large-v3-turbo": "Whisper Turbo",
   "whisper-large-v3-turbo-quantized": "Whisper Turbo (fast)",
@@ -296,9 +297,9 @@ const getAudioEngineResolution = (
 const getAudioFallbackMessage = (reason: AudioEngineFallbackReason) => {
   switch (reason) {
     case "notLoggedIn":
-      return "You are not logged in, so audio is being transcribed locally.";
+      return "settings.recording.fallbackNotLoggedIn";
     case "missingDeepgramKey":
-      return "Deepgram has no API key configured, so audio is being transcribed locally.";
+      return "settings.recording.fallbackMissingDeepgramKey";
   }
 };
 
@@ -1277,6 +1278,7 @@ function TranscriptionDictionary({
   const [bulkText, setBulkText] = useState("");
   const [filter, setFilter] = useState("");
   const { toast } = useToast();
+  const t = useT();
 
   const parsed = useMemo(() => parseTerms(bulkText), [bulkText]);
   const totalAfterImport = vocabularyWords.length + parsed.length;
@@ -1297,15 +1299,15 @@ function TranscriptionDictionary({
     const available = VOCAB_LIMIT - vocabularyWords.length;
     const toAdd = newTerms.slice(0, available);
     if (toAdd.length === 0) {
-      toast({ title: "no new terms", description: "all terms already exist in your dictionary" });
+      toast({ title: t("settings.recording.noNewTermsTitle"), description: t("settings.recording.noNewTermsDescription") });
       return;
     }
     const updated = [...vocabularyWords, ...toAdd.map((w) => ({ word: w }))];
     onChange(updated);
     toast({
-      title: `added ${toAdd.length} terms`,
+      title: t("settings.recording.addedTermsTitle", { count: toAdd.length }),
       description: newTerms.length > toAdd.length
-        ? `${newTerms.length - toAdd.length} skipped (limit: ${VOCAB_LIMIT})`
+        ? t("settings.recording.skippedTerms", { count: newTerms.length - toAdd.length, limit: VOCAB_LIMIT })
         : undefined,
     });
     setBulkText("");
@@ -1320,15 +1322,15 @@ function TranscriptionDictionary({
           <Languages className="h-4 w-4 text-muted-foreground shrink-0" />
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-              Custom Vocabulary
-              <HelpTooltip text="Add custom words (names, brands, jargon) to improve transcription accuracy. You can also add replacements to auto-correct common mistranscriptions." />
+              {t("settings.recording.customVocabTitle")}
+              <HelpTooltip text={t("settings.recording.customVocabTooltip")} />
               {vocabularyWords.length > 0 && (
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                   {vocabularyWords.length} / {VOCAB_LIMIT}
                 </Badge>
               )}
             </h3>
-            <p className="text-xs text-muted-foreground">teach names, brands & jargon to your transcription</p>
+            <p className="text-xs text-muted-foreground">{t("settings.recording.customVocabDescription")}</p>
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <Button
@@ -1338,7 +1340,7 @@ function TranscriptionDictionary({
               onClick={() => setShowBulk(!showBulk)}
             >
               <Download className="h-3 w-3" />
-              bulk import
+              {t("settings.recording.bulkImport")}
             </Button>
             {vocabularyWords.length > 0 && (
               <Button
@@ -1346,7 +1348,7 @@ function TranscriptionDictionary({
                 variant="outline"
                 className="h-7 text-xs px-2 text-muted-foreground hover:text-destructive"
                 onClick={() => {
-                  if (confirm(`remove all ${vocabularyWords.length} terms?`)) {
+                  if (confirm(t("settings.recording.removeAllConfirm", { count: vocabularyWords.length }))) {
                     onChange([]);
                   }
                 }}
@@ -1360,8 +1362,8 @@ function TranscriptionDictionary({
         {/* Engine limits info */}
         {vocabularyWords.length > 0 && (
           <div className="text-[10px] text-muted-foreground/60 font-mono mb-2 px-1 flex gap-3">
-            <span>offline: {Math.min(vocabularyWords.reduce((n, e) => n + (e.replacement || e.word).length + 2, 0), WHISPER_CHAR_LIMIT)}/{WHISPER_CHAR_LIMIT} chars</span>
-            <span>cloud: {Math.min(vocabularyWords.length, DEEPGRAM_LIMIT)}/{DEEPGRAM_LIMIT} keywords</span>
+            <span>offline: {t("settings.recording.offlineCharsLabel", { used: Math.min(vocabularyWords.reduce((n, e) => n + (e.replacement || e.word).length + 2, 0), WHISPER_CHAR_LIMIT), limit: WHISPER_CHAR_LIMIT })} chars</span>
+            <span>cloud: {t("settings.recording.cloudKeywordsLabel", { count: Math.min(vocabularyWords.length, DEEPGRAM_LIMIT), limit: DEEPGRAM_LIMIT })} keywords</span>
           </div>
         )}
 
@@ -1371,7 +1373,7 @@ function TranscriptionDictionary({
             <Textarea
               value={bulkText}
               onChange={(e) => setBulkText(e.target.value)}
-              placeholder={"paste terms separated by commas, newlines, semicolons, or tabs\n\ne.g. kubernetes, posthog, screenpipe, terraform"}
+              placeholder={t("settings.recording.bulkPastePlaceholder")}
               className="text-xs font-mono min-h-[80px] resize-y"
               spellCheck={false}
               autoCorrect="off"
@@ -1380,15 +1382,15 @@ function TranscriptionDictionary({
               <span className="text-xs text-muted-foreground">
                 {parsed.length > 0 ? (
                   <>
-                    {parsed.length} terms detected
+                    {t("settings.recording.termsDetected", { count: parsed.length })}
                     {overLimit && (
                       <span className="text-destructive ml-1">
-                        (exceeds limit by {totalAfterImport - VOCAB_LIMIT})
+                        {t("settings.recording.exceedsLimit", { count: totalAfterImport - VOCAB_LIMIT })}
                       </span>
                     )}
                   </>
                 ) : (
-                  "paste or type terms above"
+                  t("settings.recording.pasteOrType")
                 )}
               </span>
               <div className="flex gap-1">
@@ -1398,7 +1400,7 @@ function TranscriptionDictionary({
                   className="h-7 text-xs px-2"
                   onClick={() => { setBulkText(""); setShowBulk(false); }}
                 >
-                  cancel
+                  {t("settings.recording.cancelLowercase")}
                 </Button>
                 <Button
                   size="sm"
@@ -1406,7 +1408,7 @@ function TranscriptionDictionary({
                   disabled={parsed.length === 0}
                   onClick={handleBulkImport}
                 >
-                  add {Math.min(parsed.length, VOCAB_LIMIT - vocabularyWords.length)} terms
+                  {t("settings.recording.addTerms", { count: Math.min(parsed.length, VOCAB_LIMIT - vocabularyWords.length) })}
                 </Button>
               </div>
             </div>
@@ -1420,7 +1422,7 @@ function TranscriptionDictionary({
             <Input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="filter terms..."
+              placeholder={t("settings.recording.filterTermsPlaceholder")}
               className="h-7 text-xs pl-7"
               spellCheck={false}
             />
@@ -1456,7 +1458,7 @@ function TranscriptionDictionary({
             })}
             {filter && filtered.length < vocabularyWords.length && (
               <p className="text-[10px] text-muted-foreground px-2 pt-1">
-                showing {filtered.length} of {vocabularyWords.length}
+                {t("settings.recording.showingOf", { shown: filtered.length, total: vocabularyWords.length })}
               </p>
             )}
           </div>
@@ -1473,7 +1475,7 @@ function TranscriptionDictionary({
             const word = wordInput.value.trim();
             if (!word) return;
             if (vocabularyWords.length >= VOCAB_LIMIT) {
-              toast({ title: "limit reached", description: `maximum ${VOCAB_LIMIT} terms allowed` });
+              toast({ title: t("settings.recording.limitReachedTitle"), description: t("settings.recording.limitReachedDescription", { limit: VOCAB_LIMIT }) });
               return;
             }
             const replacement = replacementInput.value.trim() || undefined;
@@ -1499,10 +1501,10 @@ function TranscriptionDictionary({
             replacementInput.value = "";
           }}
         >
-          <Input name="vocab-word" placeholder="e.g. screenpipe" className="h-7 text-xs flex-1" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
-          <Input name="vocab-replacement" placeholder="replacement (optional)" className="h-7 text-xs flex-1" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+          <Input name="vocab-word" placeholder={t("settings.recording.wordInputPlaceholder")} className="h-7 text-xs flex-1" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
+          <Input name="vocab-replacement" placeholder={t("settings.recording.replacementPlaceholder")} className="h-7 text-xs flex-1" spellCheck={false} autoCorrect="off" autoCapitalize="off" />
           <Button type="submit" size="sm" variant="outline" className="h-7 text-xs px-2">
-            add
+            {t("settings.recording.addButton")}
           </Button>
         </form>
       </CardContent>
@@ -1547,6 +1549,7 @@ function HighFpsCard({
   const [live, setLive] = React.useState<HdState | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [lastError, setLastError] = React.useState<string | null>(null);
+  const t = useT();
 
   const fetchState = React.useCallback(async () => {
     try {
@@ -1615,15 +1618,15 @@ function HighFpsCard({
       const outcome = await pushSettings(runtimePatch);
       if (outcome.kind === "engine-down") {
         setLastError(
-          `${label} saved — but the engine isn't reachable, so it'll only take effect on next start.`,
+          t("settings.recording.hdSavedEngineDown", { label }),
         );
       } else if (outcome.kind === "engine-rejected") {
         setLastError(
-          `${label} saved — but the engine rejected the live update (HTTP ${outcome.status}). Restart to apply.`,
+          t("settings.recording.hdSavedRejected", { label, status: outcome.status }),
         );
       }
     },
-    [onSettingsChange, pushSettings],
+    [onSettingsChange, pushSettings, t],
   );
 
   // Guard against intervalMs ever leaking through as 0 (engine clamps to
@@ -1641,9 +1644,9 @@ function HighFpsCard({
 
   const statusBadge = active
     ? sessionKind === "meeting"
-      ? `Recording at ~${fps} fps — stops when call ends`
-      : `Recording at ~${fps} fps — ${fmtRemaining(remaining)} left`
-    : "Idle";
+      ? t("settings.recording.hdStatusRecordingMeeting", { fps })
+      : t("settings.recording.hdStatusRecordingTimer", { fps, remaining: fmtRemaining(remaining) })
+    : t("settings.recording.hdStatusIdle");
 
   return (
     <Card className="border-border bg-card">
@@ -1652,15 +1655,12 @@ function HighFpsCard({
           <div className="flex items-center space-x-2.5 min-w-0">
             <Monitor className="h-4 w-4 text-muted-foreground shrink-0" />
             <div className="min-w-0">
-              <h3 className="text-sm font-medium text-foreground">HD recording for meetings</h3>
+              <h3 className="text-sm font-medium text-foreground">{t("settings.recording.hdTitle")}</h3>
               <p className="text-xs text-muted-foreground">
-                Capture screen at higher rate during calls so you can rewatch
-                slides, demos, and shared docs. {statusBadge}.
+                {t("settings.recording.hdDescription", { status: statusBadge })}
               </p>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Start from the meeting-start notification, the tray menu, or{" "}
-                <code>POST /capture/hd/start</code>. Every session has a
-                natural end — no indefinite mode.
+                {t("settings.recording.hdHowToStart")}
               </p>
             </div>
           </div>
@@ -1671,7 +1671,7 @@ function HighFpsCard({
               disabled={busy}
               onClick={stopSession}
             >
-              Stop now
+              {t("settings.recording.hdStopNow")}
             </Button>
           )}
         </div>
@@ -1685,14 +1685,14 @@ function HighFpsCard({
         <div className="pt-3 border-t border-border space-y-2.5">
           <div>
             <h4 className="text-xs font-medium text-foreground mb-1.5">
-              When a meeting starts
+              {t("settings.recording.hdWhenMeetingStarts")}
             </h4>
             <div className="flex flex-col gap-1">
               {(
                 [
-                  { v: "ask" as const, label: "Ask me", hint: "Adds an “open note + HD” action to the meeting-start notification — one click opens the note and starts HD (recommended)" },
-                  { v: "always" as const, label: "Always record at HD", hint: "Auto-start every detected meeting — more disk + CPU per call" },
-                  { v: "never" as const, label: "Never", hint: "No prompt; only the tray timer can start a session" },
+                  { v: "ask" as const, label: t("settings.recording.hdModeAsk"), hint: t("settings.recording.hdModeAskHint") },
+                  { v: "always" as const, label: t("settings.recording.hdModeAlways"), hint: t("settings.recording.hdModeAlwaysHint") },
+                  { v: "never" as const, label: t("settings.recording.hdModeNever"), hint: t("settings.recording.hdModeNeverHint") },
                 ] satisfies Array<{ v: HdDefaultMode; label: string; hint: string }>
               ).map(({ v, label, hint }) => (
                 <label key={v} className="flex items-start gap-2 cursor-pointer">
@@ -1705,7 +1705,7 @@ function HighFpsCard({
                       persistAndPush(
                         { hdRecordingDefault: v },
                         { defaultMode: v },
-                        "Meeting default",
+                        t("settings.recording.hdLabelMeetingDefault"),
                       )
                     }
                   />
@@ -1720,9 +1720,9 @@ function HighFpsCard({
 
           <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
             <div className="min-w-0">
-              <h4 className="text-xs font-medium text-foreground">Quality</h4>
+              <h4 className="text-xs font-medium text-foreground">{t("settings.recording.hdQuality")}</h4>
               <p className="text-[11px] text-muted-foreground">
-                Lower interval = smoother replay + more disk. ≥ 33 ms (30 fps).
+                {t("settings.recording.hdQualityDescription")}
               </p>
             </div>
             <Select
@@ -1732,7 +1732,7 @@ function HighFpsCard({
                 persistAndPush(
                   { hdRecordingIntervalMs: ms },
                   { intervalMs: ms },
-                  "Capture interval",
+                  t("settings.recording.hdLabelCaptureInterval"),
                 );
               }}
             >
@@ -1740,10 +1740,10 @@ function HighFpsCard({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="200">200 ms — 5 fps (light)</SelectItem>
-                <SelectItem value="100">100 ms — 10 fps (default)</SelectItem>
-                <SelectItem value="67">67 ms — 15 fps</SelectItem>
-                <SelectItem value="33">33 ms — 30 fps (max)</SelectItem>
+                <SelectItem value="200">{t("settings.recording.hdOption200")}</SelectItem>
+                <SelectItem value="100">{t("settings.recording.hdOption100")}</SelectItem>
+                <SelectItem value="67">{t("settings.recording.hdOption67")}</SelectItem>
+                <SelectItem value="33">{t("settings.recording.hdOption33")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1816,6 +1816,7 @@ export function RecordingSettings({ section }: { section: RecordingSettingsSecti
   const effectiveAudioExclusions = pendingAudioExclusions ?? audioExclusions;
 
   const { toast } = useToast();
+  const t = useT();
 
   const reloadAudioExclusions = useCallback(async () => {
     try {
@@ -1826,7 +1827,7 @@ export function RecordingSettings({ section }: { section: RecordingSettingsSecti
     } catch (e) {
       console.error("read_audio_exclusions failed", e);
       toast({
-        title: "Couldn't load audio exclusions",
+        title: t("settings.recording.exclusionLoadFailedTitle"),
         description: String(e),
         variant: "destructive",
       });
@@ -1878,12 +1879,12 @@ export function RecordingSettings({ section }: { section: RecordingSettingsSecti
       addAudioExclusion(meta);
     } catch (e) {
       toast({
-        title: "Couldn't read application",
+        title: t("settings.recording.exclusionReadFailedTitle"),
         description: String(e),
         variant: "destructive",
       });
     }
-  }, [addAudioExclusion, isWindows, toast]);
+  }, [addAudioExclusion, isWindows, toast, t]);
 
   useEventListener(
     "keydown",
@@ -1998,22 +1999,30 @@ export function RecordingSettings({ section }: { section: RecordingSettingsSecti
   const languageSupportDescription =
     settings.languages.length === 0
       ? languageSupportIsLimited
-        ? `Auto-detects among ${supportedLanguageOptions.length} languages supported by ${languageSupportLabel}`
-        : "Automatically detects spoken language"
+        ? t("settings.recording.languageSupportAutoLimited", {
+            count: supportedLanguageOptions.length,
+            engine: languageSupportLabel,
+          })
+        : t("settings.recording.languageSupportAuto")
       : !languageSelectionUsesHints
-        ? `${settings.languages.length} supported selected for ${languageSupportLabel}`
+        ? t("settings.recording.languageSupportSelectedHints", {
+            count: settings.languages.length,
+            engine: languageSupportLabel,
+          })
         : languageSupportIsLimited
-          ? `Restricts transcription to selected languages supported by ${languageSupportLabel}`
-          : "Restricts transcription to selected";
+          ? t("settings.recording.languageSupportRestrictedLimited", {
+              engine: languageSupportLabel,
+            })
+          : t("settings.recording.languageSupportRestricted");
   const selectedLanguageNames = settings.languages
     .map((code) => supportedLanguageOptions.find((language) => language.code === code)?.name ?? code)
     .join(", ");
   const languageTriggerLabel =
     settings.languages.length === 0
-      ? "Auto-detect"
+      ? t("settings.recording.languagesAutoDetect")
       : settings.languages.length <= 2
         ? selectedLanguageNames
-        : `${settings.languages.length} selected`;
+        : t("settings.recording.languagesSelected", { count: settings.languages.length });
 
   // Add new state to track if settings have changed
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -2201,9 +2210,8 @@ export function RecordingSettings({ section }: { section: RecordingSettingsSecti
   // Listen for data-dir-fallback event (custom dir unavailable, fell back to default)
   useTauriEvent("data-dir-fallback", () => {
     toast({
-      title: "custom data directory unavailable",
-      description:
-        "the configured data directory could not be accessed. recordings are using the default directory (~/.screenpipe).",
+      title: t("settings.recording.dataDirFallbackTitle"),
+      description: t("settings.recording.dataDirFallbackDescription"),
       variant: "destructive",
       duration: 10000,
     });
@@ -2329,8 +2337,8 @@ export function RecordingSettings({ section }: { section: RecordingSettingsSecti
     // Check for validation errors
     if (Object.keys(validationErrors).length > 0) {
       toast({
-        title: "Validation errors",
-        description: "Please fix all validation errors before applying changes",
+        title: t("settings.recording.validationErrorsTitle"),
+        description: t("settings.recording.validationErrorsDescription"),
         variant: "destructive",
       });
       return;
@@ -2338,10 +2346,10 @@ export function RecordingSettings({ section }: { section: RecordingSettingsSecti
 
     setIsUpdating(true);
     setHasUnsavedChanges(false);
-    
+
     toast({
-      title: "Updating recording settings",
-      description: "This may take a few moments...",
+      title: t("settings.recording.updatingTitle"),
+      description: t("settings.recording.updatingDescription"),
     });
 
     try {
@@ -2390,16 +2398,16 @@ export function RecordingSettings({ section }: { section: RecordingSettingsSecti
       setPendingChanges({});
 
       toast({
-        title: "Settings updated successfully",
+        title: t("settings.recording.updatedTitle"),
         description: needsServerRestart
-          ? "Screenpipe server restarted with new settings"
-          : "Recording restarted with new settings",
+          ? t("settings.recording.updatedServerRestartDescription")
+          : t("settings.recording.updatedCaptureRestartDescription"),
       });
     } catch (error) {
       console.error("Failed to update settings:", error);
       toast({
-        title: "Error updating settings",
-        description: "Please try again or check the logs for more information",
+        title: t("settings.recording.updateFailedTitle"),
+        description: t("settings.recording.updateFailedDescription"),
         variant: "destructive",
       });
       setHasUnsavedChanges(true);
@@ -2414,18 +2422,21 @@ export function RecordingSettings({ section }: { section: RecordingSettingsSecti
     if (errorCount > 0) {
       return {
         variant: "destructive" as const,
-        message: `${errorCount} validation error${errorCount > 1 ? 's' : ''} found`,
+        message: t("settings.recording.validationStatusErrors", {
+          count: errorCount,
+          s: errorCount > 1 ? "s" : "",
+        }),
       };
     }
     if (hasUnsavedChanges) {
       return {
         variant: "secondary" as const,
-        message: "Unsaved changes - restart required",
+        message: t("settings.recording.unsavedChangesStatus"),
       };
     }
     return {
       variant: "default" as const,
-      message: "All settings valid",
+      message: t("settings.recording.allValidStatus"),
     };
   };
 
@@ -2527,8 +2538,8 @@ export function RecordingSettings({ section }: { section: RecordingSettingsSecti
       await handleAudioTranscriptionModelChange("openai-compatible", false, true);
       setIsOpenAICompatibleSetupOpen(false);
       toast({
-        title: "OpenAI Compatible enabled",
-        description: "The endpoint accepted a real transcription request.",
+        title: t("settings.recording.openaiEnabledToastTitle"),
+        description: t("settings.recording.openaiEnabledToastDescription"),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -2589,15 +2600,7 @@ export function RecordingSettings({ section }: { section: RecordingSettingsSecti
     trainingIntervalRef,
   } = useVoiceTraining({ settings });
 
-  const VOICE_TRAINING_TEXT = `The human eye processes around ten million bits of visual information every single second. That's roughly the bandwidth of an ethernet connection, streaming directly into your brain through two tiny biological cameras.
-
-Most of this data gets quietly filtered away before you're even conscious of it. Your visual cortex silently discards ninety-nine percent of what hits your retina, keeping only the fragments it judges important: a familiar face in a crowd, a flash of movement at the edge of your peripheral vision, the subtle shift in someone's expression during a conversation.
-
-Screenpipe works on a similar philosophy. It watches everything that flows through your digital world — every window, every tab, every meeting, every notification — and distills it into searchable, meaningful memory. Think of it as a second brain that never forgets, never gets tired, and never loses track of that important thing someone said three weeks ago on a Tuesday afternoon.
-
-The average knowledge worker switches between four hundred different windows per day and types roughly forty words per minute across dozens of applications. Without a system to capture and organize this firehose of information, most of it simply evaporates.
-
-Your screen is a pipe. Everything you see, hear, and type flows through it. Screenpipe just makes sure nothing valuable leaks away.`;
+  const VOICE_TRAINING_TEXT = t("settings.recording.voiceTrainingText");
 
   const handleIgnoredWindowsChange = (values: string[]) => {
     // Convert all values to lowercase for comparison
@@ -2741,8 +2744,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
     >
       <p className="text-muted-foreground text-sm mb-4">
         {section === "audio"
-          ? "Audio capture, transcription, and meeting notes"
-          : "Screen capture quality, monitors, and power"}
+          ? t("settings.recording.subtitleAudio")
+          : t("settings.recording.subtitleScreen")}
       </p>
 
       <div className="flex items-center justify-end">
@@ -2759,7 +2762,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
               ) : (
                 <RefreshCw className="h-3 w-3" />
               )}
-              Apply & Restart
+              {t("settings.recording.applyAndRestart")}
             </Button>
           )}
       </div>
@@ -2768,7 +2771,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
       <>
       {/* Audio */}
       <div className="space-y-2 pt-2">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">Audio &amp; meetings</h2>
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">{t("settings.recording.audioSectionHeading")}</h2>
 
         <LockedSetting settingKey="audio_recording">
         <div className="space-y-2">
@@ -2779,8 +2782,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
               <div className="flex items-center space-x-2.5">
                 <Mic className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
-                  <h3 className="text-sm font-medium text-foreground">Audio Recording</h3>
-                  <p className="text-xs text-muted-foreground">Capture audio from microphone and system</p>
+                  <h3 className="text-sm font-medium text-foreground">{t("settings.recording.audioRecording")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("settings.recording.audioRecordingDescription")}</p>
                 </div>
               </div>
               <ManagedSwitch settingKey="disableAudio" id="disableAudio" checked={!settings.disableAudio} onCheckedChange={(checked) => handleDisableAudioChange(!checked)} />
@@ -2796,8 +2799,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
               <div className="flex items-center space-x-2.5">
                 <Mic className="h-4 w-4 text-muted-foreground shrink-0" />
                 <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                  Capture audio
-                  <HelpTooltip text="“During meetings only” records and transcribes audio just while a meeting is detected — saving battery, disk, and cloud transcription cost. “Always” captures continuously, 24/7. Requires meeting detection to be on." />
+                  {t("settings.recording.captureAudio")}
+                  <HelpTooltip text={t("settings.recording.captureAudioTooltip")} />
                 </h3>
               </div>
               <Select
@@ -2805,11 +2808,11 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                 onValueChange={(value) => handleSettingsChange({ audioCaptureMode: value as "always" | "meetings-only" | "disabled" }, true)}
               >
                 <SelectTrigger className="w-[200px] h-7 text-xs">
-                  <SelectValue placeholder="Select mode" />
+                  <SelectValue placeholder={t("settings.recording.selectModePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="always">Always (continuous)</SelectItem>
-                  <SelectItem value="meetings-only">During meetings only</SelectItem>
+                  <SelectItem value="always">{t("settings.recording.captureAlways")}</SelectItem>
+                  <SelectItem value="meetings-only">{t("settings.recording.captureMeetingsOnly")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2820,7 +2823,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
 
         {!settings.disableAudio && (
           <div className="flex items-center gap-2 px-1 pt-1.5">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">transcription</span>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">{t("settings.recording.transcriptionDivider")}</span>
             <div className="h-px flex-1 bg-border/60" />
           </div>
         )}
@@ -2833,8 +2836,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
               <div className="flex items-center space-x-2.5">
                 <Mic className="h-4 w-4 text-muted-foreground shrink-0" />
                 <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                  Transcription engine
-                  <HelpTooltip text="Cloud engines send audio to a server for fast, accurate transcription. Offline engines run on your device — fully private but use more CPU/RAM." />
+                  {t("settings.recording.transcriptionEngine")}
+                  <HelpTooltip text={t("settings.recording.transcriptionEngineTooltip")} />
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -2846,29 +2849,29 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                   onValueChange={(value) => handleAudioTranscriptionModelChange(value)}
                 >
                   <SelectTrigger className="w-[200px] h-7 text-xs">
-                    <SelectValue placeholder="Select engine" />
+                    <SelectValue placeholder={t("settings.recording.selectEnginePlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectLabel className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">cloud</SelectLabel>
+                      <SelectLabel className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">{t("settings.recording.engineGroupCloud")}</SelectLabel>
                       <SelectItem value="screenpipe-cloud">
-                        Screenpipe Cloud{hwCapability?.recommendedEngine === "screenpipe-cloud" && " ★"}
+                        {t("settings.recording.engineCueCloud")}{hwCapability?.recommendedEngine === "screenpipe-cloud" && " ★"}
                       </SelectItem>
-                      <SelectItem value="deepgram">Deepgram</SelectItem>
+                      <SelectItem value="deepgram">{t("settings.recording.engineDeepgram")}</SelectItem>
                     </SelectGroup>
                     <SelectGroup>
-                      <SelectLabel className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">offline</SelectLabel>
-                      <SelectItem value="whisper-large-v3-turbo">Whisper Turbo</SelectItem>
-                      <SelectItem value="whisper-large-v3-turbo-quantized">Whisper Turbo (fast)</SelectItem>
-                      <SelectItem value="whisper-tiny">Whisper Tiny</SelectItem>
-                      <SelectItem value="whisper-tiny-quantized">Whisper Tiny (fast)</SelectItem>
-                      {!isMacOS && <SelectItem value="qwen3-asr">Qwen3-ASR</SelectItem>}
-                      <SelectItem value="parakeet">Parakeet{isMacOS ? " (experimental)" : ""}</SelectItem>
+                      <SelectLabel className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">{t("settings.recording.engineGroupOffline")}</SelectLabel>
+                      <SelectItem value="whisper-large-v3-turbo">{t("settings.recording.engineWhisperTurbo")}</SelectItem>
+                      <SelectItem value="whisper-large-v3-turbo-quantized">{t("settings.recording.engineWhisperTurboFast")}</SelectItem>
+                      <SelectItem value="whisper-tiny">{t("settings.recording.engineWhisperTiny")}</SelectItem>
+                      <SelectItem value="whisper-tiny-quantized">{t("settings.recording.engineWhisperTinyFast")}</SelectItem>
+                      {!isMacOS && <SelectItem value="qwen3-asr">{t("settings.recording.engineQwen")}</SelectItem>}
+                      <SelectItem value="parakeet">{t("settings.recording.engineParakeet")}{isMacOS ? t("settings.recording.engineParakeetExperimentalSuffix") : ""}</SelectItem>
                     </SelectGroup>
                     <SelectGroup>
-                      <SelectLabel className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">other</SelectLabel>
-                      <SelectItem value="openai-compatible">OpenAI Compatible</SelectItem>
-                      <SelectItem value="disabled">Disabled (capture only)</SelectItem>
+                      <SelectLabel className="text-[10px] text-muted-foreground/70 uppercase tracking-wider">{t("settings.recording.engineGroupOther")}</SelectLabel>
+                      <SelectItem value="openai-compatible">{t("settings.recording.engineOpenaiCompatible")}</SelectItem>
+                      <SelectItem value="disabled">{t("settings.recording.engineDisabled")}</SelectItem>
                     </SelectGroup>
                   </SelectContent>
                 </Select>
@@ -2881,19 +2884,21 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
               >
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle className="text-xs font-semibold">
-                  {getTranscriptionEngineLabel(audioEngineResolution.requested)} is not active
+                {t("settings.recording.fallbackAlertTitle", {
+                  engine: getTranscriptionEngineLabel(audioEngineResolution.requested),
+                })}
                 </AlertTitle>
                 <AlertDescription className="space-y-2 text-xs">
-                  <p>{getAudioFallbackMessage(audioEngineResolution.fallbackReason)}</p>
+                  <p>{t(getAudioFallbackMessage(audioEngineResolution.fallbackReason))}</p>
                   <div className="grid gap-1">
                     <div>
-                      Saved choice:{" "}
+                      {t("settings.recording.savedChoice")}{" "}
                       <span className="font-medium">
                         {getTranscriptionEngineLabel(audioEngineResolution.requested)}
                       </span>
                     </div>
                     <div>
-                      Active now:{" "}
+                      {t("settings.recording.activeNow")}{" "}
                       <span className="font-medium">
                         {getTranscriptionEngineLabel(audioEngineResolution.active)}
                       </span>
@@ -2909,7 +2914,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                         data-testid="audio-engine-fallback-login"
                         onClick={() => checkLogin(settings.user)}
                       >
-                        Log in
+                        {t("settings.recording.logInButton")}
                       </Button>
                     )}
                     <Button
@@ -2925,7 +2930,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                         )
                       }
                     >
-                      Use Whisper setting
+                      {t("settings.recording.useWhisperButton")}
                     </Button>
                   </div>
                 </AlertDescription>
@@ -2940,7 +2945,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                   value={settings.deepgramApiKey || ""}
                   onChange={handleDeepgramApiKeyChange}
                   validation={validateDeepgramApiKey}
-                  placeholder="Deepgram API key"
+                  placeholder={t("settings.recording.deepgramApiKeyPlaceholder")}
                   required={true}
                   className="pr-8 h-7 text-xs"
                 />
@@ -2954,9 +2959,9 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                 {isOpenAICompatibleSetupOpen && (
                   <Alert className="border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertTitle className="text-xs font-semibold">Endpoint verification required</AlertTitle>
+                    <AlertTitle className="text-xs font-semibold">{t("settings.recording.endpointVerificationTitle")}</AlertTitle>
                     <AlertDescription className="text-xs">
-                      These edits are not saved or applied until this endpoint completes a test transcription. This prevents recordings that cannot be searched.
+                      {t("settings.recording.endpointVerificationDescription")}
                     </AlertDescription>
                   </Alert>
                 )}
@@ -2972,7 +2977,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                       fetchOpenAIModels(openAICompatibleDraft.endpoint, openAICompatibleDraft.apiKey);
                     }
                   }}
-                  placeholder="API Endpoint (e.g., http://127.0.0.1:8080)"
+                  placeholder={t("settings.recording.apiEndpointPlaceholder")}
                   className="h-7 text-xs"
                 />
                 
@@ -2984,7 +2989,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     type={showOpenAIApiKey ? "text" : "password"}
                     value={openAICompatibleDraft.apiKey}
                     onChange={(value: string) => updateOpenAICompatibleDraft({ apiKey: value })}
-                    placeholder="API Key (optional)"
+                    placeholder={t("settings.recording.apiKeyPlaceholder")}
                     className="pr-8 h-7 text-xs"
                   />
                   <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-7 w-7" onClick={() => setShowOpenAIApiKey(!showOpenAIApiKey)}>
@@ -2998,7 +3003,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     <Input
                       value={openAICompatibleDraft.model}
                       onChange={(e) => updateOpenAICompatibleDraft({ model: e.target.value })}
-                      placeholder={isLoadingModels ? "Loading models..." : "Model name (e.g., whisper-large-v3-turbo)"}
+                  placeholder={isLoadingModels ? t("settings.recording.loadingModelsPlaceholder") : t("settings.recording.modelNamePlaceholder")}
                       className="h-7 text-xs pr-8"
                     />
                     {isLoadingModels && (
@@ -3009,7 +3014,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-muted-foreground">
-                          Available models ({openAIModels.length})
+                          {t("settings.recording.availableModels", { count: openAIModels.length })}
                         </span>
                         {allOpenAIModels.length > 0 && (
                           <button
@@ -3017,7 +3022,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
                             onClick={() => setFilterTranscriptionModels(!filterTranscriptionModels)}
                           >
-                            {filterTranscriptionModels ? "show all" : "filter STT only"}
+                            {filterTranscriptionModels ? t("settings.recording.showAll") : t("settings.recording.filterSttOnly")}
                           </button>
                         )}
                       </div>
@@ -3041,10 +3046,10 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     </div>
                   )}
                   {openAIModels.includes('!API_Error') && (
-                    <p className="text-xs text-muted-foreground">Could not list models from the API — type the model name manually.</p>
+                    <p className="text-xs text-muted-foreground">{t("settings.recording.modelsApiError")}</p>
                   )}
                   {allOpenAIModels.length === 0 && !openAIModels.includes('!API_Error') && !isLoadingModels && (
-                    <p className="text-xs text-muted-foreground">No models listed by the API — type the model name manually.</p>
+                    <p className="text-xs text-muted-foreground">{t("settings.recording.noModelsListed")}</p>
                   )}
                 </div>
 
@@ -3056,12 +3061,12 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     onChange={(e) => updateOpenAICompatibleDraft({ rawAudio: e.target.checked })}
                     className="rounded border-border"
                   />
-                  <span>send raw WAV audio (instead of MP3)</span>
+                  <span>{t("settings.recording.rawAudioLabel")}</span>
                 </label>
 
                 {/* Custom Headers */}
                 <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">custom headers (JSON)</label>
+                  <label className="text-xs text-muted-foreground">{t("settings.recording.customHeadersLabel")}</label>
                   <Input
                     defaultValue={openAICompatibleDraft.headers ? JSON.stringify(openAICompatibleDraft.headers) : ""}
                     onBlur={(e) => {
@@ -3097,10 +3102,10 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     ) : (
                       <Zap className="mr-1.5 h-3 w-3" />
                     )}
-                    {isTestingOpenAICompatible ? "Testing endpoint..." : "Test and enable"}
+                    {isTestingOpenAICompatible ? t("settings.recording.testingEndpoint") : t("settings.recording.testAndEnable")}
                   </Button>
                   <span className="text-xs text-muted-foreground">
-                    Sends a short silent sample using the configured model and audio format.
+                    {t("settings.recording.testSampleHint")}
                   </span>
                 </div>
                 {openAICompatibleTestError && (
@@ -3118,19 +3123,19 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                   >
                     <div className="flex items-center gap-2">
                       <Zap className="h-3.5 w-3.5" />
-                      <span>Connection Test</span>
+                      <span>{t("settings.recording.connectionTest")}</span>
                       {txTestStatus === "done" && (
                         <span className="text-xs text-muted-foreground">
                           {txTestResults.transcribe.status === "pass"
-                            ? "All checks passed"
+                            ? t("settings.recording.allChecksPassed")
                             : txTestResults.endpoint.status === "fail"
-                            ? "Connection failed"
+                            ? t("settings.recording.connectionFailed")
                             : txTestResults.auth.status === "fail"
-                            ? "Auth failed"
+                            ? t("settings.recording.authFailed")
                             : txTestResults.models.status === "fail"
-                            ? "Models failed"
+                            ? t("settings.recording.modelsFailed")
                             : txTestResults.transcribe.status === "fail"
-                            ? "Transcription failed"
+                            ? t("settings.recording.transcriptionFailed")
                             : ""}
                         </span>
                       )}
@@ -3161,16 +3166,16 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                         ) : (
                           <Zap className="h-3 w-3" />
                         )}
-                        {txTestStatus === "testing" ? "Testing..." : "Run diagnostics"}
+                        {txTestStatus === "testing" ? t("settings.recording.testing") : t("settings.recording.runDiagnostics")}
                       </Button>
 
                       <div className="space-y-1.5 text-xs">
                         {(
                           [
-                            ["endpoint", "1", "Endpoint reachable"],
-                            ["auth", "2", "Auth valid"],
-                            ["models", "3", "Models loaded"],
-                            ["transcribe", "4", "Test transcription"],
+                            ["endpoint", "1", t("settings.recording.checkEndpoint")],
+                            ["auth", "2", t("settings.recording.checkAuth")],
+                            ["models", "3", t("settings.recording.checkModels")],
+                            ["transcribe", "4", t("settings.recording.checkTranscribe")],
                           ] as const
                         ).map(([key, num, label]) => {
                           const result = txTestResults[key];
@@ -3236,13 +3241,13 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     </PopoverTrigger>
                     <PopoverContent className="w-[250px] p-0">
                       <Command>
-                        <CommandInput placeholder="Search languages..." />
+                        <CommandInput placeholder={t("settings.recording.searchLanguagesPlaceholder")} />
                         <CommandList>
-                          <CommandEmpty>No languages found.</CommandEmpty>
+                          <CommandEmpty>{t("settings.recording.noLanguagesFound")}</CommandEmpty>
                           <CommandGroup>
                             <CommandItem value="auto-detect" onSelect={() => handleLanguageChange(null)}>
                               <Check className={cn("mr-2 h-3 w-3", settings.languages.length === 0 ? "opacity-100" : "opacity-0")} />
-                              <span className="text-xs">Auto-detect</span>
+                              <span className="text-xs">{t("settings.recording.languagesAutoDetect")}</span>
                             </CommandItem>
                             {supportedLanguageOptions.map((language) => (
                               <CommandItem key={language.code} value={language.code} onSelect={() => handleLanguageChange(language.code)}>
@@ -3265,8 +3270,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                   <div className="flex items-center space-x-2">
                     <Mic className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      Reduce echo in calls
-                      <HelpTooltip text="Reduces speaker audio leaking into microphone transcripts during calls. Auto-selects the best engine for your platform." />
+                      {t("settings.recording.reduceEcho")}
+                      <HelpTooltip text={t("settings.recording.reduceEchoTooltip")} />
                     </span>
                   </div>
                   <Switch
@@ -3283,8 +3288,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                 </div>
                 {aecModeRemotePolicy.forceDisabled && (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Temporarily disabled by the remote safety control. Your
-                    preference is preserved.
+                    {t("settings.recording.remoteDisabledNote")}
                   </p>
                 )}
               </div>
@@ -3300,12 +3304,10 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
             <div className="flex items-center space-x-2.5">
               <VolumeX className="h-4 w-4 text-muted-foreground shrink-0" />
               <div>
-                <h3 className="text-sm font-medium text-foreground">
-                  Exclude apps from system audio
-                </h3>
+                <h3 className="text-sm font-medium text-foreground">{t("settings.recording.excludeAppsTitle")}</h3>
                 <p className="text-xs text-muted-foreground">
-                  Audio from these apps will be filtered out of system-audio capture.
-                  {isWindows && " Windows supports one excluded app at a time."}
+                  {t("settings.recording.excludeAppsDescription")}
+                  {isWindows && t("settings.recording.windowsOneAppNote")}
                 </p>
               </div>
             </div>
@@ -3344,7 +3346,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                   <button
                     type="button"
                     className="inline-flex rounded-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                    aria-label={`Remove ${app.name ?? app.bundleId} from audio exclusions`}
+                    aria-label={t("settings.recording.removeExclusionAria", { app: app.name ?? app.bundleId })}
                     onClick={(e) => {
                       e.stopPropagation();
                       removeAudioExclusion(app.bundleId);
@@ -3363,11 +3365,11 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                   pickAppToExclude();
                 }}
               >
-                + add app
+                {t("settings.recording.addApp")}
               </Button>
               {effectiveAudioExclusions.length === 0 && (
                 <span className="text-xs text-muted-foreground italic self-center">
-                  No apps excluded. All system audio is captured.
+                  {t("settings.recording.noAppsExcluded")}
                 </span>
               )}
             </div>
@@ -3377,7 +3379,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
 
         {!settings.disableAudio && (
           <div className="flex items-center gap-2 px-1 pt-1.5">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">meetings</span>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">{t("settings.recording.meetingsDivider")}</span>
             <div className="h-px flex-1 bg-border/60" />
           </div>
         )}
@@ -3391,10 +3393,10 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                 <Headphones className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="min-w-0">
                   <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                    Live meeting notes
-                    <HelpTooltip text="Streams only the active meeting into the live note. This is separate from background 24/7 recording and can use your selected transcription engine, screenpipe cloud, or a direct provider." />
+                    {t("settings.recording.liveNotesTitle")}
+                    <HelpTooltip text={t("settings.recording.liveNotesTooltip")} />
                   </h3>
-                  <p className="text-xs text-muted-foreground">Meeting-only live captions, separate from background transcription</p>
+                  <p className="text-xs text-muted-foreground">{t("settings.recording.liveNotesDescription")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -3411,9 +3413,9 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="selected-engine">Current transcription engine</SelectItem>
-                      <SelectItem value="screenpipe-cloud">screenpipe cloud live</SelectItem>
-                      <SelectItem value="deepgram-live">Direct Deepgram live</SelectItem>
+                      <SelectItem value="selected-engine">{t("settings.recording.providerSelectedEngine")}</SelectItem>
+                      <SelectItem value="screenpipe-cloud">{t("settings.recording.providerCueCloudLive")}</SelectItem>
+                      <SelectItem value="deepgram-live">{t("settings.recording.providerDeepgramLive")}</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
@@ -3437,7 +3439,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
               (settings.meetingLiveTranscriptionProvider ?? "selected-engine") === "screenpipe-cloud" &&
               !settings.user?.token && (
               <p className="mt-2 ml-[26px] text-xs text-muted-foreground">
-                Log in to screenpipe cloud to use the cloud live provider.
+                {t("settings.recording.cueCloudLoginHint")}
               </p>
             )}
             {(settings.meetingLiveTranscriptionEnabled ?? true) &&
@@ -3449,8 +3451,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
             )}
             <div className="mt-2 pt-2 border-t border-border/50 flex items-center justify-between">
               <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                Append typed text + edited files to note
-                <HelpTooltip text="When the meeting stops, screenpipe appends what you typed (and the files you edited) during the meeting to the meeting note. Turn off to keep notes clean." />
+                {t("settings.recording.appendTypedText")}
+                <HelpTooltip text={t("settings.recording.appendTypedTextTooltip")} />
               </span>
               <Switch
                 id="appendTypedTextToMeetingNote"
@@ -3473,10 +3475,10 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                 <Users className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
                   <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                    Automatic meeting detection
-                    <HelpTooltip text="Detects meeting apps (Zoom, Teams, Meet, Discord calls, etc.) to start and stop meetings and live notes automatically. Turn off if it starts meetings when it shouldn't, and start them yourself instead." />
+                    {t("settings.recording.meetingDetectionTitle")}
+                    <HelpTooltip text={t("settings.recording.meetingDetectionTooltip")} />
                   </h3>
-                  <p className="text-xs text-muted-foreground">Auto-start meetings when a call app is detected</p>
+                  <p className="text-xs text-muted-foreground">{t("settings.recording.meetingDetectionDescription")}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -3486,16 +3488,16 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     size="sm"
                     className="h-7 text-[11px] gap-1.5"
                     onClick={() => setMeetingAppsPickerOpen(true)}
-                    title="Choose apps that should never auto-start a meeting"
+                    title={t("settings.recording.ignoreAppsButtonTitle")}
                     data-testid="settings-ignore-meeting-apps-button"
                   >
                     <UserX className="h-3.5 w-3.5" />
-                    ignore apps
+                    {t("settings.recording.ignoreAppsButton")}
                     {(settings.ignoredMeetingApps?.length ?? 0) > 0 && (
-                      <span
-                        className="rounded bg-muted px-1.5 py-0.5 text-[10px] tabular-nums"
-                        data-testid="settings-ignore-meeting-apps-count"
-                      >
+                    <span
+                      className="rounded bg-muted px-1.5 py-0.5 text-[10px] tabular-nums"
+                      data-testid="settings-ignore-meeting-apps-count"
+                    >
                         {settings.ignoredMeetingApps!.length}
                       </span>
                     )}
@@ -3511,7 +3513,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
             </div>
             {settings.disableMeetingDetector && (
               <p className="mt-2 ml-[26px] text-xs text-muted-foreground">
-                disabling this also stops live meeting notes, smart recording, and &quot;during meetings only&quot; capture mode.
+                {t("settings.recording.disableDetectorNote")}
               </p>
             )}
           </CardContent>
@@ -3534,17 +3536,17 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                 <Mic className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
                   <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                    Smart recording
+                    {t("settings.recording.smartRecordingTitle")}
                     <Badge variant="secondary" aria-label="beta" className="px-1.5 py-0 text-[10px] font-medium uppercase tracking-wide">
-                      beta
+                      {t("settings.recording.betaBadge")}
                     </Badge>
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    during meetings, records your meeting&apos;s audio and whichever microphone you pick in the meeting app — taking precedence over your other audio settings. falls back to your configured capture automatically if unavailable.
+                    {t("settings.recording.smartRecordingDescription")}
                   </p>
                   {settings.disableMeetingDetector && (
                     <p className="text-xs text-amber-600 dark:text-amber-500">
-                      requires automatic meeting detection — turn it back on above to use this.
+                      {t("settings.recording.smartRecordingRequiresDetection")}
                     </p>
                   )}
                 </div>
@@ -3575,8 +3577,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
             </div>
             {smartRecordingRemotePolicy.forceDisabled && (
               <p className="mt-2 ml-[26px] text-xs text-muted-foreground">
-                Temporarily disabled by the remote safety control. Your
-                preference is preserved.
+                {t("settings.recording.remoteDisabledNote")}
               </p>
             )}
           </CardContent>
@@ -3585,7 +3586,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
 
         {!settings.disableAudio && (
           <div className="flex items-center gap-2 px-1 pt-1.5">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">devices & capture</span>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">{t("settings.recording.devicesDivider")}</span>
             <div className="h-px flex-1 bg-border/60" />
           </div>
         )}
@@ -3598,8 +3599,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
               <div className="flex items-center space-x-2.5">
                 <Monitor className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
-                  <h3 className="text-sm font-medium text-foreground">Auto-select audio devices</h3>
-                  <p className="text-xs text-muted-foreground">Records all default devices. Turn off to exclude bluetooth headphones or pick specific devices.</p>
+                  <h3 className="text-sm font-medium text-foreground">{t("settings.recording.autoSelectDevices")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("settings.recording.autoSelectDevicesDescription")}</p>
                 </div>
               </div>
               <Switch
@@ -3643,15 +3644,15 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                   <div className="min-w-0 flex-1 flex items-center gap-1.5">
                     <p className="text-xs font-medium truncate">{displayName}</p>
                     {device.isDefault && (
-                      <Badge variant="secondary" className="text-[9px] h-3.5 px-1 shrink-0">Default</Badge>
+                      <Badge variant="secondary" className="text-[9px] h-3.5 px-1 shrink-0">{t("settings.recording.defaultBadge")}</Badge>
                     )}
                     {isBluetoothMicGated && (
                       <Badge
                         variant="outline"
                         className="text-[9px] h-3.5 px-1 shrink-0"
-                        title="only recorded during a detected meeting — turn on &quot;always record bluetooth mic&quot; to change this"
+                        title={t("settings.recording.meetingsOnlyBadgeTitle")}
                       >
-                        meetings only
+                        {t("settings.recording.meetingsOnlyBadge")}
                       </Badge>
                     )}
                   </div>
@@ -3680,7 +3681,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                   <div className="mb-2.5">
                     <div className="flex items-center space-x-2 mb-1.5">
                       <Mic className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <h3 className="text-xs font-medium text-muted-foreground">Microphones (what you say)</h3>
+                      <h3 className="text-xs font-medium text-muted-foreground">{t("settings.recording.microphonesHeading")}</h3>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
                       {inputDevices.map(renderDevice)}
@@ -3691,7 +3692,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                   <div>
                     <div className="flex items-center space-x-2 mb-1.5">
                       <Volume2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <h3 className="text-xs font-medium text-muted-foreground">System audio (what you hear)</h3>
+                      <h3 className="text-xs font-medium text-muted-foreground">{t("settings.recording.systemAudioHeading")}</h3>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
                       {outputDevices.map(renderDevice)}
@@ -3711,9 +3712,9 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
               <div className="flex items-center space-x-2.5">
                 <Bluetooth className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
-                  <h3 className="text-sm font-medium text-foreground">Always record bluetooth mic</h3>
+                  <h3 className="text-sm font-medium text-foreground">{t("settings.recording.bluetoothMicTitle")}</h3>
                   <p className="text-xs text-muted-foreground">
-                    by default bluetooth mics are only recorded during meetings to avoid degrading headphone audio quality. turn on to record always.
+                    {t("settings.recording.bluetoothMicDescription")}
                   </p>
                 </div>
               </div>
@@ -3729,7 +3730,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
 
         {!settings.disableAudio && (
           <div className="flex items-center gap-2 px-1 pt-1.5">
-            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">voice & vocabulary</span>
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70">{t("settings.recording.voiceVocabDivider")}</span>
             <div className="h-px flex-1 bg-border/60" />
           </div>
         )}
@@ -3742,14 +3743,14 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
               <div className="flex items-center space-x-2.5">
                 <User className="h-4 w-4 text-muted-foreground shrink-0" />
                 <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                  Your name
-                  <HelpTooltip text="Your name in transcripts. Click 'train' and speak for 30 seconds to teach screenpipe your voice — it will recognize you across all devices using voice matching." />
+                  {t("settings.recording.yourNameTitle")}
+                  <HelpTooltip text={t("settings.recording.yourNameTooltip")} />
                 </h3>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="relative">
                   <Input
-                    placeholder="e.g. Louis"
+                    placeholder={t("settings.recording.yourNamePlaceholder")}
                     value={settings.userName || ""}
                     onChange={(e) => handleSettingsChange({ userName: e.target.value }, false)}
                     onFocus={() => setSpeakerInputFocused(true)}
@@ -3782,7 +3783,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                   onClick={handleStartTraining}
                   disabled={voiceTraining.active || !settings.userName?.trim()}
                 >
-                  train
+                  {t("settings.recording.trainButton")}
                 </Button>
               </div>
             </div>
@@ -3809,7 +3810,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
       {/* Screen */}
       <LockedSetting settingKey="screen_recording">
       <div className="space-y-2 pt-2">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">Screen</h2>
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">{t("settings.recording.screenHeading")}</h2>
 
         {/* Screen context capture toggle */}
         <Card className="border-border bg-card">
@@ -3818,8 +3819,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
               <div className="flex items-center space-x-2.5">
                 <Monitor className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
-                  <h3 className="text-sm font-medium text-foreground">Screen context capture</h3>
-                  <p className="text-xs text-muted-foreground">Capture app/window context, accessibility text, screenshot images, and OCR fallback</p>
+                  <h3 className="text-sm font-medium text-foreground">{t("settings.recording.screenContextCapture")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("settings.recording.screenContextCaptureDescription")}</p>
                 </div>
               </div>
               <ManagedSwitch settingKey="disableVision" id="disableVision" checked={!settings.disableVision} onCheckedChange={(checked) => handleSettingsChange({ disableVision: !checked }, true)} />
@@ -3836,13 +3837,13 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     <AppWindowMac className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="min-w-0">
                       <h3 className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                        Structured app context
+                        {t("settings.recording.structuredContextTitle")}
                         <Badge variant="secondary" aria-label="Experimental" className="px-1.5 py-0 text-[10px] font-medium">
-                          Experimental
+                          {t("settings.recording.experimentalBadge")}
                         </Badge>
                       </h3>
                       <p className="text-xs text-muted-foreground">
-                        Turn what Screenpipe already captures into a clearer view for AI. Nothing is recorded twice.
+                        {t("settings.recording.structuredContextDescription")}
                       </p>
                     </div>
                   </div>
@@ -3874,8 +3875,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
 
                 {semanticContextRemotePolicy.forceDisabled && (
                   <p className="border-t border-border pt-3 text-xs text-muted-foreground">
-                    Temporarily disabled by the remote safety control. Your
-                    preference is preserved.
+                    {t("settings.recording.remoteDisabledNote")}
                   </p>
                 )}
 
@@ -3885,7 +3885,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     <div className="flex flex-col gap-3 border-t border-border pt-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                       <div className="min-w-0">
                         <label htmlFor="semanticContextMode" className="text-xs font-medium text-foreground">
-                          Use it for
+                          {t("settings.recording.useItFor")}
                         </label>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {
@@ -3925,8 +3925,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                 <div className="flex items-center space-x-2.5">
                   <Monitor className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div>
-                    <h3 className="text-sm font-medium text-foreground">Screen recording</h3>
-                    <p className="text-xs text-muted-foreground">Record screen pixels for the timeline and image-only text. Turn this off to stop screen recording; accessibility text stays searchable.</p>
+                  <h3 className="text-sm font-medium text-foreground">{t("settings.recording.screenRecordingTitle")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("settings.recording.screenRecordingDescription")}</p>
                   </div>
                 </div>
                 <ManagedSwitch
@@ -3948,8 +3948,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                 <div className="flex items-center space-x-2.5">
                   <Monitor className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div>
-                    <h3 className="text-sm font-medium text-foreground">Use all monitors</h3>
-                    <p className="text-xs text-muted-foreground">Capture screenshot images from all available monitors</p>
+                    <h3 className="text-sm font-medium text-foreground">{t("settings.recording.useAllMonitors")}</h3>
+                    <p className="text-xs text-muted-foreground">{t("settings.recording.useAllMonitorsDescription")}</p>
                   </div>
                 </div>
                 <Switch id="useAllMonitors" checked={settings.useAllMonitors} onCheckedChange={(checked) => handleSettingsChange({ useAllMonitors: checked }, true)} />
@@ -3966,7 +3966,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
             <CardContent className="px-3 py-2.5">
               <div className="flex items-center space-x-2.5 mb-3">
                 <Monitor className="h-4 w-4 text-muted-foreground shrink-0" />
-                <h3 className="text-sm font-medium text-foreground">Monitors</h3>
+                <h3 className="text-sm font-medium text-foreground">{t("settings.recording.monitorsHeading")}</h3>
               </div>
 
               <div className="flex items-end justify-center gap-6 py-2">
@@ -3990,7 +3990,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     )}
                   </svg>
                   <span className={cn("text-[11px] font-medium", settings.monitorIds.includes("default") ? "text-foreground" : "text-muted-foreground")}>
-                    Default
+                    {t("settings.recording.defaultMonitor")}
                   </span>
                 </button>
 
@@ -4018,7 +4018,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                       </svg>
                       <div className="text-center">
                         <span className={cn("text-[11px] font-medium block", isSelected ? "text-foreground" : "text-muted-foreground")}>
-                          {monitor.name || `Monitor ${monitor.id}`}
+                          {monitor.name || t("settings.recording.monitorName", { id: monitor.id })}
                         </span>
                         <p className="text-[10px] text-muted-foreground">{monitor.width}x{monitor.height}</p>
                       </div>
@@ -4038,9 +4038,9 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                 <div className="flex items-center space-x-2.5 min-w-0">
                   <Monitor className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="min-w-0">
-                    <h3 className="text-sm font-medium text-foreground">Recording quality</h3>
+                    <h3 className="text-sm font-medium text-foreground">{t("settings.recording.recordingQuality")}</h3>
                     <p className="text-xs text-muted-foreground">
-                      Pick "high" or "max" if your text looks blurry on a 4K / ultrawide. Higher = crisper + larger files.
+                      {t("settings.recording.recordingQualityDescription")}
                     </p>
                   </div>
                 </div>
@@ -4052,10 +4052,10 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">low — 1280px, smallest</SelectItem>
-                    <SelectItem value="balanced">balanced — 1920px (default)</SelectItem>
-                    <SelectItem value="high">high — 3840px, ultrawide-safe</SelectItem>
-                    <SelectItem value="max">max — native, no downscale</SelectItem>
+                    <SelectItem value="low">{t("settings.recording.qualityLow")}</SelectItem>
+                    <SelectItem value="balanced">{t("settings.recording.qualityBalanced")}</SelectItem>
+                    <SelectItem value="high">{t("settings.recording.qualityHigh")}</SelectItem>
+                    <SelectItem value="max">{t("settings.recording.qualityMax")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -4080,17 +4080,16 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                 <div className="flex items-center space-x-2.5 mb-2">
                   <Monitor className="h-4 w-4 text-muted-foreground shrink-0" />
                   <div className="min-w-0">
-                    <h3 className="text-sm font-medium text-foreground">Capture frequency</h3>
+                    <h3 className="text-sm font-medium text-foreground">{t("settings.recording.captureFrequency")}</h3>
                     <p className="text-xs text-muted-foreground">
-                      Always take a screenshot at least this often, even when the screen
-                      isn&apos;t changing. Lower = fewer missed moments + more disk used.
+                      {t("settings.recording.captureFrequencyDescription")}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-muted-foreground">Minimum interval</span>
+                  <span className="text-xs text-muted-foreground">{t("settings.recording.minimumInterval")}</span>
                   <span className="text-xs font-mono text-foreground">
-                    {seconds === 0 ? "auto (power profile)" : `every ${seconds}s`}
+                    {seconds === 0 ? t("settings.recording.intervalAuto") : t("settings.recording.intervalEvery", { seconds })}
                   </span>
                 </div>
                 <Slider
@@ -4111,8 +4110,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                   className="w-full"
                 />
                 <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5">
-                  <span>auto</span>
-                  <span>every 10s</span>
+                  <span>{t("settings.recording.sliderAuto")}</span>
+                  <span>{t("settings.recording.sliderEvery10s")}</span>
                 </div>
                 <CaptureFrequencyPreview seconds={seconds} />
               </CardContent>
@@ -4138,7 +4137,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
 
       {/* System */}
       <div className="space-y-2 pt-2">
-        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">System</h2>
+        <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">{t("settings.recording.systemHeading")}</h2>
 
         <Card className="border-border bg-card">
           <CardContent className="px-3 py-2.5">
@@ -4146,8 +4145,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
               <div className="flex items-center space-x-2.5">
                 <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
-                  <h3 className="text-sm font-medium text-foreground">Chinese mirror</h3>
-                  <p className="text-xs text-muted-foreground">For users in China</p>
+                  <h3 className="text-sm font-medium text-foreground">{t("settings.recording.chineseMirror")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("settings.recording.chineseMirrorDescription")}</p>
                 </div>
               </div>
               <Switch id="useChineseMirror" checked={settings.useChineseMirror} onCheckedChange={handleChineseMirrorToggle} />
@@ -4163,8 +4162,8 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
         <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 [&::-webkit-details-marker]:hidden">
           <Zap className="h-4 w-4 shrink-0 text-muted-foreground" />
           <div>
-            <h2 className="text-sm font-medium text-foreground">Power &amp; battery</h2>
-            <p className="text-xs text-muted-foreground">Battery-aware capture and keep-awake behavior</p>
+            <h2 className="text-sm font-medium text-foreground">{t("settings.recording.powerBattery")}</h2>
+            <p className="text-xs text-muted-foreground">{t("settings.recording.powerBatteryDescription")}</p>
           </div>
         </summary>
         <div className="border-t border-border px-3 py-3">
@@ -4183,9 +4182,9 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
         }
       }}>
         <DialogContent className="max-w-lg">
-          <DialogTitle className="text-sm font-medium">Read this aloud</DialogTitle>
+          <DialogTitle className="text-sm font-medium">{t("settings.recording.voiceTrainingDialogTitle")}</DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            speak naturally at your normal pace — this helps screenpipe learn your voice
+            {t("settings.recording.voiceTrainingDialogDescription")}
           </DialogDescription>
           <div className="space-y-4">
 
@@ -4197,7 +4196,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
 
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{voiceTraining.secondsLeft > 0 ? `${voiceTraining.secondsLeft}s remaining` : "done — click finish"}</span>
+                <span>{voiceTraining.secondsLeft > 0 ? t("settings.recording.secondsRemaining", { seconds: voiceTraining.secondsLeft }) : t("settings.recording.doneClickFinish")}</span>
                 <span>{Math.round(((30 - voiceTraining.secondsLeft) / 30) * 100)}%</span>
               </div>
               <Progress value={((30 - voiceTraining.secondsLeft) / 30) * 100} className="h-1.5" />
@@ -4209,7 +4208,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
                 onClick={handleFinishTraining}
                 disabled={voiceTraining.secondsLeft > 25}
               >
-                {voiceTraining.secondsLeft > 25 ? "keep reading..." : voiceTraining.secondsLeft > 0 ? "finish early" : "done"}
+                {voiceTraining.secondsLeft > 25 ? t("settings.recording.keepReading") : voiceTraining.secondsLeft > 0 ? t("settings.recording.finishEarly") : t("settings.recording.done")}
               </Button>
             </div>
           </div>
@@ -4223,7 +4222,7 @@ Your screen is a pipe. Everything you see, hear, and type flows through it. Scre
         onApply={handleUpdate}
         isUpdating={isUpdating}
         disabled={Object.keys(validationErrors).length > 0}
-        message="unsaved recording changes. restart to apply."
+        message={t("settings.recording.applyBarMessage")}
       />
     </div>
   );
