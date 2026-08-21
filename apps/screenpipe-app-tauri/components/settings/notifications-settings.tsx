@@ -26,11 +26,12 @@ import {
 } from "./notification-registry";
 import { NotificationPipeControls } from "./notification-pipe-controls";
 import { NotificationPauseControl } from "./notification-pause-control";
+import { useT } from "@/lib/i18n";
 
-const PRESETS: { kind: CategoryPreset; label: string }[] = [
-  { kind: "recommended", label: "recommended" },
-  { kind: "all", label: "everything" },
-  { kind: "none", label: "nothing" },
+const PRESETS: { kind: CategoryPreset }[] = [
+  { kind: "recommended" },
+  { kind: "all" },
+  { kind: "none" },
 ];
 
 /**
@@ -80,6 +81,13 @@ export function NotificationsSettings() {
   const { settings, updateSettings } = useSettings();
   const [query, setQuery] = React.useState("");
   const [pipesExpanded, setPipesExpanded] = React.useState(false);
+  const t = useT();
+
+  const presetLabels: Record<CategoryPreset, string> = {
+    recommended: t("settings.notifications.presetRecommended"),
+    all: t("settings.notifications.presetEverything"),
+    none: t("settings.notifications.presetNothing"),
+  };
 
   if (!settings) return null;
 
@@ -142,8 +150,7 @@ export function NotificationsSettings() {
     <div className="space-y-6">
       <div>
         <p className="text-sm text-muted-foreground">
-          Control which notifications screenpipe sends you. Pause on a whim,
-          set quiet hours, turn whole groups off, or fine-tune a single scheduled task.
+          {t("settings.notifications.subtitle")}
         </p>
       </div>
 
@@ -168,7 +175,7 @@ export function NotificationsSettings() {
 
       {/* Quick presets + reset, then the in-section filter */}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] text-muted-foreground">quick set:</span>
+        <span className="text-[11px] text-muted-foreground">{t("settings.notifications.quickSet")}</span>
         {PRESETS.map((p) => (
           <button
             key={p.kind}
@@ -177,7 +184,7 @@ export function NotificationsSettings() {
             onClick={() => applyPreset(p.kind)}
             className="border border-border px-2.5 py-1 text-[11px] transition-colors hover:border-foreground hover:bg-foreground hover:text-background"
           >
-            {p.label}
+            {presetLabels[p.kind]}
           </button>
         ))}
         <button
@@ -186,7 +193,7 @@ export function NotificationsSettings() {
           onClick={resetToDefaults}
           className="ml-auto text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
         >
-          reset to defaults
+          {t("settings.notifications.resetToDefaults")}
         </button>
       </div>
 
@@ -196,8 +203,8 @@ export function NotificationsSettings() {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="search notifications"
-          aria-label="search notifications"
+          placeholder={t("settings.notifications.searchPlaceholder")}
+          aria-label={t("settings.notifications.searchPlaceholder")}
           data-testid="notification-search"
           className="w-full border border-border bg-transparent py-2 pl-8 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-foreground/30"
         />
@@ -218,7 +225,7 @@ export function NotificationsSettings() {
               {!q && (
                 <Switch
                   data-testid={`notification-group-${group.id}`}
-                  aria-label={`toggle all ${group.label}`}
+                  aria-label={t("settings.notifications.toggleAllGroup", { name: group.label })}
                   checked={gstate === "all"}
                   onCheckedChange={(v) =>
                     writeCategoryPatch(
@@ -263,10 +270,10 @@ export function NotificationsSettings() {
                           pipesExpanded && "rotate-90"
                         )}
                       />
-                      customize per task
+                      {t("settings.notifications.customizePerTask")}
                       {mutedPipes.length > 0 && (
                         <span className="ml-1 text-muted-foreground/70">
-                          ({mutedPipes.length} muted)
+                          {t("settings.notifications.mutedPipesCount", { count: mutedPipes.length })}
                         </span>
                       )}
                     </button>
@@ -293,7 +300,7 @@ export function NotificationsSettings() {
 
         {visibleGroups.length === 0 && (
           <p className="py-6 text-center text-xs text-muted-foreground">
-            no notifications match &quot;{query}&quot;
+            {t("settings.notifications.noMatch", { query })}
           </p>
         )}
       </div>
@@ -320,6 +327,7 @@ function CategoryRow({
   onToggle,
   children,
 }: CategoryRowProps) {
+  const t = useT();
   return (
     <div className="border-b border-border py-3 last:border-b-0">
       <div className="flex items-center justify-between gap-3">
@@ -328,7 +336,7 @@ function CategoryRow({
             {category.label}
             {category.experimental && (
               <span className="ml-1.5 text-[10px] font-normal text-muted-foreground/70">
-                experimental
+                {t("settings.notifications.experimental")}
               </span>
             )}
           </p>

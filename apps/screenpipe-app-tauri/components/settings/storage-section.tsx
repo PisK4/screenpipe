@@ -23,6 +23,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { open } from "@tauri-apps/plugin-dialog";
 import { commands, CacheFile } from "@/lib/utils/tauri";
 import { clearTimelineCache, hasCachedData } from "@/lib/hooks/use-timeline-cache";
+import { useT } from "@/lib/i18n";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +46,7 @@ function formatBytes(bytes: number): string {
 export function StorageSection() {
   const { settings, updateSettings, getDataDir } = useSettings();
   const { toast } = useToast();
+  const t = useT();
   const [cacheFiles, setCacheFiles] = useState<CacheFile[]>([]);
   const [showCacheDialog, setShowCacheDialog] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
@@ -66,7 +68,7 @@ export function StorageSection() {
       const result = await commands.validateDataDir(selected);
       if (result.status === "error") {
         toast({
-          title: "invalid directory",
+          title: t("settings.storage.invalidDirectoryTitle"),
           description: String(result.error),
           variant: "destructive",
           duration: 5000,
@@ -78,8 +80,8 @@ export function StorageSection() {
     } catch (error) {
       console.error("failed to change data directory:", error);
       toast({
-        title: "error",
-        description: "failed to change data directory",
+        title: t("settings.storage.errorTitle"),
+        description: t("settings.storage.changeDataDirFailedDescription"),
         variant: "destructive",
         duration: 5000,
       });
@@ -102,14 +104,14 @@ export function StorageSection() {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       setDataDirChanged(false);
       toast({
-        title: "restarted",
-        description: "screenpipe restarted with the new data directory",
+        title: t("settings.storage.restartedTitle"),
+        description: t("settings.storage.restartedDescription"),
       });
     } catch (error) {
       console.error("failed to restart screenpipe:", error);
       toast({
-        title: "restart failed",
-        description: "please restart screenpipe manually for the change to apply",
+        title: t("settings.storage.restartFailedTitle"),
+        description: t("settings.storage.restartFailedDescription"),
         variant: "destructive",
         duration: 5000,
       });
@@ -121,7 +123,7 @@ export function StorageSection() {
   return (
     <div className="space-y-5" data-testid="section-settings-storage">
       <p className="text-muted-foreground text-sm mb-4">
-        Local disk usage and storage controls
+        {t("settings.storage.subtitle")}
       </p>
 
       {/* Data Directory */}
@@ -133,15 +135,15 @@ export function StorageSection() {
                 <Folder className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div>
                   <h3 className="text-sm font-medium text-foreground">
-                    Data Directory
+                    {t("settings.storage.dataDirectory")}
                   </h3>
                   <p className="text-xs text-muted-foreground truncate max-w-[250px]">
                     {!settings.dataDir || settings.dataDir === "default"
-                      ? "~/.screenpipe (default)"
+                      ? t("settings.storage.dataDirDefault")
                       : settings.dataDir}
                   </p>
                   <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-                    changing directory starts fresh recordings
+                    {t("settings.storage.dataDirChangeHint")}
                   </p>
                 </div>
               </div>
@@ -155,7 +157,7 @@ export function StorageSection() {
                       onClick={handleDataDirReset}
                       className="h-7 text-xs shrink-0"
                     >
-                      Reset
+                      {t("settings.storage.reset")}
                     </Button>
                   )}
                 <Button
@@ -164,7 +166,7 @@ export function StorageSection() {
                   onClick={handleDataDirChange}
                   className="h-7 text-xs shrink-0"
                 >
-                  Change
+                  {t("settings.storage.change")}
                 </Button>
               </div>
             </div>
@@ -179,9 +181,9 @@ export function StorageSection() {
             <div className="flex items-center space-x-2.5">
               <Trash2 className="h-4 w-4 text-muted-foreground shrink-0" />
               <div>
-                <h3 className="text-sm font-medium text-foreground">Clear Cache</h3>
+                <h3 className="text-sm font-medium text-foreground">{t("settings.storage.clearCache")}</h3>
                 <p className="text-xs text-muted-foreground">
-                  Remove AI agent cache, old logs, and recovery artifacts
+                  {t("settings.storage.clearCacheDescription")}
                 </p>
               </div>
             </div>
@@ -197,20 +199,20 @@ export function StorageSection() {
                   if (result.data.length === 0) {
                     if (await hasCachedData()) {
                       await clearTimelineCache();
-                      toast({ title: "cache cleared" });
+                      toast({ title: t("settings.storage.cacheClearedTitle") });
                     } else {
-                      toast({ title: "nothing to clean up" });
+                      toast({ title: t("settings.storage.nothingToCleanUpTitle") });
                     }
                     return;
                   }
                   setCacheFiles(result.data);
                   setShowCacheDialog(true);
                 } catch (e: any) {
-                  toast({ title: "failed to clear cache", description: e?.toString(), variant: "destructive" });
+                  toast({ title: t("settings.storage.clearFailedTitle"), description: e?.toString(), variant: "destructive" });
                 }
               }}
             >
-              {isClearing ? "clearing..." : "clear"}
+              {isClearing ? t("settings.storage.clearing") : t("settings.storage.clear")}
             </Button>
           </div>
         </CardContent>
@@ -219,10 +221,10 @@ export function StorageSection() {
       <AlertDialog open={showCacheDialog} onOpenChange={setShowCacheDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>clear cache?</AlertDialogTitle>
+            <AlertDialogTitle>{t("settings.storage.clearCacheDialogTitle")}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2">
-                <p>the following files will be deleted ({formatBytes(cacheFiles.reduce((s, f) => s + Number(f.size_bytes), 0))} total):</p>
+                <p>{t("settings.storage.deleteListIntro", { size: formatBytes(cacheFiles.reduce((s, f) => s + Number(f.size_bytes), 0)) })}</p>
                 <ul className="text-xs space-y-1 max-h-48 overflow-y-auto">
                   {cacheFiles.map((f) => (
                     <li key={f.path} className="flex justify-between gap-2">
@@ -232,13 +234,13 @@ export function StorageSection() {
                   ))}
                 </ul>
                 <p className="text-xs text-muted-foreground">
-                  AI agent will reinstall automatically on next use.
+                  {t("settings.storage.agentReinstallHint")}
                 </p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("settings.storage.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 setIsClearing(true);
@@ -249,18 +251,18 @@ export function StorageSection() {
                   if (result.status === "error") throw new Error(result.error);
                   await clearTimelineCache();
                   toast({
-                    title: "cache cleared",
-                    description: `freed ${formatBytes(Number(result.data))}`,
+                    title: t("settings.storage.cacheClearedTitle"),
+                    description: t("settings.storage.freedDescription", { size: formatBytes(Number(result.data)) }),
                   });
                 } catch (e: any) {
-                  toast({ title: "failed to clear cache", description: e?.toString(), variant: "destructive" });
+                  toast({ title: t("settings.storage.clearFailedTitle"), description: e?.toString(), variant: "destructive" });
                 } finally {
                   setIsClearing(false);
                   setCacheFiles([]);
                 }
               }}
             >
-              delete all
+              {t("settings.storage.deleteAll")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -272,7 +274,7 @@ export function StorageSection() {
         visible={dataDirChanged}
         onApply={handleApplyRestart}
         isUpdating={isRestarting}
-        message="data directory changed. restart to apply."
+        message={t("settings.storage.restartBarMessage")}
       />
     </div>
   );

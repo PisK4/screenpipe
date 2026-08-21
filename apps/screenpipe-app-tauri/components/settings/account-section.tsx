@@ -71,6 +71,7 @@ import {
   SyncKeyRecovery,
 } from "./sync-key-recovery";
 import { isLocalLearningMode } from "@/lib/local-learning-mode";
+import { useT, type Translator } from "@/lib/i18n";
 
 const ACCOUNT_URL = screenpipeWebUrl("/account", "https://screenpipe.com");
 const BILLING_URL = screenpipeWebUrl("/account/billing", "https://screenpipe.com");
@@ -129,11 +130,11 @@ function analyticsDistinctId(enabled: boolean): string | undefined {
  * connection-style failure with a clear, actionable line; pass other
  * errors through verbatim.
  */
-function syncErrorDescription(e: unknown): string {
+function syncErrorDescription(e: unknown, t: Translator): string {
   const msg = (e instanceof Error ? e.message : String(e)) || "";
   // WebKit ("Load failed"), Chromium ("Failed to fetch"), Firefox ("NetworkError")
   if (/load failed|failed to fetch|networkerror|network request failed/i.test(msg)) {
-    return "screenpipe server isn't reachable — give it a few seconds after launch and try again";
+    return t("settings.account.syncUnreachableDescription");
   }
   return msg;
 }
@@ -141,6 +142,7 @@ function syncErrorDescription(e: unknown): string {
 function CloudAccountSection() {
   const { settings, updateSettings, loadUser } = useSettings();
   const { isServerDown } = useHealthCheck();
+  const t = useT();
   const [pipeSyncing, setPipeSyncing] = useState(false);
   const [memoriesSyncing, setMemoriesSyncing] = useState(false);
   const [connectionsSyncing, setConnectionsSyncing] = useState(false);
@@ -213,13 +215,13 @@ function CloudAccountSection() {
                 loadUser(settings.user.token!);
               }
               toast({
-                title: "stripe connected!",
-                description: "your account is now set up for payments",
+                title: t("settings.account.stripeConnectedTitle"),
+                description: t("settings.account.stripeConnectedDescription"),
               });
             } else if (url.includes("/refresh")) {
               toast({
-                title: "stripe setup incomplete",
-                description: "please complete the stripe onboarding process",
+                title: t("settings.account.stripeIncompleteTitle"),
+                description: t("settings.account.stripeIncompleteDescription"),
               });
             }
           }
@@ -295,8 +297,8 @@ function CloudAccountSection() {
               source: upgradeSource,
             });
             toast({
-              title: "subscription activated",
-              description: "Screenpipe Business is ready",
+              title: t("settings.account.subscriptionActivatedTitle"),
+              description: t("settings.account.subscriptionActivatedDescription"),
             });
             return;
           }
@@ -422,7 +424,7 @@ function CloudAccountSection() {
         startSubscriptionPolling();
       } catch (error) {
         toast({
-          title: "failed to start checkout",
+          title: t("settings.account.checkoutFailedTitle"),
           description: String(error),
           variant: "destructive",
         });
@@ -476,8 +478,8 @@ function CloudAccountSection() {
       setShowSyncKeyRecovery(true);
     }
     toast({
-      title: "sync failed",
-      description: syncErrorDescription(error),
+      title: t("settings.account.syncFailedTitle"),
+      description: syncErrorDescription(error, t),
       variant: "destructive",
     });
   };
@@ -488,8 +490,8 @@ function CloudAccountSection() {
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground" data-testid="account-login-status">
           {settings.user?.token
-            ? `logged in as ${settings.user.email}`
-            : "not logged in"}
+            ? t("settings.account.loggedInAs", { email: settings.user.email ?? "" })
+            : t("settings.account.notLoggedIn")}
         </p>
         <div className="flex gap-2">
           {settings.user?.token ? (
@@ -518,10 +520,10 @@ function CloudAccountSection() {
                   try {
                     await commands.piUpdateConfig(null, null);
                   } catch {}
-                  toast({ title: "logged out" });
+                  toast({ title: t("settings.account.loggedOutToast") });
                 }}
               >
-                logout
+                {t("settings.account.logout")}
               </Button>
             </>
           ) : (
@@ -530,7 +532,7 @@ function CloudAccountSection() {
               size="sm"
               onClick={() => commands.openLoginWindow(null, null)}
             >
-              login <ExternalLinkIcon className="w-3.5 h-3.5 ml-1.5" />
+              {t("settings.account.login")} <ExternalLinkIcon className="w-3.5 h-3.5 ml-1.5" />
             </Button>
           )}
         </div>
@@ -545,8 +547,8 @@ function CloudAccountSection() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold">Screenpipe {hasNamedPlan ? planDisplayName(subscriptionPlan, isManagedDeployment) : "Business"}</h3>
-              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">active</span>
+              <h3 className="text-lg font-semibold">{t("settings.account.planActiveTitle", { plan: hasNamedPlan ? planDisplayName(subscriptionPlan, isManagedDeployment) : "Business" })}</h3>
+              <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{t("settings.account.activeBadge")}</span>
             </div>
           </div>
           {/* What this account already has. The plan grid below repeats some
@@ -587,9 +589,9 @@ function CloudAccountSection() {
           <div className="mt-4 pt-4 border-t border-border/50">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">sync scheduled tasks across devices</p>
+                <p className="text-sm font-medium">{t("settings.account.pipeSyncTitle")}</p>
                 <p className="text-xs text-muted-foreground">
-                  sync your scheduled tasks & configs to all devices linked to your account
+                  {t("settings.account.pipeSyncDescription")}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -600,15 +602,15 @@ function CloudAccountSection() {
                     onCheckedChange={async (checked) => {
                       await updateSettings({ pipeSyncEnabled: checked });
                       toast({
-                        title: checked ? "scheduled task sync enabled" : "scheduled task sync disabled",
+                        title: checked ? t("settings.account.pipeSyncEnabledToast") : t("settings.account.pipeSyncDisabledToast"),
                         description: checked
-                          ? "scheduled tasks will sync across your devices"
-                          : "scheduled tasks will no longer sync",
+                          ? t("settings.account.pipeSyncEnabledDescription")
+                          : t("settings.account.pipeSyncDisabledDescription"),
                       });
                     }}
                   />
                   <Label htmlFor="pipe-sync-toggle" className="text-xs text-muted-foreground cursor-pointer sr-only">
-                    sync
+                    {t("settings.account.syncLabel")}
                   </Label>
                 </div>
                 {settings.pipeSyncEnabled && (
@@ -618,7 +620,7 @@ function CloudAccountSection() {
                     className="text-xs uppercase tracking-wide"
                     title={
                       isServerDown
-                        ? "screenpipe server is starting up — try again in a moment"
+                        ? t("settings.account.serverStartingTooltip")
                         : undefined
                     }
                     disabled={pipeSyncing || isServerDown}
@@ -627,7 +629,7 @@ function CloudAccountSection() {
                       try {
                         await syncFetchOrThrow("/sync/pipes/pull", { method: "POST" });
                         await syncFetchOrThrow("/sync/pipes/push", { method: "POST" });
-                        toast({ title: "scheduled tasks synced" });
+                        toast({ title: t("settings.account.pipeSyncedToast") });
                       } catch (e) {
                         reportSyncFailure(e);
                       } finally {
@@ -636,7 +638,7 @@ function CloudAccountSection() {
                     }}
                   >
                     <RefreshCw className={`h-3 w-3 mr-1 ${pipeSyncing ? "animate-spin" : ""}`} />
-                    sync now
+                    {t("settings.account.syncNow")}
                   </Button>
                 )}
               </div>
@@ -648,9 +650,9 @@ function CloudAccountSection() {
           <div className="mt-4 pt-4 border-t border-border/50">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">memories sync across devices</p>
+                <p className="text-sm font-medium">{t("settings.account.memoriesSyncTitle")}</p>
                 <p className="text-xs text-muted-foreground">
-                  sync your memories (facts, preferences, decisions) across devices
+                  {t("settings.account.memoriesSyncDescription")}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -661,15 +663,15 @@ function CloudAccountSection() {
                     onCheckedChange={async (checked) => {
                       await updateSettings({ memoriesSyncEnabled: checked });
                       toast({
-                        title: checked ? "memories sync enabled" : "memories sync disabled",
+                        title: checked ? t("settings.account.memoriesSyncEnabledToast") : t("settings.account.memoriesSyncDisabledToast"),
                         description: checked
-                          ? "memories will sync across your devices"
-                          : "memories will no longer sync",
+                          ? t("settings.account.memoriesSyncEnabledDescription")
+                          : t("settings.account.memoriesSyncDisabledDescription"),
                       });
                     }}
                   />
                   <Label htmlFor="memories-sync-toggle" className="text-xs text-muted-foreground cursor-pointer sr-only">
-                    sync
+                    {t("settings.account.syncLabel")}
                   </Label>
                 </div>
                 {settings.memoriesSyncEnabled && (
@@ -679,7 +681,7 @@ function CloudAccountSection() {
                     className="text-xs uppercase tracking-wide"
                     title={
                       isServerDown
-                        ? "screenpipe server is starting up — try again in a moment"
+                        ? t("settings.account.serverStartingTooltip")
                         : undefined
                     }
                     disabled={memoriesSyncing || isServerDown}
@@ -688,7 +690,7 @@ function CloudAccountSection() {
                       try {
                         await syncFetchOrThrow("/sync/memories/pull", { method: "POST" });
                         await syncFetchOrThrow("/sync/memories/push", { method: "POST" });
-                        toast({ title: "memories synced" });
+                        toast({ title: t("settings.account.memoriesSyncedToast") });
                       } catch (e) {
                         reportSyncFailure(e);
                       } finally {
@@ -697,7 +699,7 @@ function CloudAccountSection() {
                     }}
                   >
                     <RefreshCw className={`h-3 w-3 mr-1 ${memoriesSyncing ? "animate-spin" : ""}`} />
-                    sync now
+                    {t("settings.account.syncNow")}
                   </Button>
                 )}
               </div>
@@ -712,9 +714,9 @@ function CloudAccountSection() {
           <div className="mt-4 pt-4 border-t border-border/50">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">connection sync across devices</p>
+                <p className="text-sm font-medium">{t("settings.account.connectionsSyncTitle")}</p>
                 <p className="text-xs text-muted-foreground">
-                  sync connected accounts (slack, notion…) to your devices — credentials are end-to-end encrypted
+                  {t("settings.account.connectionsSyncDescription")}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -725,15 +727,15 @@ function CloudAccountSection() {
                     onCheckedChange={async (checked) => {
                       await updateSettings({ connectionsSyncEnabled: checked });
                       toast({
-                        title: checked ? "connection sync enabled" : "connection sync disabled",
+                        title: checked ? t("settings.account.connectionsSyncEnabledToast") : t("settings.account.connectionsSyncDisabledToast"),
                         description: checked
-                          ? "connected accounts will sync across your devices"
-                          : "connected accounts will no longer sync",
+                          ? t("settings.account.connectionsSyncEnabledDescription")
+                          : t("settings.account.connectionsSyncDisabledDescription"),
                       });
                     }}
                   />
                   <Label htmlFor="connections-sync-toggle" className="text-xs text-muted-foreground cursor-pointer sr-only">
-                    sync
+                    {t("settings.account.syncLabel")}
                   </Label>
                 </div>
                 {settings.connectionsSyncEnabled && (
@@ -743,7 +745,7 @@ function CloudAccountSection() {
                     className="text-xs uppercase tracking-wide"
                     title={
                       isServerDown
-                        ? "screenpipe server is starting up — try again in a moment"
+                        ? t("settings.account.serverStartingTooltip")
                         : undefined
                     }
                     disabled={connectionsSyncing || isServerDown}
@@ -752,7 +754,7 @@ function CloudAccountSection() {
                       try {
                         await syncFetchOrThrow("/sync/connections/pull", { method: "POST" });
                         await syncFetchOrThrow("/sync/connections/push", { method: "POST" });
-                        toast({ title: "connections synced" });
+                        toast({ title: t("settings.account.connectionsSyncedToast") });
                       } catch (e) {
                         reportSyncFailure(e);
                       } finally {
@@ -761,7 +763,7 @@ function CloudAccountSection() {
                     }}
                   >
                     <RefreshCw className={`h-3 w-3 mr-1 ${connectionsSyncing ? "animate-spin" : ""}`} />
-                    sync now
+                    {t("settings.account.syncNow")}
                   </Button>
                 )}
               </div>
@@ -790,16 +792,16 @@ function CloudAccountSection() {
         <>
           <Card className="p-8 flex flex-col items-center text-center">
             <UserCog className="h-10 w-10 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-1">Sign in to Screenpipe</h3>
+            <h3 className="text-lg font-semibold mb-1">{t("settings.account.signInTitle")}</h3>
             <p className="text-sm text-muted-foreground mb-6">
-              free account — no credit card required
+              {t("settings.account.signInDescription")}
             </p>
             <Button
               className="w-full max-w-xs bg-foreground text-background hover:bg-background hover:text-foreground transition-colors duration-150"
               size="lg"
               onClick={() => commands.openLoginWindow(null, null)}
             >
-              Log in
+              {t("settings.account.logInButton")}
               <ExternalLinkIcon className="w-4 h-4 ml-2" />
             </Button>
           </Card>
@@ -819,9 +821,9 @@ function CloudAccountSection() {
           <Card className="p-4 opacity-75">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">sync scheduled tasks across devices</p>
+                <p className="text-sm font-medium">{t("settings.account.pipeSyncTitle")}</p>
                 <p className="text-xs text-muted-foreground">
-                  sync your scheduled tasks & configs to all devices linked to your account
+                  {t("settings.account.pipeSyncDescription")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -831,7 +833,7 @@ function CloudAccountSection() {
                   className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium flex items-center gap-1 hover:bg-primary/20 transition-colors cursor-pointer"
                 >
                   <Lock className="h-3 w-3" />
-                  Business
+                  {t("settings.account.businessBadge")}
                 </button>
               </div>
             </div>
@@ -846,15 +848,14 @@ function CloudAccountSection() {
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-primary" />
                 <h3 className="text-lg font-semibold">
-                  Screenpipe {planDisplayName(subscriptionPlan, isManagedDeployment)}
+                  {t("settings.account.planActiveTitle", { plan: planDisplayName(subscriptionPlan, isManagedDeployment) })}
                 </h3>
                 <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
-                  active
+                  {t("settings.account.activeBadge")}
                 </span>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
-                local capture, search &amp; timeline. add cloud sync, cloud AI &amp; 50+
-                integrations with Business below.
+                {t("settings.account.basicPlanDescription")}
               </p>
 
               <div className="mt-4">
@@ -875,11 +876,10 @@ function CloudAccountSection() {
             <Card className="p-5" data-testid="account-free-plan-card">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-muted-foreground" />
-                <h3 className="text-lg font-semibold">Screenpipe Free</h3>
+                <h3 className="text-lg font-semibold">{t("settings.account.freePlanTitle")}</h3>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
-                local capture, search &amp; timeline are included. choose a plan
-                for more AI, longer history, and cloud sync.
+                {t("settings.account.freePlanDescription")}
               </p>
               <div className="mt-4">
                 <AccountPlanOptions
@@ -906,9 +906,9 @@ function CloudAccountSection() {
           <Card className="p-4 opacity-75">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium">sync scheduled tasks across devices</p>
+                <p className="text-sm font-medium">{t("settings.account.pipeSyncTitle")}</p>
                 <p className="text-xs text-muted-foreground">
-                  sync your scheduled tasks & configs to all devices linked to your account
+                  {t("settings.account.pipeSyncDescription")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -918,7 +918,7 @@ function CloudAccountSection() {
                   className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium flex items-center gap-1 hover:bg-primary/20 transition-colors cursor-pointer"
                 >
                   <Lock className="h-3 w-3" />
-                  Business
+                  {t("settings.account.businessBadge")}
                 </button>
               </div>
             </div>
@@ -928,8 +928,8 @@ function CloudAccountSection() {
           {!hasNamedPlan && (
             <div className="px-3 py-2 rounded-lg border border-border/50">
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">free tier:</span>{" "}
-                local whisper transcription (uses ~2GB RAM)
+                <span className="font-medium text-foreground">{t("settings.account.freeTierLabel")}</span>{" "}
+                {t("settings.account.freeTierDescription")}
               </p>
             </div>
           )}

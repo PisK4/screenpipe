@@ -90,6 +90,7 @@ vi.mock("@tauri-apps/api/event", () => ({
 vi.mock("@/components/settings/referral-card", () => ({
   ReferralCard: () => null,
 }));
+
 vi.mock("../business-upgrade-card", () => ({
   BusinessUpgradeCard: ({
     onContinue,
@@ -152,7 +153,7 @@ describe("AccountSection subscription/login gating", () => {
     // header.
     expect(screen.queryByTestId(ACTIVE_CARD)).not.toBeInTheDocument();
     // It falls through to the login-first layout instead.
-    expect(screen.getByText(/sign in to screenpipe/i)).toBeInTheDocument();
+    expect(screen.getByText(/sign in to cue/i)).toBeInTheDocument();
   });
 
   it("shows the active plan card for a real signed-in cloud subscriber", () => {
@@ -466,7 +467,7 @@ describe("AccountSection subscription/login gating", () => {
     render(<AccountSection />);
 
     expect(screen.queryByTestId(ACTIVE_CARD)).not.toBeInTheDocument();
-    expect(screen.getByText("Screenpipe Lifetime")).toBeInTheDocument();
+    expect(screen.getByText("Cue Lifetime")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /upgrade to business/i }));
 
     await waitFor(() => expect(checkoutFetch).toHaveBeenCalledTimes(1));
@@ -489,6 +490,6 @@ describe("AccountSection subscription/login gating", () => {
 
     expect(loginStatus()).toContain("not logged in");
     expect(screen.queryByTestId(ACTIVE_CARD)).not.toBeInTheDocument();
-    expect(screen.getByText(/sign in to screenpipe/i)).toBeInTheDocument();
+    expect(screen.getByText(/sign in to cue/i)).toBeInTheDocument();
   });
 });

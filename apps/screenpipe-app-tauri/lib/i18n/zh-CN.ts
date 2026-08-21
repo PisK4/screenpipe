@@ -7,6 +7,9 @@
 // brand name stays "Cue"; language names stay in their own script.
 
 import type { Dictionary } from "./en";
+import { accountZh } from "./zh-account";
+import { notificationsZh } from "./zh-notifications";
+import { storageZh } from "./zh-storage";
 
 export const zhCN = {
   common: {
@@ -19,6 +22,7 @@ export const zhCN = {
     disabled: "已关闭",
   },
   settings: {
+    account: accountZh,
     general: {
       subtitle: "启动、更新与通知",
 
@@ -443,5 +447,7 @@ export const zhCN = {
       overlaySizeMedium: "中",
       overlaySizeLarge: "大",
     },
+    notifications: notificationsZh,
+    storage: storageZh,
   },
 } satisfies Dictionary;

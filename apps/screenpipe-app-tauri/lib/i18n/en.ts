@@ -6,6 +6,10 @@
 // Every other locale file must satisfy `Dictionary` (same keys), which the
 // compiler enforces via `satisfies`. Brand name in user-visible copy is Cue.
 
+import { accountEn } from "./en-account";
+import { notificationsEn } from "./en-notifications";
+import { storageEn } from "./en-storage";
+
 export const en = {
   common: {
     cancel: "Cancel",
@@ -17,6 +21,7 @@ export const en = {
     disabled: "Disabled",
   },
   settings: {
+    account: accountEn,
     general: {
       subtitle: "Startup, updates, and notifications",
 
@@ -470,6 +475,8 @@ export const en = {
       overlaySizeMedium: "Medium",
       overlaySizeLarge: "Large",
     },
+    notifications: notificationsEn,
+    storage: storageEn,
   },
 };
 
