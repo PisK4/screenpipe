@@ -9,13 +9,15 @@ import { commands } from "@/lib/utils/tauri";
 import { useTheme } from "@/components/theme-provider";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
-import { Moon, Sun, Monitor, Layers, MessageSquare, PanelLeft, Maximize2, EyeOff, MinusSquare, Type, CalendarClock } from "lucide-react";
+import { Moon, Sun, Monitor, Layers, MessageSquare, PanelLeft, Maximize2, EyeOff, MinusSquare, Type, CalendarClock, Languages } from "lucide-react";
 import { usePlatform } from "@/lib/hooks/use-platform";
 import { HelpTooltip } from "@/components/ui/help-tooltip";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Settings } from "@/lib/hooks/use-settings";
 import { FONT_SIZE_DEFAULT, FONT_SIZE_OPTIONS } from "@/lib/utils/font-size";
+import { LOCALE_OPTIONS, LOCALE_STORAGE_KEY, resolveAppLocale } from "@/lib/utils/locale";
+import { useT } from "@/lib/i18n";
 import { open } from "@tauri-apps/plugin-shell";
 import type { SettingsField } from "./settings-search";
 import { ManagedSwitch } from "@/components/enterprise-locked-setting";
@@ -32,6 +34,7 @@ import {
 export const searchIndex: SettingsField[] = [
   { label: "Theme", keywords: ["dark", "light", "appearance"] },
   { label: "Font Size" },
+  { label: "Language", keywords: ["locale", "i18n", "chinese", "中文", "简体中文", "language"] },
   { label: "Chat Always on Top", keywords: ["pin", "window"] },
   { label: "Shortcut Reminder", keywords: ["overlay", "pill", "pin", "drag", "position"] },
   { label: "Timeline / rewind", keywords: ["rewind", "timeline", "backend"] },
@@ -46,6 +49,7 @@ export function DisplaySection() {
   const { theme, setTheme } = useTheme();
   const { toast } = useToast();
   const { isMac, isWindows } = usePlatform();
+  const t = useT();
   // Guards the Disable-Timeline toggle against double-invoke (rapid toggle /
   // re-render) so we never fire two overlapping screenpipe restarts.
   const timelineRestartingRef = React.useRef(false);
@@ -147,6 +151,69 @@ export function DisplaySection() {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* UI language. Unset (undefined) follows the system language — the
+            "System" radio is the visual representation of that unset state. */}
+        <Card className="border-border bg-card">
+          <CardContent className="px-3 py-2.5">
+            <div className="space-y-2.5">
+              <div className="flex items-center space-x-2.5">
+                <Languages className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div>
+                  <h3 className="text-sm font-medium text-foreground">{t("settings.display.language")}</h3>
+                  <p className="text-xs text-muted-foreground">{t("settings.display.languageDescription")}</p>
+                </div>
+              </div>
+              <div className="flex gap-3 ml-[26px]">
+                {(() => {
+                  const current = settings?.locale;
+                  const options = [
+                    { value: undefined as string | undefined, label: t("settings.display.languageSystemOption") },
+                    ...LOCALE_OPTIONS.map((o) => ({ value: o.value as string | undefined, label: o.label })),
+                  ];
+                  return options.map((option) => {
+                    const isActive = option.value === undefined ? current === undefined : current === option.value;
+                    return (
+                      <label
+                        key={option.label}
+                        className="flex items-center space-x-2 cursor-pointer group"
+                      >
+                        <input
+                          type="radio"
+                          name="app-language"
+                          value={option.value ?? "system"}
+                          checked={isActive}
+                          onChange={() => {
+                            const next =
+                              option.value === "en" || option.value === "zh-CN"
+                                ? option.value
+                                : undefined;
+                            updateSettings({ locale: next }).then(() => {
+                              toast({ title: t("settings.display.languageUpdated") });
+                            });
+                          }}
+                          className="sr-only"
+                        />
+                        <div className={`
+                          flex items-center justify-center w-3.5 h-3.5 rounded-full border-2 transition-colors
+                          ${isActive
+                            ? 'border-primary bg-primary'
+                            : 'border-muted-foreground group-hover:border-primary'
+                          }
+                        `}>
+                          {isActive && (
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
+                          )}
+                        </div>
+                        <span className="text-sm text-foreground">{option.label}</span>
+                      </label>
+                    );
+                  });
+                })()}
               </div>
             </div>
           </CardContent>

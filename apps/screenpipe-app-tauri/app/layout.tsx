@@ -271,6 +271,17 @@ export default function RootLayout({
                   }
                 } catch (e) {}
 
+                // Apply the saved UI language before React mounts so the first
+                // paint is already in the right locale (mirror of theme above).
+                // No saved value = leave lang alone; the app resolves the
+                // system language once settings load.
+                try {
+                  var savedLocale = localStorage.getItem('screenpipe-app-locale');
+                  if (savedLocale) {
+                    document.documentElement.lang = savedLocale;
+                  }
+                } catch (e) {}
+
                 // Crash recovery: if React fails to render, the page stays blank.
                 // After 8s, if <body> has no visible children, reload once.
                 var RELOAD_KEY = '__sp_crash_reload';

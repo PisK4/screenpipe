@@ -33,6 +33,7 @@ import type {
 	EnterpriseInstallMetadata,
 } from "@/lib/enterprise/app-update-policy";
 import { type FontSize, applyFontSize } from "@/lib/utils/font-size";
+import { type AppLocale, applyLocale } from "@/lib/utils/locale";
 import {
 	applyManagedOverrides,
 	type ManagedSettingValue,
@@ -343,6 +344,8 @@ export type Settings = SettingsStore & {
 	connectionsSyncEnabled?: boolean;
 	/** Font size for the entire app UI */
 	fontSize?: FontSize;
+	/** UI display language (see lib/i18n). Unset = follow the system language. */
+	locale?: AppLocale;
 	/** OpenAI-compatible transcription endpoint URL */
 	openaiCompatibleEndpoint?: string;
 	/** OpenAI-compatible transcription API key */
@@ -1775,6 +1778,12 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 	useEffect(() => {
 		applyFontSize(settings.fontSize);
 	}, [settings.fontSize]);
+
+	useEffect(() => {
+		if (settings.locale) {
+			applyLocale(settings.locale);
+		}
+	}, [settings.locale]);
 
 	const updateSettings = async (updates: Partial<Settings>) => {
 		// Every settings mutation funnels through here, which makes this the one
