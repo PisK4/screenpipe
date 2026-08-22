@@ -1,7 +1,7 @@
 # 模型调用路径盘点与重构路线
 
 <!-- doc-covers: crates/screenpipe-core/src/agents, crates/screenpipe-core/src/pipes, crates/screenpipe-audio/src, apps/screenpipe-app-tauri/lib, apps/screenpipe-app-tauri/src-tauri/src -->
-<!-- doc-verified: c761541585c4f70e84ed5f77558bceae18732ca5 -->
+<!-- doc-verified: b6bed101f1763d9baf570e2b2cdedeca56152291 -->
 > **Current。** 本文按上述提交核验，是重构基线，不代表后续实现不会变化。
 
 ## 1. 文档目的
@@ -192,7 +192,7 @@ Screenpipe 当前通过多个运行时访问模型。主 Chat 和 Pipe 路径使
 
 **Pi SDK。** `direct-pi`。
 
-**持久化。** Pipe 配置、执行日志、输出文件和会话视图分开保存。Pipe 规格记录了 `~/.screenpipe/pipes/{name}/logs/`、Pi 配置目录和 Pipe Output 目录。Prompt、Usage、Cost、Retry 目前没有统一记录保证。
+**持久化。** Pipe 配置、执行日志、输出文件和会话视图分开保存。Pipe 规格记录了 `~/.cue/pipes/{name}/logs/`（默认数据目录自 6caaee5bf 起为 `~/.cue`）、Pi 配置目录和 Pipe Output 目录。Prompt、Usage、Cost、Retry 目前没有统一记录保证。
 
 **权限。** 需要 Pipe 已启用或被显式执行。Provider Credential 来自解析后的 Preset 和 Pi 配置。Tool 可能读取 Local API、写文件或调用连接器。
 

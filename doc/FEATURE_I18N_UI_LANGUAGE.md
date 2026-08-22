@@ -1,7 +1,7 @@
 # 界面多语言（i18n）
 
 <!-- doc-covers: apps/screenpipe-app-tauri/lib/i18n, apps/screenpipe-app-tauri/lib/i18n/en.ts, apps/screenpipe-app-tauri/lib/i18n/zh-CN.ts, apps/screenpipe-app-tauri/lib/i18n/translate.ts, apps/screenpipe-app-tauri/lib/i18n/index.ts, apps/screenpipe-app-tauri/lib/utils/locale.ts, apps/screenpipe-app-tauri/lib/hooks/use-settings.tsx, apps/screenpipe-app-tauri/components/settings/display-section.tsx -->
-<!-- doc-verified: 81d860e87319a5c088cce5d832685cebfffec714 -->
+<!-- doc-verified: b6bed101f1763d9baf570e2b2cdedeca56152291 -->
 > **Current。** 本文按上述提交核验，记录 UI 多语言层的结构与约定。后续改动应以代码和测试为准。
 
 ## 1. 目的

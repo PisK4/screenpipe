@@ -1,7 +1,7 @@
 # Cue Agent 能力供给层
 
 <!-- doc-covers: apps/screenpipe-app-tauri/src-tauri/src/pi.rs, crates/screenpipe-core/src/agents/pi.rs, crates/screenpipe-engine/src/routes/cloud_proxy.rs, crates/screenpipe-core/assets/skills/screenpipe-api/SKILL.md, crates/screenpipe-core/assets/skills/screenpipe-api/cloud_media_analysis_block.md, apps/screenpipe-app-tauri/src-tauri/assets/extensions/web-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/mcp-bridge.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/save-artifact.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/live-views.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/connection-gate.ts, crates/screenpipe-core/assets/extensions/sub-agent.ts -->
-<!-- doc-verified: c761541585c4f70e84ed5f77558bceae18732ca5 -->
+<!-- doc-verified: b6bed101f1763d9baf570e2b2cdedeca56152291 -->
 > **Current。** 本文按上述提交核验。产品层名称使用 Cue，源码和路径仍保留 Screenpipe 命名。
 
 ## 1. 这项能力是什么

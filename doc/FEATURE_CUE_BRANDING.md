@@ -1,7 +1,7 @@
 # Cue 品牌与文案边界
 
 <!-- doc-covers: AGENTS.md, apps/screenpipe-app-tauri/lib/i18n/en.ts, apps/screenpipe-app-tauri/lib/i18n/zh-CN.ts, apps/screenpipe-app-tauri/src-tauri/src/dock_menu.rs, apps/screenpipe-app-tauri/src-tauri/src/tray.rs, apps/screenpipe-app-tauri/src-tauri/Info.plist -->
-<!-- doc-verified: 553ab58cfea82f75e7dd82317173a8757705bbd7 -->
+<!-- doc-verified: b6bed101f1763d9baf570e2b2cdedeca56152291 -->
 > **Current。** 本文按上述提交核验，记录 Cue 品牌化的文案边界。后续改动应以代码为准。
 
 ## 1. 目的

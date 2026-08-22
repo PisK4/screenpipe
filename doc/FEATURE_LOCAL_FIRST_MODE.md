@@ -1,7 +1,7 @@
 # 本地优先构建模式重构
 
 <!-- doc-covers: apps/screenpipe-app-tauri/lib/local-learning-mode.ts, apps/screenpipe-app-tauri/app/providers.tsx, apps/screenpipe-app-tauri/app/onboarding/page.tsx, apps/screenpipe-app-tauri/app/(main)/settings/page.tsx, apps/screenpipe-app-tauri/components/app-entitlement-gate.tsx, apps/screenpipe-app-tauri/components/chat/standalone/free-plan-wall.tsx, apps/screenpipe-app-tauri/components/chat/standalone/upgrade-quota-banner.tsx, apps/screenpipe-app-tauri/components/settings/ai-presets.tsx, apps/screenpipe-app-tauri/lib/chat/provider-errors.ts, apps/screenpipe-app-tauri/lib/hooks/use-settings.tsx, apps/screenpipe-app-tauri/lib/hooks/use-usage-status.tsx, apps/screenpipe-app-tauri/components/rewind/timeline/daily-summary.tsx, apps/screenpipe-app-tauri/scripts/build-frontend.js, apps/screenpipe-app-tauri/scripts/dev-enterprise.ts, apps/screenpipe-app-tauri/src-tauri/Cargo.toml, apps/screenpipe-app-tauri/src-tauri/src/main.rs, apps/screenpipe-app-tauri/src-tauri/src/pi.rs, apps/screenpipe-app-tauri/src-tauri/src/recording.rs, apps/screenpipe-app-tauri/src-tauri/src/analytics.rs, apps/screenpipe-app-tauri/src-tauri/tauri.enterprise.conf.json -->
-<!-- doc-verified: c761541585c4f70e84ed5f77558bceae18732ca5 -->
+<!-- doc-verified: b6bed101f1763d9baf570e2b2cdedeca56152291 -->
 > **Current。** 本文按上述提交核验，记录桌面端本地优先模式的基线。后续改动应以代码和测试为准。
 
 ## 1. 目的
