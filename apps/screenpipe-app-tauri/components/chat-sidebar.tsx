@@ -102,6 +102,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
+import { useT } from "@/lib/i18n";
 import { normalizeQueueEventPayload } from "@/lib/chat-queue-controls";
 import { Skeleton } from "@/components/ui/skeleton";
 import { localFetch } from "@/lib/api";
@@ -294,6 +295,7 @@ function useQueueDepths(): Map<string, number> {
  * background — those belong to the parent.
  */
 export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
+  const t = useT();
   const currentId = useChatStore((s) => s.currentId);
   // Reactive group key for the current session — re-evaluates when the
   // session appears in the store (handles the race where currentId is set
@@ -999,8 +1001,8 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
       !isTerminalPipeExecutionStatus(fullExecution.status)
     ) {
       toast({
-        title: "couldn't load scheduled run",
-        description: "the execution output is temporarily unavailable",
+        title: t("shell.toast.loadFailedTitle"),
+        description: t("shell.toast.loadFailedDesc"),
         variant: "destructive",
       });
       return false;
@@ -1199,7 +1201,7 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
       });
       if (!validation.ok) {
         toast({
-          title: "Invalid group name",
+          title: t("shell.toast.invalidGroupName"),
           description: validation.message,
           variant: "destructive",
         });
@@ -1250,7 +1252,8 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
           {pinned.length > 0 && (
             <div className="shrink-0">
               <Section
-                title="pinned"
+                title={t("shell.section.pinned")}
+                testId="pinned"
                 tone="default"
                 collapsed={pinnedCollapsed}
                 onCollapsedChange={setPinnedCollapsed}
@@ -1279,7 +1282,8 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
 
           <div className="group/recents min-h-0 flex flex-col">
             <Section
-              title="recents"
+              title={t("shell.section.recents")}
+              testId="recents"
               collapsed={recentsCollapsed}
               onCollapsedChange={setRecentsCollapsed}
               headerAction={
@@ -1310,7 +1314,7 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
                   }}
                   aria-disabled={!onViewAll}
                 >
-                  View all <ChevronRight className="h-3 w-3" aria-hidden />
+                  {t("shell.viewAll")} <ChevronRight className="h-3 w-3" aria-hidden />
                 </span>
               }
               bodyClassName=""
@@ -1324,8 +1328,8 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
               ) : recents.length === 0 ? (
                 <div className="px-2.5 py-2 text-xs sidebar-text-secondary italic">
                   {pinned.length === 0 && pipes.length === 0
-                    ? "no chats yet — click + to start"
-                    : "no recent chats"}
+                    ? t("shell.empty.noChatsYet")
+                    : t("shell.empty.noRecentChats")}
                 </div>
               ) : (
                 <RecentsBody
@@ -1354,7 +1358,8 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
 
           <div className="group/pipes min-h-0 flex flex-col shrink-0">
               <Section
-                title="scheduled"
+                title={t("shell.section.scheduled")}
+                testId="scheduled"
                 collapsed={pipesCollapsed}
                 onCollapsedChange={updatePipesCollapsed}
                 headerAction={
@@ -1370,7 +1375,7 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
                   </div>
                 ) : pipeItems.length === 0 ? (
                   <div className="px-2.5 py-2 text-xs sidebar-text-secondary italic">
-                    no scheduled runs yet
+                    {t("shell.empty.noScheduledRuns")}
                   </div>
                 ) : pipeItems.map((item) => (
                     <PipeGroupRow
@@ -1405,7 +1410,7 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
                     onClick={() => void fetchPipeInventory(true)}
                     disabled={pipeInventoryLoadingMore}
                   >
-                    {pipeInventoryLoadingMore ? "loading…" : "show more scheduled tasks"}
+                    {pipeInventoryLoadingMore ? t("shell.list.loading") : t("shell.list.showMoreScheduled")}
                   </button>
                 )}
               </Section>
@@ -1421,12 +1426,12 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
       >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete chat</DialogTitle>
-            <DialogDescription>Delete this chat? This cannot be undone.</DialogDescription>
+            <DialogTitle>{t("shell.dialog.deleteChat")}</DialogTitle>
+            <DialogDescription>{t("shell.dialog.deleteConfirm")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeletingSessionId(null)}>
-              Cancel
+              {t("shell.dialog.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -1437,7 +1442,7 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
                 await handleDeleteConfirmed(id);
               }}
             >
-              Delete
+              {t("shell.dialog.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1451,8 +1456,8 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
       >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Rename chat</DialogTitle>
-            <DialogDescription>Give this chat a new title.</DialogDescription>
+            <DialogTitle>{t("shell.dialog.renameChat")}</DialogTitle>
+            <DialogDescription>{t("shell.dialog.renameDesc")}</DialogDescription>
           </DialogHeader>
           <div className="py-2">
             <input
@@ -1471,13 +1476,13 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
                 "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none",
                 "focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
               )}
-              placeholder="Chat title"
-              aria-label="Chat title"
+              placeholder={t("shell.dialog.chatTitle")}
+              aria-label={t("shell.dialog.chatTitle")}
             />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRenamingSessionId(null)}>
-              Cancel
+              {t("shell.dialog.cancel")}
             </Button>
             <Button
               onClick={async () => {
@@ -1487,7 +1492,7 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
                 await handleRenameConfirmed(id, renameTitle);
               }}
             >
-              Save
+              {t("shell.dialog.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1501,8 +1506,8 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
       >
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>New group</DialogTitle>
-            <DialogDescription>Enter a name for the sidebar group.</DialogDescription>
+            <DialogTitle>{t("shell.dialog.newGroup")}</DialogTitle>
+            <DialogDescription>{t("shell.dialog.newGroupDesc")}</DialogDescription>
           </DialogHeader>
           <div className="py-2">
             <input
@@ -1525,13 +1530,13 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
                 "w-full rounded-md border bg-background px-3 py-2 text-sm outline-none",
                 "focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
               )}
-              placeholder="Group name"
-              aria-label="Group name"
+              placeholder={t("shell.dialog.groupName")}
+              aria-label={t("shell.dialog.groupName")}
             />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setNewGroupSessionId(null); setNewGroupName(""); }}>
-              Cancel
+              {t("shell.dialog.cancel")}
             </Button>
             <Button
               onClick={async () => {
@@ -1543,7 +1548,7 @@ export function ChatSidebar({ className, onViewAll }: ChatSidebarProps) {
                 setNewGroupName("");
               }}
             >
-              Create
+              {t("shell.dialog.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1565,14 +1570,15 @@ export function CollapsedChatSidebarButton({
   const [open, setOpen] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [suppressTooltip, setSuppressTooltip] = useState(false);
+  const t = useT();
   const [tab, setTab] = useState<"pinned" | "recents" | "archived">(() => {
     if (pinned.length > 0) return "pinned";
     if (recents.length > 0) return "recents";
     return "archived";
   });
   const emptyText = pinned.length === 0
-    ? "no chats yet — click + to start"
-    : "no recent chats";
+    ? t("shell.empty.noChatsYet")
+    : t("shell.empty.noRecentChats");
   const recentsTabLoading = !diskHydrated && recents.length === 0;
   const isLoadingChats =
     !diskHydrated && pinned.length === 0 && recents.length === 0;
@@ -1620,7 +1626,7 @@ export function CollapsedChatSidebarButton({
         <TooltipTrigger asChild>
           <PopoverTrigger asChild>
             <button
-              aria-label="recent chats"
+              aria-label={t("shell.collapsed.recentChatsAria")}
               onClick={() => {
                 setTooltipOpen(false);
                 setSuppressTooltip(true);
@@ -1642,7 +1648,7 @@ export function CollapsedChatSidebarButton({
             </button>
           </PopoverTrigger>
         </TooltipTrigger>
-        <TooltipContent side="right" className="text-xs">Recent chats</TooltipContent>
+        <TooltipContent side="right" className="text-xs">{t("shell.collapsed.recentChatsTooltip")}</TooltipContent>
       </Tooltip>
       <PopoverContent
         side="right"
@@ -1670,21 +1676,21 @@ export function CollapsedChatSidebarButton({
                 disabled={pinned.length === 0}
                 className="relative h-8 rounded-none bg-transparent px-2 text-[10px] uppercase tracking-wider shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:bottom-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-foreground"
               >
-                Pinned
+                {t("shell.section.pinned")}
               </TabsTrigger>
               <TabsTrigger
                 value="recents"
                 disabled={recents.length === 0}
                 className="relative h-8 rounded-none bg-transparent px-2 text-[10px] uppercase tracking-wider shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:bottom-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-foreground"
               >
-                Recents
+                {t("shell.section.recents")}
               </TabsTrigger>
               <TabsTrigger
                 value="archived"
                 disabled={archived.length === 0}
                 className="relative h-8 rounded-none bg-transparent px-2 text-[10px] uppercase tracking-wider shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:bottom-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-foreground"
               >
-                Archived
+                {t("shell.section.archived")}
               </TabsTrigger>
             </TabsList>
 
@@ -1702,7 +1708,7 @@ export function CollapsedChatSidebarButton({
                 </div>
               ) : recents.length === 0 ? (
                 <div className="px-2.5 py-2 text-xs text-muted-foreground/70 italic">
-                  {pinned.length === 0 ? emptyText : "no recent chats"}
+                  {pinned.length === 0 ? emptyText : t("shell.empty.noRecentChats")}
                 </div>
               ) : (
                 <CompactDrawerList items={recents} currentId={currentId} onSelect={handleSelect} />
@@ -1786,6 +1792,7 @@ function ChatRowsSkeleton({ rows }: { rows: number }) {
 
 function Section({
   title,
+  testId,
   count,
   tone = "default",
   collapsed,
@@ -1796,6 +1803,8 @@ function Section({
   children,
 }: {
   title: string;
+  /** Stable identifier for the data-testid — display title may be localized. */
+  testId?: string;
   count?: number;
   tone?: "default" | "subtle";
   collapsed: boolean;
@@ -1809,7 +1818,7 @@ function Section({
     <div className="flex flex-col min-h-0">
       <button
         type="button"
-        data-testid={`sidebar-section-${title}`}
+        data-testid={`sidebar-section-${testId ?? title}`}
         onClick={() => onCollapsedChange(!collapsed)}
         className={cn(
           // Light header row — avoid the "boxed section" look.
@@ -1930,6 +1939,9 @@ function RecentsBody({
   openConversationMenuId: string | null;
   setOpenConversationMenuId: (id: string | null) => void;
 }) {
+  // "other" is the lib-generated fallback subsection title (see
+  // buildSidebarRecentsSections); manual group names are user data.
+  const t = useT();
   const renderItem = (item: SidebarItem) =>
     item.kind === "single" ? (
       <SidebarChatRow
@@ -1992,7 +2004,7 @@ function RecentsBody({
                 aria-expanded={!isCollapsed}
               >
                 <span className="text-[10px] uppercase tracking-wider sidebar-text-tertiary flex-1">
-                  {section.title}
+                  {section.title === "other" ? t("shell.section.other") : section.title}
                 </span>
                 {isCollapsed ? (
                   <ChevronRight className="h-3 w-3 shrink-0 sidebar-text-tertiary" aria-hidden />
@@ -2060,6 +2072,7 @@ function PipeGroupRow({
   setOpenConversationMenuId: (id: string | null) => void;
 }) {
   const now = useMinuteTick(!!lastRun);
+  const t = useT();
   const lastRunAge = lastRun ? formatCompactAge(new Date(lastRun).getTime(), now) : null;
   return (
     <div data-testid={`pipe-group-${item.key}`}>
@@ -2101,7 +2114,7 @@ function PipeGroupRow({
             </div>
           ) : runsLoaded && item.sessions.length === 0 ? (
             <div className="px-2 py-1.5 text-[11px] sidebar-text-tertiary italic">
-              no visible runs
+              {t("shell.empty.noVisibleRuns")}
             </div>
           ) : item.sessions.map((s) => (
             <SidebarChatRow
@@ -2127,7 +2140,7 @@ function PipeGroupRow({
               onClick={onLoadMore}
               disabled={runsLoading}
             >
-              {runsLoading ? "loading…" : "show older runs"}
+              {runsLoading ? t("shell.list.loading") : t("shell.list.showOlderRuns")}
             </button>
           )}
         </div>
@@ -2246,6 +2259,7 @@ function RowMenuItems({
 }) {
   const P = ROW_MENU_PARTS[variant];
   const { isMac } = usePlatform();
+  const t = useT();
   const itemCls = "text-[11px] h-[30px] px-2 gap-2 rounded-none focus:bg-muted/30";
   const groupItemCls = "min-w-0 text-[11px] h-[30px] px-2 rounded-none whitespace-nowrap focus:bg-muted/30";
   const shortcutCls = "text-[10px] tracking-normal text-muted-foreground/55";
@@ -2260,7 +2274,7 @@ function RowMenuItems({
         }}
       >
         <Pin className="h-3 w-3 text-muted-foreground" />
-        {session.pinned ? "Unpin" : "Pin"}
+        {session.pinned ? t("shell.menu.unpin") : t("shell.menu.pin")}
         <P.Shortcut className={shortcutCls}>P</P.Shortcut>
       </P.Item>
       <P.Item
@@ -2272,7 +2286,7 @@ function RowMenuItems({
         }}
       >
         <Pencil className="h-3 w-3 text-muted-foreground" />
-        Rename
+        {t("shell.menu.rename")}
         <P.Shortcut className={shortcutCls}>R</P.Shortcut>
       </P.Item>
       {onMoveToGroup && existingGroups && (
@@ -2282,7 +2296,7 @@ function RowMenuItems({
             data-testid={`chat-row-move-to-group-${session.id}`}
           >
             <FolderOpen className="h-3 w-3 text-muted-foreground" />
-            Move to group
+            {t("shell.menu.moveToGroup")}
           </P.SubTrigger>
           <P.SubContent
             className="w-[196px] rounded-none border border-border bg-background p-0 shadow-none overflow-hidden"
@@ -2324,7 +2338,7 @@ function RowMenuItems({
                       onMoveToGroup(session.id, undefined);
                     }}
                   >
-                    Remove from group
+                    {t("shell.menu.removeFromGroup")}
                   </P.Item>
                 </>
               )}
@@ -2338,7 +2352,7 @@ function RowMenuItems({
                   onNewGroupRequest?.(session.id);
                 }}
               >
-                New group...
+                {t("shell.menu.newGroup")}
               </P.Item>
             </div>
           </P.SubContent>
@@ -2354,7 +2368,7 @@ function RowMenuItems({
           }}
         >
           <Archive className="h-3 w-3 text-muted-foreground" />
-          Archive
+          {t("shell.menu.archive")}
           <P.Shortcut className={shortcutCls}>A</P.Shortcut>
         </P.Item>
       ) : (
@@ -2367,7 +2381,7 @@ function RowMenuItems({
           }}
         >
           <Undo2 className="h-3 w-3 text-muted-foreground" />
-          Unarchive
+          {t("shell.menu.unarchive")}
           <P.Shortcut className={shortcutCls}>A</P.Shortcut>
         </P.Item>
       )}
@@ -2381,7 +2395,7 @@ function RowMenuItems({
         }}
       >
         <Trash2 className="h-3 w-3 text-destructive" />
-        Delete
+        {t("shell.menu.delete")}
         <P.Shortcut className={cn(shortcutCls, "text-destructive/60")}>D</P.Shortcut>
       </P.Item>
     </>
@@ -2440,6 +2454,7 @@ export function SidebarChatRow({
   const age = formatCompactAge(activityAt, now);
   const canSwapAgeForMenu = !isLive && !isError && queuedCount === 0 && !isUnread && Boolean(age);
   const menuOpen = openConversationMenuId === session.id;
+  const t = useT();
   // Exclude the group the session already lives in — whether it was placed
   // there manually (sidebarGroup) or auto-grouped by pipe name.
   const currentGroup = (
@@ -2511,7 +2526,7 @@ export function SidebarChatRow({
                 : "sidebar-text-secondary"
           )}
         >
-          {session.streamingTitle || (isInjectedTitle(session.title) ? undefined : session.title) || "untitled"}
+          {session.streamingTitle || (isInjectedTitle(session.title) ? undefined : session.title) || t("shell.untitled")}
         </span>
         <span className="ml-1 h-4 w-10 shrink-0 relative flex items-center justify-end">
           <span
@@ -2523,7 +2538,7 @@ export function SidebarChatRow({
           >
             {showCurrentLabel ? (
               <span className="text-[9px] font-medium uppercase tracking-[0.08em] text-foreground/70">
-                current
+                {t("shell.status.current")}
               </span>
             ) : (
               <RowRightSignal
@@ -2532,7 +2547,7 @@ export function SidebarChatRow({
                 isUnread={isUnread}
                 queuedCount={queuedCount}
                 status={session.status}
-                age={age}
+                age={age === "now" ? t("shell.time.now") : age}
               />
             )}
           </span>
@@ -2562,7 +2577,7 @@ export function SidebarChatRow({
                     ? "opacity-100 visible"
                     : "opacity-0 invisible group-hover:opacity-100 group-hover:visible"
                 )}
-                aria-label="conversation actions"
+                aria-label={t("shell.conversationActions")}
               >
                 <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
@@ -2614,22 +2629,23 @@ function RowRightSignal({
   status: string;
   age: string | null;
 }) {
+  const t = useT();
   const { content, label } = ((): { content: React.ReactNode; label: string | null } => {
     if (isError) {
       return {
-        content: <AlertCircle className="h-3 w-3 text-red-500" aria-label="error" />,
-        label: "error",
+        content: <AlertCircle className="h-3 w-3 text-red-500" aria-label={t("shell.status.error")} />,
+        label: t("shell.status.error"),
       };
     }
     if (isLive) {
       const live =
-        status === "thinking" ? "thinking" :
-        status === "tool" ? "using tool" :
-        "streaming";
+        status === "thinking" ? t("shell.status.thinking") :
+        status === "tool" ? t("shell.status.usingTool") :
+        t("shell.status.streaming");
       return { content: <LiveSignal ariaLabel={live} />, label: live };
     }
     if (queuedCount > 0) {
-      const q = `${queuedCount} queued`;
+      const q = t("shell.status.queued", { count: queuedCount });
       return { content: <LiveSignal ariaLabel={q} />, label: q };
     }
     if (isUnread) {
@@ -2637,12 +2653,12 @@ function RowRightSignal({
         content: (
           <span
             className="font-mono text-[10px] leading-none text-foreground inline-flex items-center justify-center w-2.5 h-2.5"
-            aria-label="unread"
+            aria-label={t("shell.status.new")}
           >
             █
           </span>
         ),
-        label: "new",
+        label: t("shell.status.new"),
       };
     }
     if (age) {

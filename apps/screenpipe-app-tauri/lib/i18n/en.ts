@@ -8,10 +8,13 @@
 
 import { accountEn } from "./en-account";
 import { chatEn } from "./en-chat";
+import { homeEn } from "./en-home";
 import { meetingNotesEn } from "./en-meeting-notes";
 import { notificationsEn } from "./en-notifications";
 import { onboardingEn } from "./en-onboarding";
 import { settingsMiscEn } from "./en-settings-misc";
+import { settingsNavEn } from "./en-settings-nav";
+import { shellEn } from "./en-shell";
 import { storageEn } from "./en-storage";
 
 export const en = {
@@ -25,8 +28,11 @@ export const en = {
     disabled: "Disabled",
   },
   chat: chatEn,
+  home: homeEn,
   onboarding: onboardingEn,
   meetingNotes: meetingNotesEn,
+  settingsNav: settingsNavEn,
+  shell: shellEn,
   settings: {
     account: accountEn,
     ...settingsMiscEn,

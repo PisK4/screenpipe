@@ -13,6 +13,10 @@ vi.mock("posthog-js", () => ({
   default: { capture: captureMock },
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 describe("SummaryCards", () => {
   afterEach(() => {
     vi.clearAllMocks();

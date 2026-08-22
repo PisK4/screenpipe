@@ -6,6 +6,7 @@
 import React, { forwardRef, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { usePlatform } from "@/lib/hooks/use-platform";
 import { searchInputBehaviorProps } from "@/lib/search-input-behavior";
 import Fuse, { type IFuseOptions } from "fuse.js";
@@ -399,6 +400,7 @@ type InputProps = {
 
 export const SettingsSearchInput = forwardRef<HTMLInputElement, InputProps>(
   function SettingsSearchInput({ value, onChange, onKeyDown, translucent, className }, ref) {
+    const t = useT();
     const { isMac } = usePlatform();
     return (
       <div className={cn("relative", className)}>
@@ -423,8 +425,8 @@ export const SettingsSearchInput = forwardRef<HTMLInputElement, InputProps>(
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder="Search settings"
-          aria-label="Search settings"
+          placeholder={t("settingsNav.search.placeholder")}
+          aria-label={t("settingsNav.search.placeholder")}
           data-testid="settings-search-input"
           className={cn(
             "w-full pl-8 pr-7 py-1.5 text-xs rounded-md border bg-transparent outline-none transition-colors",
@@ -437,7 +439,7 @@ export const SettingsSearchInput = forwardRef<HTMLInputElement, InputProps>(
           <button
             type="button"
             onClick={() => onChange("")}
-            aria-label="Clear search"
+            aria-label={t("settingsNav.search.clearAria")}
             className={cn(
               "absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded transition-colors",
               translucent ? "vibrant-sidebar-fg-muted hover:vibrant-sidebar-fg" : "text-muted-foreground/60 hover:text-foreground",
@@ -477,6 +479,7 @@ type PopoverProps<T extends SearchableNavItem> = {
 export function SettingsSearchPopover<T extends SearchableNavItem>({
   query, results, activeIndex, onHover, onPick, renderIcon, translucent,
 }: PopoverProps<T>) {
+  const t = useT();
   if (!query) return null;
   return (
     <div
@@ -494,9 +497,9 @@ export function SettingsSearchPopover<T extends SearchableNavItem>({
     >
       {results.length === 0 ? (
         <div className="px-3 py-3 text-xs text-muted-foreground text-center">
-          <p>No settings found</p>
+          <p>{t("settingsNav.search.emptyTitle")}</p>
           <p className="text-[10px] mt-1 opacity-70">
-            try different keywords
+            {t("settingsNav.search.emptyHint")}
           </p>
         </div>
       ) : (

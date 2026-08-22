@@ -23,6 +23,7 @@ import {
   KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { AppSidebar, useSidebarContext } from "@/components/app-sidebar";
 import { useQueryState } from "nuqs";
@@ -113,6 +114,7 @@ function ReferralSection() {
 }
 
 function SettingsContent() {
+  const t = useT();
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromSection = searchParams.get("from");
@@ -188,61 +190,61 @@ function SettingsContent() {
   // off the id, not the label.
   const navGroups = [
     {
-      label: "Capture & data",
+      label: t("settingsNav.groups.captureData"),
       items: [
-        { id: "recording" as const, label: "Screen", icon: <Video className="h-4 w-4" /> },
-        { id: "audio" as const, label: "Audio & meetings", icon: <Mic className="h-4 w-4" /> },
+        { id: "recording" as const, label: t("settingsNav.items.screen"), icon: <Video className="h-4 w-4" /> },
+        { id: "audio" as const, label: t("settingsNav.items.audioMeetings"), icon: <Mic className="h-4 w-4" /> },
         // Speaker identification is meeting work; it does not deserve a group
         // of its own directly below the one it belongs to.
-        { id: "speakers" as const, label: "Speakers", icon: <Users className="h-4 w-4" /> },
-        { id: "storage" as const, label: "Disk & retention", icon: <HardDrive className="h-4 w-4" /> },
-        { id: "privacy" as const, label: "Privacy", icon: <Shield className="h-4 w-4" /> },
+        { id: "speakers" as const, label: t("settingsNav.items.speakers"), icon: <Users className="h-4 w-4" /> },
+        { id: "storage" as const, label: t("settingsNav.items.diskRetention"), icon: <HardDrive className="h-4 w-4" /> },
+        { id: "privacy" as const, label: t("settingsNav.items.privacy"), icon: <Shield className="h-4 w-4" /> },
         ...(showPermissions
-          ? [{ id: "permissions" as const, label: "Permissions", icon: <KeyRound className="h-4 w-4" /> }]
+          ? [{ id: "permissions" as const, label: t("settingsNav.items.permissions"), icon: <KeyRound className="h-4 w-4" /> }]
           : []),
       ].filter((s) => !isSettingsSectionHidden(s.id)),
     },
     {
-      label: "AI",
+      label: t("settingsNav.groups.ai"),
       items: [
-        { id: "ai-settings" as const, label: "AI features", icon: <SlidersHorizontal className="h-4 w-4" /> },
-        { id: "ai" as const, label: "Models & keys", icon: <Brain className="h-4 w-4" /> },
-        { id: "usage" as const, label: "AI credits", icon: <BarChart3 className="h-4 w-4" /> },
+        { id: "ai-settings" as const, label: t("settingsNav.items.aiFeatures"), icon: <SlidersHorizontal className="h-4 w-4" /> },
+        { id: "ai" as const, label: t("settingsNav.items.modelsKeys"), icon: <Brain className="h-4 w-4" /> },
+        { id: "usage" as const, label: t("settingsNav.items.aiCredits"), icon: <BarChart3 className="h-4 w-4" /> },
       ].filter((s) => !isSettingsSectionHidden(s.id)),
     },
     {
-      label: "Account",
+      label: t("settingsNav.groups.account"),
       items: [
-        { id: "account" as const, label: "Account", icon: <User className="h-4 w-4" /> },
+        { id: "account" as const, label: t("settingsNav.items.account"), icon: <User className="h-4 w-4" /> },
         // Hide "Team" on enterprise builds — those installs are already
         // org-managed; the desktop has nothing to manage. Admins use the
         // /enterprise dashboard on the web. On consumer builds we still
         // surface Team as a marketing entry point to /team.
         ...(isManagedDeployment || localLearning
           ? []
-          : [{ id: "team" as const, label: "Team", icon: <Users className="h-4 w-4" /> }]),
+          : [{ id: "team" as const, label: t("settingsNav.items.team"), icon: <Users className="h-4 w-4" /> }]),
         ...(!localLearning
-          ? [{ id: "referral" as const, label: "Get free month", icon: <Gift className="h-4 w-4" /> }]
+          ? [{ id: "referral" as const, label: t("settingsNav.items.getFreeMonth"), icon: <Gift className="h-4 w-4" /> }]
           : []),
       ].filter((s) => !isSectionHidden(s.id)),
     },
     {
-      label: "App",
+      label: t("settingsNav.groups.app"),
       items: [
         // Keep the legacy `general` section id so existing deep links and
         // automated tests continue to work. The user-facing label is the
         // familiar Apple-style category name.
-        { id: "general" as const, label: "General", icon: <SettingsIcon className="h-4 w-4" /> },
-        { id: "display" as const, label: "Appearance", icon: <Layout className="h-4 w-4" /> },
-        { id: "notifications" as const, label: "Notifications", icon: <Bell className="h-4 w-4" /> },
-        { id: "shortcuts" as const, label: "Shortcuts", icon: <Keyboard className="h-4 w-4" /> },
+        { id: "general" as const, label: t("settingsNav.items.general"), icon: <SettingsIcon className="h-4 w-4" /> },
+        { id: "display" as const, label: t("settingsNav.items.appearance"), icon: <Layout className="h-4 w-4" /> },
+        { id: "notifications" as const, label: t("settingsNav.items.notifications"), icon: <Bell className="h-4 w-4" /> },
+        { id: "shortcuts" as const, label: t("settingsNav.items.shortcuts"), icon: <Keyboard className="h-4 w-4" /> },
       ].filter((s) => !isSectionHidden(s.id)),
     },
   ];
 
   type NavItem = { id: string; label: string; icon: React.ReactNode };
   const allItems: NavItem[] = navGroups.flatMap((g) => g.items as NavItem[]);
-  const currentLabel = allItems.find((s) => s.id === section)?.label ?? "Settings";
+  const currentLabel = allItems.find((s) => s.id === section)?.label ?? t("settingsNav.fallbackLabel");
 
   // Search state. Overlay pattern (Claude-style): full nav stays rendered;
   // results float in a popover under the input. activeIndex tracks the
@@ -416,7 +418,7 @@ function SettingsContent() {
             )}
           >
             <ChevronLeft className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="font-medium">Back to app</span>
+            <span className="font-medium">{t("settingsNav.backToApp")}</span>
           </button>
         </div>
 
@@ -525,10 +527,11 @@ function SettingsContent() {
 }
 
 export default function SettingsPage() {
+  const t = useT();
   return (
     <Suspense fallback={
       <div className="flex-1 min-w-0 h-full bg-background flex items-center justify-center">
-        <div className="text-muted-foreground text-sm">Loading...</div>
+        <div className="text-muted-foreground text-sm">{t("settingsNav.loading")}</div>
       </div>
     }>
       <SettingsContent />

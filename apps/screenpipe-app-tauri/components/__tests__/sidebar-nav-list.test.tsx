@@ -7,6 +7,12 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { SidebarNavList, type SidebarNavItem } from "../sidebar-nav-list";
 import type { SidebarNavId } from "@/lib/utils/sidebar-nav-layout";
 
+// useT() reads the locale from the settings store; tests run without a
+// SettingsProvider, so stub the hook's dependency per doc/FEATURE_I18N_UI_LANGUAGE.md §5.
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 const ITEMS: SidebarNavItem[] = [
   { id: "home", label: "Chat", icon: <span /> },
   { id: "brain", label: "Brain", icon: <span /> },

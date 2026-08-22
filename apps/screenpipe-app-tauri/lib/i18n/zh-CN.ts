@@ -9,10 +9,13 @@
 import type { Dictionary } from "./en";
 import { accountZh } from "./zh-account";
 import { chatZh } from "./zh-chat";
+import { homeZh } from "./zh-home";
 import { meetingNotesZh } from "./zh-meeting-notes";
 import { notificationsZh } from "./zh-notifications";
 import { onboardingZh } from "./zh-onboarding";
 import { settingsMiscZh } from "./zh-settings-misc";
+import { settingsNavZh } from "./zh-settings-nav";
+import { shellZh } from "./zh-shell";
 import { storageZh } from "./zh-storage";
 
 export const zhCN = {
@@ -26,8 +29,11 @@ export const zhCN = {
     disabled: "已关闭",
   },
   chat: chatZh,
+  home: homeZh,
   onboarding: onboardingZh,
   meetingNotes: meetingNotesZh,
+  settingsNav: settingsNavZh,
+  shell: shellZh,
   settings: {
     account: accountZh,
     ...settingsMiscZh,

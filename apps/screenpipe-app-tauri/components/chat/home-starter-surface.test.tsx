@@ -20,6 +20,10 @@ vi.mock("posthog-js/react", () => ({
   useFeatureFlagVariantKey: () => mocks.variant,
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 vi.mock("@/components/chat/summary-cards", () => ({
   SummaryCards: () => <div data-testid="control-home">control</div>,
 }));

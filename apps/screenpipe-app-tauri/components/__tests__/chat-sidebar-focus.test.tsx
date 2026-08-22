@@ -22,6 +22,16 @@ const baseSession: SessionRecord = {
 
 const noop = vi.fn();
 
+// SidebarChatRow reads the i18n dictionary via useT(), which requires the
+// settings context (see doc/FEATURE_I18N_UI_LANGUAGE.md §5).
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({
+    settings: {},
+    isSettingsLoaded: true,
+    updateSettings: vi.fn(async () => {}),
+  }),
+}));
+
 function renderRow(isCurrent: boolean, status: SessionRecord["status"] = "idle") {
   return render(
     <TooltipProvider>

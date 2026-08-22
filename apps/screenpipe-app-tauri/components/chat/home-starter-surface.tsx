@@ -9,6 +9,7 @@ import posthog from "posthog-js";
 import { useFeatureFlagVariantKey } from "posthog-js/react";
 import { PipeAIIconLarge } from "@/components/pipe-ai-icon";
 import { SummaryCards } from "@/components/chat/summary-cards";
+import { useT } from "@/lib/i18n";
 import type {
   ActivityMode,
   Suggestion,
@@ -52,6 +53,7 @@ function ContextualSuggestions({
   onFillSuggestion,
   onRefresh,
 }: Omit<HomeStarterSurfaceProps, "summaryCardsProps">) {
+  const t = useT();
   const visibleSuggestions = suggestions.slice(0, 3);
   const impressionSignature = visibleSuggestions
     .map((suggestion) =>
@@ -88,10 +90,10 @@ function ContextualSuggestions({
       </div>
 
       <h3 className="mb-0.5 text-sm font-medium text-foreground">
-        Start with what you&apos;ve been doing
+        {t("home.starter.title")}
       </h3>
       <p className="mb-4 text-xs text-muted-foreground">
-        Pick a prompt, edit it, then send when it looks right
+        {t("home.starter.subtitle")}
       </p>
 
       <div
@@ -164,7 +166,7 @@ function ContextualSuggestions({
           strokeWidth={1.5}
           aria-hidden
         />
-        refresh
+        {t("home.starter.refresh")}
       </button>
     </div>
   );

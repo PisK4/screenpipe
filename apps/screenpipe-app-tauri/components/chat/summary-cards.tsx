@@ -32,7 +32,46 @@ import {
   DEFAULT_USER_GOAL_CATEGORY,
   type UserGoalCategory,
 } from "@/lib/live-views/onboarding-activation";
+import { useT } from "@/lib/i18n";
+import type { Translator } from "@/lib/i18n";
 import { CustomSummaryBuilder } from "./custom-summary-builder";
+
+// Render-time mapping from built-in template slug to dictionary keys. The
+// template data itself (FALLBACK_TEMPLATES in lib/summary-templates.ts) stays
+// English because its titles/prompts feed stored data and LLM prompts; only
+// the display layer is localized here. Slugs without a key (engine-provided
+// custom templates) fall back to pipe.title / pipe.description.
+const HOME_CARD_I18N_KEYS_BY_SLUG: Record<
+  string,
+  { titleKey: string; descriptionKey: string }
+> = {
+  "automate-my-work": {
+    titleKey: "home.cards.automateMyWork.title",
+    descriptionKey: "home.cards.automateMyWork.description",
+  },
+  "day-recap": {
+    titleKey: "home.cards.dayRecap.title",
+    descriptionKey: "home.cards.dayRecap.description",
+  },
+  "time-breakdown": {
+    titleKey: "home.cards.timeBreakdown.title",
+    descriptionKey: "home.cards.timeBreakdown.description",
+  },
+  "missed-todos": {
+    titleKey: "home.cards.missedTodos.title",
+    descriptionKey: "home.cards.missedTodos.description",
+  },
+};
+
+function localizedCardTitle(t: Translator, pipe: TemplatePipe): string {
+  const keys = HOME_CARD_I18N_KEYS_BY_SLUG[pipe.name];
+  return keys ? t(keys.titleKey) : pipe.title;
+}
+
+function localizedCardDescription(t: Translator, pipe: TemplatePipe): string {
+  const keys = HOME_CARD_I18N_KEYS_BY_SLUG[pipe.name];
+  return keys ? t(keys.descriptionKey) : pipe.description;
+}
 
 interface SummaryCardsProps {
   onSendMessage: (
@@ -106,6 +145,7 @@ export function SummaryCards({
   existingPipes = [],
   userGoalCategory = DEFAULT_USER_GOAL_CATEGORY,
 }: SummaryCardsProps) {
+  const t = useT();
   const [showAll, setShowAll] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<CustomTemplate | null>(null);
@@ -151,7 +191,7 @@ export function SummaryCards({
       pipe.name === AUTOMATE_MY_WORK_TEMPLATE_NAME
         ? buildAutomateMyWorkPrompt(existingPipes)
         : pipe.prompt;
-    onSendMessage(prompt, `${pipe.icon} ${pipe.title}`, "home_card", entryCard);
+    onSendMessage(prompt, `${pipe.icon} ${localizedCardTitle(t, pipe)}`, "home_card", entryCard);
   };
 
   // Opens the builder pre-filled for review/editing instead of running
@@ -175,10 +215,10 @@ export function SummaryCards({
         <PipeAIIconLarge size={40} thinking={false} className="relative text-foreground/80" />
       </div>
       <h3 className="text-sm font-medium mb-0.5 text-foreground">
-        {userName ? `How can I help, ${userName}?` : "How can I help today?"}
+        {userName ? t("home.greeting.named", { name: userName }) : t("home.greeting.plain")}
       </h3>
       <p className="text-xs text-muted-foreground mb-2">
-        From everything you&apos;ve seen, said, or heard
+        {t("home.subtitle")}
       </p>
 
       {/* The onboarding goal or General Settings choice determines priority. */}
@@ -195,10 +235,10 @@ export function SummaryCards({
             />
             <div className="flex-1">
               <div className="text-sm font-semibold group-hover:text-background leading-tight">
-                {featured[0].title}
+                {localizedCardTitle(t, featured[0])}
               </div>
               <div className="text-xs text-muted-foreground group-hover:text-background/60 leading-tight mt-0.5">
-                {featured[0].description}
+                {localizedCardDescription(t, featured[0])}
               </div>
             </div>
             <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/30 group-hover:text-background/50" strokeWidth={1.5} />
@@ -219,10 +259,10 @@ export function SummaryCards({
               />
               <div className="flex-1">
                 <div className="text-xs font-medium text-muted-foreground group-hover:text-background leading-tight">
-                  {featured[1].title}
+                  {localizedCardTitle(t, featured[1])}
                 </div>
                 <div className="text-xs text-muted-foreground/60 group-hover:text-background/60 leading-tight mt-0.5">
-                  {featured[1].description}
+                  {localizedCardDescription(t, featured[1])}
                 </div>
               </div>
             </div>
@@ -246,13 +286,21 @@ export function SummaryCards({
             onClick={() => handleCardClick(pipe)}
             className="grow px-2 py-0.5 text-[11px] bg-muted/20 hover:bg-foreground hover:text-background border border-border/30 hover:border-foreground text-muted-foreground transition-all duration-150 cursor-pointer"
           >
-            {pipe.title}
+            {localizedCardTitle(t, pipe)}
           </button>
         ))}
         {/* Quick summary chips */}
         {[
-          { label: "Meeting Prep", prompt: "Summarize context I'll need for upcoming meetings" },
-          { label: "Blockers", prompt: "What problems, errors, or blockers did I encounter?" },
+          {
+            label: t("home.chips.meetingPrep"),
+            displayLabel: t("home.chips.meetingPrepToday"),
+            prompt: "Summarize context I'll need for upcoming meetings",
+          },
+          {
+            label: t("home.chips.blockers"),
+            displayLabel: t("home.chips.blockersToday"),
+            prompt: "What problems, errors, or blockers did I encounter?",
+          },
         ].map((qt) => (
           <button
             key={qt.label}
@@ -263,7 +311,7 @@ export function SummaryCards({
               const prompt = `Analyze my screen and audio recordings from today.\n\nUser instructions: ${qt.prompt}\n\nOnly report activities you can verify from the recordings. If uncertain, say so. Format with clear headings and bullet points.`;
               onSendMessage(
                 prompt,
-                `\u2728 ${qt.label} \u2014 Today`,
+                qt.displayLabel,
                 "home_card",
                 "other_builtin",
               );
@@ -294,7 +342,7 @@ export function SummaryCards({
           }}
           className="px-2 py-0.5 text-[11px] border border-dashed border-border/40 text-muted-foreground/50 hover:text-foreground hover:border-foreground transition-all duration-150 cursor-pointer"
         >
-          + custom
+          {t("home.chips.custom")}
         </button>
       </div>
 
@@ -314,10 +362,10 @@ export function SummaryCards({
             >
               <div className="text-sm mb-0.5">{pipe.icon}</div>
               <div className="text-xs font-medium group-hover:text-background mb-0.5 leading-tight">
-                {pipe.title}
+                {localizedCardTitle(t, pipe)}
               </div>
               <div className="text-xs text-muted-foreground group-hover:text-background/60 leading-tight line-clamp-1">
-                {pipe.description}
+                {localizedCardDescription(t, pipe)}
               </div>
             </button>
           ))}
@@ -336,7 +384,7 @@ export function SummaryCards({
             setShowBuilder(false);
             onSendMessage(
               prompt,
-              `\u2728 Custom Summary \u2014 ${timeRange}`,
+              t("home.chips.customSummaryLabel", { timeRange }),
               "home_card",
               "custom",
             );
@@ -365,7 +413,7 @@ export function SummaryCards({
             setEditingTemplate(null);
             onSendMessage(
               prompt,
-              `\u{1F4CC} ${editingTemplate.title}`,
+              t("home.chips.templateRunLabel", { title: editingTemplate.title }),
               "home_card",
               "custom",
             );

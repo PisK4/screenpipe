@@ -62,6 +62,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import type { SidebarNavId } from "@/lib/utils/sidebar-nav-layout";
 
 export type SidebarNavItem = {
@@ -127,6 +128,7 @@ function RowMenuItems({
   onHide: () => void;
   onReset: () => void;
 }) {
+  const t = useT();
   const Item = variant === "context" ? ContextMenuItem : DropdownMenuItem;
   const Separator =
     variant === "context" ? ContextMenuSeparator : DropdownMenuSeparator;
@@ -134,7 +136,7 @@ function RowMenuItems({
     <>
       <Item className={ITEM_CLS} disabled={index === 0} onSelect={() => onShift(-1)}>
         <ArrowUp />
-        Move up
+        {t("settingsNav.rowMenu.moveUp")}
       </Item>
       <Item
         className={ITEM_CLS}
@@ -142,20 +144,20 @@ function RowMenuItems({
         onSelect={() => onShift(1)}
       >
         <ArrowDown />
-        Move down
+        {t("settingsNav.rowMenu.moveDown")}
       </Item>
       <Separator />
       {/* The last remaining row cannot be hidden — an empty nav has no way back. */}
       <Item className={ITEM_CLS} disabled={total <= 1} onSelect={onHide}>
         <EyeOff />
-        Hide from sidebar
+        {t("settingsNav.rowMenu.hideFromSidebar")}
       </Item>
       {canReset && (
         <>
           <Separator />
           <Item className={ITEM_CLS} data-testid="sidebar-reset" onSelect={onReset}>
             <RotateCcw />
-            Reset sidebar
+            {t("settingsNav.rowMenu.resetSidebar")}
           </Item>
         </>
       )}
@@ -192,6 +194,7 @@ function SortableRow({
 >) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
+  const t = useT();
   const isActive = activeId === item.id;
   const menuProps = {
     index,
@@ -279,7 +282,7 @@ function SortableRow({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                aria-label={`${item.label} options`}
+                aria-label={t("settingsNav.rowMenu.optionsAria", { label: item.label })}
                 data-testid={`nav-${item.id}-options`}
                 onClick={(event) => event.stopPropagation()}
                 className={cn(
@@ -320,28 +323,49 @@ function HiddenStrip({
   if (hiddenItems.length === 0) return null;
   return (
     <div className="mt-1 space-y-0.5" data-testid="sidebar-hidden-strip">
-      <p className="px-2.5 pt-1 text-[10px] uppercase tracking-wide text-muted-foreground/60">
-        Hidden
-      </p>
+      <HiddenStripHeader />
       {hiddenItems.map((hidden) => (
-        <button
-          key={hidden.id}
-          type="button"
-          data-testid={`sidebar-show-${hidden.id}`}
-          onClick={() => onShow(hidden.id)}
-          title={`Show ${hidden.label} in the sidebar`}
-          className={cn(
-            "w-full flex items-center gap-2.5 px-2.5 py-1 rounded-lg transition-colors duration-150 text-left",
-            isTranslucent
-              ? "vibrant-nav-item vibrant-nav-hover"
-              : "text-muted-foreground/70 hover:bg-card/50 hover:text-foreground",
-          )}
-        >
-          <Plus className="h-3.5 w-3.5 shrink-0" />
-          <span className="text-xs truncate">{hidden.label}</span>
-        </button>
+        <HiddenStripItem key={hidden.id} hidden={hidden} onShow={onShow} isTranslucent={isTranslucent} />
       ))}
     </div>
+  );
+}
+
+function HiddenStripHeader() {
+  const t = useT();
+  return (
+    <p className="px-2.5 pt-1 text-[10px] uppercase tracking-wide text-muted-foreground/60">
+      {t("settingsNav.hiddenStrip.header")}
+    </p>
+  );
+}
+
+function HiddenStripItem({
+  hidden,
+  onShow,
+  isTranslucent,
+}: {
+  hidden: { id: SidebarNavId; label: string };
+  onShow: (id: SidebarNavId) => void;
+  isTranslucent: boolean;
+}) {
+  const t = useT();
+  return (
+    <button
+      type="button"
+      data-testid={`sidebar-show-${hidden.id}`}
+      onClick={() => onShow(hidden.id)}
+      title={t("settingsNav.hiddenStrip.showInSidebar", { name: hidden.label })}
+      className={cn(
+        "w-full flex items-center gap-2.5 px-2.5 py-1 rounded-lg transition-colors duration-150 text-left",
+        isTranslucent
+          ? "vibrant-nav-item vibrant-nav-hover"
+          : "text-muted-foreground/70 hover:bg-card/50 hover:text-foreground",
+      )}
+    >
+      <Plus className="h-3.5 w-3.5 shrink-0" />
+      <span className="text-xs truncate">{hidden.label}</span>
+    </button>
   );
 }
 

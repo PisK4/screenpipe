@@ -37,6 +37,16 @@ vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: getCurrentWindowMock,
 }));
 
+// RecentChatSwitcher now reads the i18n dictionary via useT(), which requires
+// the settings context (see doc/FEATURE_I18N_UI_LANGUAGE.md §5).
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({
+    settings: {},
+    isSettingsLoaded: true,
+    updateSettings: vi.fn(async () => {}),
+  }),
+}));
+
 vi.mock("framer-motion", () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   motion: {

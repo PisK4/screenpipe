@@ -109,6 +109,7 @@ import { PlanExpirationNotice } from "@/components/plan-expiration-notice";
 import type { AppUser } from "@/lib/app-entitlement";
 import { ONBOARDING_BRAIN_HANDOFF_EVENT } from "@/lib/live-views/onboarding-activation";
 import { ActivityLedger } from "@/components/activity-ledger";
+import { useT } from "@/lib/i18n";
 
 type MainSection = "home" | "timeline" | "activity" | "brain" | "pipes" | "connections" | "meetings" | "help";
 type ConnectionFocusRequest = {
@@ -183,6 +184,7 @@ function HomeContent() {
   const [connectionFocusRequest, setConnectionFocusRequest] = useState<ConnectionFocusRequest | null>(null);
 
   const { settings, updateSettings, isSettingsLoaded } = useSettings();
+  const t = useT();
   const { toast } = useToast();
   const updateSettingsRef = useRef(updateSettings);
   updateSettingsRef.current = updateSettings;
@@ -1038,13 +1040,13 @@ function HomeContent() {
     // The Chat row doubles as "go to chat view + start a fresh conversation".
     // Each click allocates a new session id (empty rows are not reused — that
     // felt like opening an old recent).
-    home: { label: "Chat", icon: <Plus className="h-3.5 w-3.5" /> },
-    meetings: { label: "Meetings", icon: <CalendarClock className="h-3.5 w-3.5" /> },
-    timeline: { label: "Timeline", icon: <MonitorPlay className="h-3.5 w-3.5" /> },
-    activity: { label: "Activity", icon: <ListTree className="h-3.5 w-3.5" /> },
-    brain: { label: "Brain", icon: <Brain className="h-3.5 w-3.5" /> },
-    pipes: { label: "Scheduled", icon: <TimerReset className="h-3.5 w-3.5" /> },
-    connections: { label: "Connections", icon: <Plug className="h-3.5 w-3.5" /> },
+    home: { label: t("shell.nav.chat"), icon: <Plus className="h-3.5 w-3.5" /> },
+    meetings: { label: t("shell.nav.meetings"), icon: <CalendarClock className="h-3.5 w-3.5" /> },
+    timeline: { label: t("shell.nav.timeline"), icon: <MonitorPlay className="h-3.5 w-3.5" /> },
+    activity: { label: t("shell.nav.activity"), icon: <ListTree className="h-3.5 w-3.5" /> },
+    brain: { label: t("shell.nav.brain"), icon: <Brain className="h-3.5 w-3.5" /> },
+    pipes: { label: t("shell.nav.scheduled"), icon: <TimerReset className="h-3.5 w-3.5" /> },
+    connections: { label: t("shell.nav.connections"), icon: <Plug className="h-3.5 w-3.5" /> },
   };
 
   const sidebarLayout = normalizeSidebarNavLayout(settings.sidebarNavLayout);
@@ -1078,17 +1080,17 @@ function HomeContent() {
       setSidebarNavItemHidden(sidebarLayout, availableSidebarIds, id, true),
     );
     toast({
-      title: `${label} hidden`,
+      title: t("shell.hideToast.title", { label }),
       description:
         id === "meetings"
-          ? "still one click away from the icon next to search."
-          : "find it under Hidden at the bottom of the sidebar.",
+          ? t("shell.hideToast.descMeetings")
+          : t("shell.hideToast.descHidden"),
       action: (
         <ToastAction
-          altText={`Show ${label} in the sidebar again`}
+          altText={t("shell.hideToast.undoAlt", { label })}
           onClick={() => persistSidebarLayout(previous)}
         >
-          Undo
+          {t("shell.hideToast.undo")}
         </ToastAction>
       ),
     });
@@ -1105,7 +1107,7 @@ function HomeContent() {
           label={runningPipeCount}
           className="ml-auto shrink-0"
           labelClassName="text-muted-foreground/60"
-          ariaLabel={`${runningPipeCount} running scheduled task${runningPipeCount === 1 ? "" : "s"}`}
+          ariaLabel={t("shell.pipesRunningAria", { count: runningPipeCount })}
         />
       ) : id === "meetings" && meetingState.active ? (
         // Same live-recording dot the chrome-strip placement shows, so moving
@@ -1115,7 +1117,7 @@ function HomeContent() {
             aria-hidden="true"
             className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-red-500"
           />
-          <span className="sr-only">meeting recording active</span>
+          <span className="sr-only">{t("shell.meetingRecordingActive")}</span>
         </>
       ) : undefined,
   }));
@@ -1224,7 +1226,7 @@ function HomeContent() {
               <TooltipTrigger asChild>
                 <button
                   onClick={toggleSidebar}
-                  aria-label={sidebarCollapsed ? "expand sidebar" : "collapse sidebar"}
+                  aria-label={sidebarCollapsed ? t("shell.chrome.expandSidebar") : t("shell.chrome.collapseSidebar")}
                   data-announcement-anchor="top-sidebar-toggle"
                   className={cn(
                     "p-1 rounded-md transition-colors",
@@ -1239,7 +1241,7 @@ function HomeContent() {
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-xs">
-                {sidebarCollapsed ? "expand sidebar" : "collapse sidebar"} <kbd className="ml-1 px-1 py-0.5 bg-muted rounded text-[10px]" suppressHydrationWarning>{isMac ? "⌘B" : "Ctrl+B"}</kbd>
+                {sidebarCollapsed ? t("shell.chrome.expandSidebar") : t("shell.chrome.collapseSidebar")} <kbd className="ml-1 px-1 py-0.5 bg-muted rounded text-[10px]" suppressHydrationWarning>{isMac ? "⌘B" : "Ctrl+B"}</kbd>
               </TooltipContent>
             </Tooltip>
 
@@ -1250,7 +1252,7 @@ function HomeContent() {
                     onClick={() => {
                       void commands.showWindow({ Search: { query: null } });
                     }}
-                    aria-label="search"
+                    aria-label={t("shell.chrome.search")}
                     data-announcement-anchor="top-search"
                     className={cn(
                       "p-1 rounded-md transition-colors",
@@ -1261,7 +1263,7 @@ function HomeContent() {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-xs">
-                  search
+                  {t("shell.chrome.search")}
                   {!settings.disabledShortcuts.includes("searchShortcut") &&
                   settings.searchShortcut ? (
                     <kbd className="ml-1 px-1 py-0.5 bg-muted rounded text-[10px]">
@@ -1277,7 +1279,7 @@ function HomeContent() {
                 <TooltipTrigger asChild>
                   <button
                     onClick={() => setActiveSection("meetings")}
-                    aria-label={meetingState.active ? "meetings — recording" : "meetings"}
+                    aria-label={meetingState.active ? t("shell.chrome.meetingsRecording") : t("shell.chrome.meetings")}
                     aria-current={activeSection === "meetings" ? "page" : undefined}
                     data-testid="nav-meetings"
                     data-announcement-anchor="top-meetings"
@@ -1299,13 +1301,13 @@ function HomeContent() {
                           aria-hidden="true"
                           className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-background"
                         />
-                        <span className="sr-only">meeting recording active</span>
+                        <span className="sr-only">{t("shell.meetingRecordingActive")}</span>
                       </>
                     )}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="text-xs">
-                  {meetingState.active ? "meetings — recording" : "meetings"}
+                  {meetingState.active ? t("shell.chrome.meetingsRecording") : t("shell.chrome.meetings")}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -1424,7 +1426,7 @@ function HomeContent() {
                   )}>
                     <SettingsIcon className="h-3.5 w-3.5" />
                   </div>
-                  <span className="truncate text-xs font-medium">Settings</span>
+                  <span className="truncate text-xs font-medium">{t("shell.chrome.settings")}</span>
                 </button>
 
                 {/* Help stays discoverable without taking a second row. */}
@@ -1437,7 +1439,7 @@ function HomeContent() {
                           type="button"
                           data-testid="nav-help"
                           data-announcement-anchor="sidebar-help"
-                          aria-label="Help"
+                          aria-label={t("shell.chrome.help")}
                           onClick={() => {
                             setActiveSection("help");
                           }}
@@ -1456,7 +1458,7 @@ function HomeContent() {
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top" className="text-xs">
-                        Help
+                        {t("shell.chrome.help")}
                       </TooltipContent>
                     </Tooltip>
                   );
@@ -1528,8 +1530,8 @@ function HomeContent() {
                   ref={activityReturnButtonRef}
                   type="button"
                   onClick={returnToActivity}
-                  aria-label="back to activity"
-                  title="back to activity"
+                  aria-label={t("shell.chrome.backToActivity")}
+                  title={t("shell.chrome.backToActivity")}
                   className="absolute left-4 top-11 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-lg shadow-black/10 backdrop-blur-sm transition-colors hover:border-foreground hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground focus-visible:ring-offset-2"
                 >
                   <ArrowLeft className="h-4 w-4" />
