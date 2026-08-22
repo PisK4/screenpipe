@@ -15,7 +15,12 @@ fi
 rm -rf src-tauri/target/debug-dev/bundle
 
 # Build the bundle; the stable development identity is applied below.
-bun tauri build --bundles app -- --profile debug-dev
+# --no-sign: skip the bundler's per-file codesign walk. It requires every file
+# in the bundle to carry its own signature, which fails on debug-dev builds
+# where build.rs leaves mlx.metallib and the libonnxruntime.dylib stub
+# unsigned (its sidecar signing only runs under release profile). The whole
+# .app is signed once below with codesign --deep instead.
+bun tauri build --no-sign --bundles app -- --profile debug-dev
 
 # Strip extended attributes from all files in the bundle
 APP_PATH="src-tauri/target/debug-dev/bundle/macos/screenpipe - Development.app"
