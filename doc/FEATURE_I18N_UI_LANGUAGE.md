@@ -1,7 +1,7 @@
 # 界面多语言（i18n）
 
 <!-- doc-covers: apps/screenpipe-app-tauri/lib/i18n, apps/screenpipe-app-tauri/lib/i18n/en.ts, apps/screenpipe-app-tauri/lib/i18n/zh-CN.ts, apps/screenpipe-app-tauri/lib/i18n/translate.ts, apps/screenpipe-app-tauri/lib/i18n/index.ts, apps/screenpipe-app-tauri/lib/utils/locale.ts, apps/screenpipe-app-tauri/lib/hooks/use-settings.tsx, apps/screenpipe-app-tauri/components/settings/display-section.tsx -->
-<!-- doc-verified: 553ab58cfea82f75e7dd82317173a8757705bbd7 -->
+<!-- doc-verified: 81d860e87319a5c088cce5d832685cebfffec714 -->
 > **Current。** 本文按上述提交核验，记录 UI 多语言层的结构与约定。后续改动应以代码和测试为准。
 
 ## 1. 目的
@@ -20,7 +20,7 @@ lib/i18n/
   zh-*.ts        对应中文分片
 ```
 
-分片按组件区域组织（account、chat、meeting-notes、notifications、onboarding、settings-misc、storage），在 `en.ts` / `zh-CN.ts` 里合并为 `chat`、`onboarding`、`meetingNotes`、`settings.*` 命名空间。并行抽取时各 worker 只写自己的分片文件，避免对主字典的写冲突；合并由主会话一次性完成。
+分片按组件区域组织，在 `en.ts` / `zh-CN.ts` 头部 import 区合并为顶层命名空间。分片与命名空间的现行清单以 `en.ts` 的合并区为准，本文不逐一枚举；新增分片时在两处（en/zh）各加一行 import 与合并项即可。并行抽取时各 worker 只写自己的分片文件，避免对主字典的写冲突；合并由主会话一次性完成。
 
 键路径用点分命名空间，如 `settings.display.language`、`chat.quota.viewBusiness`。`{name}` 占位符做参数插值；查不到时回退英文，再回退到原始键名。
 
@@ -40,6 +40,8 @@ lib/i18n/
 3. 中文文案要求：桌面应用惯用语、简短自然、不用「赋能/打造/助力/梳理」一类腔调词；品牌词一律 Cue（见 `FEATURE_CUE_BRANDING.md`）；插值占位符原样保留且参数名必须与调用处一致。
 4. 语言名（English、简体中文）固定原文，不翻译。
 5. 非用户可见的字符串不进字典：发给 LLM 的 prompt、系统提示词、API 错误码前缀（如 `account_required:`）、searchIndex 的 label/keywords（搜索匹配用）保持英文原样。
+6. 参与逻辑比较的值不算文案，即使它最终会显示。`groupBySpeaker` 的 `speakerName` 兜底值 `"me"` / `"speaker"` 同时喂给 `isSelf` 比较，改掉会破坏判断；展示层另有已翻译的 speakerMe/speakerUnknown 键兜底。
+7. 组件外的非 React 上下文拿不到 `useT()`。TipTap NodeView 里动态创建的删除图片按钮读 `<html lang>` 做 zh/en 二选一；纯函数文案模块（如 `transcript-recovery-copy.ts`）改为接收 `Translator` 参数，由调用方传入 `t`。
 
 ## 5. 测试约定
 
@@ -49,15 +51,15 @@ lib/i18n/
 
 ## 6. 当前覆盖范围与剩余工作
 
-已完成抽取：settings 全部主要 section（display/general/recording/account/notifications/storage 及 misc 小节）、chat/standalone 全部组件、onboarding、meeting-notes。
+已完成抽取：settings 主要 section（display/general/recording/account/notifications/storage 及 misc、connections）、chat/standalone 全部组件、onboarding、app shell 与 home 卡片、meeting-notes 全部（含 transcript 面板与恢复文案）、activity ledger、rewind 区域（timeline 系列、search-modal、region-ocr-overlay、media）、pipe store / 安装对话框 / 提交流程、brain section 与 overview。
 
-尚未抽取（界面仍为英文硬编码）：connections-section、pipes-section、live-view 系列、ai-presets、rewind 区域（timeline/search-modal 等）、根组件若干（app-entitlement-gate、notification-feedback 等）。这些文件继续按第 4 节规则分批迁移即可，架构无需再动。
+尚未抽取（界面仍为英文硬编码）：live-view 系列（settings 下 canvas/card/ai-composer 等）、ai-presets-selector、mermaid-diagram、根组件 app-entitlement-gate 与 notification-feedback。这些文件继续按第 4 节规则分批迁移即可，架构无需再动。
 
 Rust 侧（tray/dock/通知）暂未接语言切换，当前只完成品牌替换；接入时从设置读 locale，在菜单构建与通知发送处选字典。
 
 ## 7. 证据索引
 
-- 字典与翻译核心：`lib/i18n/en.ts`、`lib/i18n/zh-CN.ts`、`lib/i18n/translate.ts`、`lib/i18n/index.ts`。
+- 字典与翻译核心：`lib/i18n/en.ts`（含分片合并区，即分片清单的现行声明处）、`lib/i18n/zh-CN.ts`、`lib/i18n/translate.ts`、`lib/i18n/index.ts`。
 - 语言判定与应用：`lib/utils/locale.ts`、`lib/hooks/use-settings.tsx`（locale 设置项与 effect）、`app/layout.tsx`（head 启动脚本）。
 - 切换入口：`components/settings/display-section.tsx` Language 卡片。
 - 同构性测试：`lib/i18n/i18n.test.ts`。
