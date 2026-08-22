@@ -118,6 +118,7 @@ mod server_core;
 #[allow(deprecated)]
 mod space_monitor;
 mod store;
+mod intent_agent;
 mod suggestions;
 mod sync;
 mod tray;
