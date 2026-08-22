@@ -13,7 +13,7 @@ export const storageZh: Record<keyof typeof storageEn, string> = {
 
   // 数据目录
   dataDirectory: "数据目录",
-  dataDirDefault: "~/.screenpipe（默认）",
+  dataDirDefault: "~/.cue（默认）",
   dataDirChangeHint: "更换目录后将重新开始录制",
   reset: "重置",
   change: "更换",

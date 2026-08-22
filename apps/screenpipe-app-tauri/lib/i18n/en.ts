@@ -132,7 +132,7 @@ export const en = {
       applyBarMessage: "unsaved recording changes. restart to apply.",
       dataDirFallbackTitle: "custom data directory unavailable",
       dataDirFallbackDescription:
-        "the configured data directory could not be accessed. recordings are using the default directory (~/.screenpipe).",
+        "the configured data directory could not be accessed. recordings are using the default directory (~/.cue).",
 
       // Audio & meetings
       audioSectionHeading: "Audio & meetings",

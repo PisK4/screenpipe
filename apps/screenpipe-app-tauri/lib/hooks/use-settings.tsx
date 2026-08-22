@@ -934,7 +934,7 @@ export const getStore = async () => {
 		_store = (async () => {
 			// Resolve the base dir via the backend so the webview opens the same
 			// store.bin as Rust (get_base_dir honors SCREENPIPE_DATA_DIR); a
-			// hardcoded ~/.screenpipe here splits the settings store in two
+			// hardcoded ~/.cue here splits the settings store in two
 			// whenever that override is set.
 			let baseDir: string | null = null;
 			try {
@@ -942,13 +942,13 @@ export const getStore = async () => {
 				if (res.status === "ok") {
 					baseDir = res.data;
 				} else {
-					console.warn("get_screenpipe_base_dir failed, using ~/.screenpipe:", res.error);
+					console.warn("get_screenpipe_base_dir failed, using ~/.cue:", res.error);
 				}
 			} catch (e) {
-				console.warn("get_screenpipe_base_dir unavailable, using ~/.screenpipe:", e);
+				console.warn("get_screenpipe_base_dir unavailable, using ~/.cue:", e);
 			}
 			if (!baseDir) {
-				baseDir = `${await homeDir()}/.screenpipe`;
+				baseDir = `${await homeDir()}/.cue`;
 			}
 			return Store.load(`${baseDir}/store.bin`, {
 				autoSave: false,

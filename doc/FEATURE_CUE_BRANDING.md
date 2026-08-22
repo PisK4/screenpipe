@@ -26,12 +26,16 @@
 
 以下内容保留 `screenpipe` 原名，替换它们会破坏数据兼容或运行链路：
 
-- bundle identifier（`com.screenpipe.app` 等）与数据目录（`~/.screenpipe`）；
+- bundle identifier（`com.screenpipe.app` 等）；
 - 深链 scheme `screenpipe://`；
 - 环境变量（`SCREENPIPE_*`）与设置键（如 `showScreenpipeShortcut`）；
 - Rust crate 名、npm 包名、import 路径、日志与 tracing 文案、线程名；
 - analytics 的 release 标识、遥测字段、上游 API 路径；
 - 源文件头部的 provenance 注释（AGENTS.md 规定的头注释，属出处追踪而非 UI）。
+
+例外：默认数据目录已改为 `~/.cue`（提交 6caaee5bf 起），旧 `~/.screenpipe`
+目录由用户手动迁移一次；面向用户的路径文案（i18n 字典）一律写 `~/.cue`。
+`SCREENPIPE_DATA_DIR` 覆盖与机器层解析函数名保留原名。
 
 灰色地带的处理原则：先问「这个字符串有没有被代码、脚本或外部系统当作标识匹配」。有匹配关系的，一律留在机器层。
 

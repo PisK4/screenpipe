@@ -11,7 +11,7 @@ export const storageEn = {
 
   // Data directory
   dataDirectory: "Data Directory",
-  dataDirDefault: "~/.screenpipe (default)",
+  dataDirDefault: "~/.cue (default)",
   dataDirChangeHint: "changing directory starts fresh recordings",
   reset: "Reset",
   change: "Change",

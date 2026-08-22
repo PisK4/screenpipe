@@ -106,7 +106,7 @@ fn apply_inner() -> bool {
     if is_truthy(OPT_OUT_ENV) {
         eprintln!(
             "screenpipe[dev]: {OPT_OUT_ENV} set — using the PRODUCTION profile \
-             (~/.screenpipe, port 3030). Quit the installed app first; this build \
+             (~/.cue, port 3030). Quit the installed app first; this build \
              will kill whatever holds its ports."
         );
         return false;

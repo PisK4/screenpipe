@@ -129,7 +129,7 @@ export const zhCN = {
       applyBarMessage: "录制设置有未保存的更改，重启后生效。",
       dataDirFallbackTitle: "自定义数据目录不可用",
       dataDirFallbackDescription:
-        "配置的数据目录无法访问，录制数据已改用默认目录（~/.screenpipe）。",
+        "配置的数据目录无法访问，录制数据已改用默认目录（~/.cue）。",
       // 音频与会议
       audioSectionHeading: "音频与会议",
       audioRecording: "录音",
