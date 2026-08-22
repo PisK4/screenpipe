@@ -41,7 +41,7 @@ async function getCacheDir(): Promise<string> {
     } else {
       // last resort
       const { homeDir } = await import("@tauri-apps/api/path");
-      baseDir = await join(await homeDir(), ".screenpipe");
+      baseDir = await join(await homeDir(), ".cue");
     }
   }
 

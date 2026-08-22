@@ -160,7 +160,7 @@ export async function preserveFirstRunMedia(
       import("@tauri-apps/api/path"),
       import("@tauri-apps/plugin-fs"),
     ]);
-    const dir = await join(await homeDir(), ".screenpipe", PRESERVED_DIR);
+    const dir = await join(await homeDir(), ".cue", PRESERVED_DIR);
     await mkdir(dir, { recursive: true });
     // Timestamped rather than fixed: resetting onboarding must not overwrite
     // the image an earlier summary is still pointing at.

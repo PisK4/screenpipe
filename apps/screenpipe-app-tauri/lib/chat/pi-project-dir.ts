@@ -34,7 +34,7 @@ export async function piProjectDirForSession(
   sessionId: string,
 ): Promise<string> {
   const home = await homeDir();
-  const defaultBaseDir = await join(home, ".screenpipe");
+  const defaultBaseDir = await join(home, ".cue");
   const pipeName = continuousPipeNameForSession(sessionId);
   if (!pipeName) return join(defaultBaseDir, "pi-chat");
 

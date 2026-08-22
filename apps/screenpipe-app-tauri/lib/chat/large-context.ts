@@ -107,7 +107,7 @@ export async function externalizeLargeContextIfNeeded(
   const contextDirName = `${createdAt}-${filePart}`;
   const fileName = "full.txt";
   const home = await homeDir();
-  const dir = await join(home, ".screenpipe", "pi-chat", "large-context", sessionPart, contextDirName);
+  const dir = await join(home, ".cue", "pi-chat", "large-context", sessionPart, contextDirName);
   await mkdir(dir, { recursive: true });
   const filePath = await join(dir, fileName);
   await writeTextFile(filePath, text);

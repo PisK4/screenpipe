@@ -1858,7 +1858,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 		)
 			return settings.dataDir;
 
-		return `${homeDirPath}/.screenpipe`;
+		return `${homeDirPath}/.cue`;
 	};
 
 	const loadUser = async (token: string, verify = false) => {

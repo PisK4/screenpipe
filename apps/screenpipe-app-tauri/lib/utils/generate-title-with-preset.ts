@@ -110,7 +110,7 @@ async function generateTitleViaPi(
   await mountAgentEventBus();
 
   const home = await homeDir();
-  const dir = await join(home, ".screenpipe", TITLE_PROJECT_DIR);
+  const dir = await join(home, ".cue", TITLE_PROJECT_DIR);
   const providerConfig = buildTitleProviderConfig(preset);
 
   // Set up event collection before starting the session

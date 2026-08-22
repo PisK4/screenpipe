@@ -249,7 +249,7 @@ export async function summarizeFirstRunWithAi(
     await mountAgentEventBus();
 
     const home = await homeDir();
-    const dir = await join(home, ".screenpipe", SUMMARY_PROJECT_DIR);
+    const dir = await join(home, ".cue", SUMMARY_PROJECT_DIR);
 
     let accumulated = "";
     let done = false;

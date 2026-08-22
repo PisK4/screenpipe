@@ -65,7 +65,7 @@ async function enterprisePipesDir(): Promise<string> {
     );
   }
 
-  return await join(await homeDir(), ".screenpipe", "pipes");
+  return await join(await homeDir(), ".cue", "pipes");
 }
 
 export function buildEnterpriseManagedPipeMd(pipe: ManagedPipe): string {

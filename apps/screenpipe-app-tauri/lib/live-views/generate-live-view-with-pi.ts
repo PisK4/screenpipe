@@ -399,7 +399,7 @@ async function liveViewProjectDir(): Promise<string> {
     // Unit tests and SSR do not expose Tauri commands. Keep the legacy path as
     // a compatibility fallback only when the native resolver is unavailable.
   }
-  return await join(await homeDir(), ".screenpipe", PROJECT_DIR);
+  return await join(await homeDir(), ".cue", PROJECT_DIR);
 }
 
 async function runGeneration(

@@ -1761,7 +1761,7 @@ export function PipesSection() {
     let forkName = `${base}-fork`;
     try {
       const home = await homeDir();
-      const pipesDir = await join(home, ".screenpipe", "pipes");
+      const pipesDir = await join(home, ".cue", "pipes");
       let i = 1;
       while (await exists(await join(pipesDir, forkName))) {
         i += 1;
@@ -1810,7 +1810,7 @@ export function PipesSection() {
       const updatedPipes: string[] = [];
       try {
         const home = await homeDir();
-        const pipesDir = await join(home, ".screenpipe", "pipes");
+        const pipesDir = await join(home, ".cue", "pipes");
         for (const c of receivedConfigs) {
           const v = c.value as Partial<TeamPipePayload> | undefined;
           if (!c.key || !isSafePipeName(c.key)) continue;

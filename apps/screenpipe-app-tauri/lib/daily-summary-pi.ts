@@ -130,7 +130,7 @@ export async function runDailySummaryWithPi(
   const sessionId = `${INTERNAL_TITLE_PREFIX}${sessionPrefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await mountAgentEventBus();
   const home = await homeDir();
-  const projectDir = await join(home, ".screenpipe", DAILY_SUMMARY_PROJECT_DIR);
+  const projectDir = await join(home, ".cue", DAILY_SUMMARY_PROJECT_DIR);
 
   let settled = false;
   let lastAssistant = "";

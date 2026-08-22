@@ -91,7 +91,7 @@ async function getChatsDir(): Promise<string> {
     // not in a Tauri context — use the legacy default below
   }
   const home = await homeDir();
-  _chatsDir = await join(home, ".screenpipe", "chats");
+  _chatsDir = await join(home, ".cue", "chats");
   return _chatsDir;
 }
 

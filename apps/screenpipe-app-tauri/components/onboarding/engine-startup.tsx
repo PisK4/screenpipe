@@ -679,7 +679,7 @@ export default function EngineStartup({ handleNextSlide }: EngineStartupProps) {
   const openLogsFolder = async () => {
     try {
       const home = await homeDir();
-      const screenpipeDir = await join(home, ".screenpipe");
+      const screenpipeDir = await join(home, ".cue");
       await revealItemInDir(screenpipeDir);
     } catch (err) {
       console.error("Failed to open logs folder:", err);
