@@ -17,6 +17,9 @@ import { useAcpSessionConfig } from "@/lib/stores/acp-session-config";
 import type { AIPreset } from "@/lib/utils/tauri";
 
 vi.mock("@/lib/utils/tauri", () => ({ commands: {} }));
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
 
 const SESSION = "chat-1";
 

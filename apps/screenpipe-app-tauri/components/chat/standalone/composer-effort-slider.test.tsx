@@ -15,6 +15,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { ComposerEffortSlider, isEffortOption } from "./composer-effort-slider";
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 const STEPS = [
   { value: "low", name: "Low" },
   { value: "medium", name: "Medium" },

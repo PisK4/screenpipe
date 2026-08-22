@@ -13,6 +13,10 @@ import {
   parseAskUserToolCall,
 } from "./ask-user-tool-card";
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 function askTool(args: Record<string, unknown>, extra: Partial<ToolCall> = {}): ToolCall {
   return {
     id: "tool-ask-1",

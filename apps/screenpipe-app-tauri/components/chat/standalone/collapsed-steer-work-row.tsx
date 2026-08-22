@@ -10,6 +10,7 @@ import {
   collapsedSteerFailedCount,
   type ChatRenderItem,
 } from "@/lib/chat/message-rendering";
+import { useT } from "@/lib/i18n";
 
 interface CollapsedSteerWorkRowProps {
   item: Extract<ChatRenderItem, { type: "collapsed-steer-work" }>;
@@ -22,6 +23,7 @@ export function CollapsedSteerWorkRow({
   expanded,
   onToggle,
 }: CollapsedSteerWorkRowProps) {
+  const t = useT();
   const label = collapsedSteerWorkDuration(item);
   const failedCount = collapsedSteerFailedCount(item);
 
@@ -44,7 +46,7 @@ export function CollapsedSteerWorkRow({
           <span className="text-xs leading-none">
             {label}
             {failedCount > 0 && (
-              <span className="ml-1.5 text-muted-foreground/50">· {failedCount} failed</span>
+              <span className="ml-1.5 text-muted-foreground/50">· {t("chat.steerWork.failedCount", { count: failedCount })}</span>
             )}
           </span>
           {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}

@@ -32,6 +32,7 @@ import {
 import type { AcpConfigDefaultChange } from "@/components/chat/standalone/acp-config-selector";
 import { acpAdapterInfo } from "@/lib/utils/preset-appearance";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 type ModeSource =
   { kind: "option"; optionId: string } | { kind: "session-mode" };
@@ -86,61 +87,61 @@ function isUnrestrictedMode(mode: AcpConfigValue): boolean {
   );
 }
 
-function permissionPresentation(mode: AcpConfigValue): PermissionPresentation {
+function permissionPresentation(mode: AcpConfigValue, t: (key: string) => string): PermissionPresentation {
   switch (mode.value) {
     case "read-only":
     case "default":
       return {
-        label: "Ask for approval",
+        label: t("chat.permissions.askForApproval"),
         description:
-          mode.description || "Ask before editing files or running commands.",
+          mode.description || t("chat.permissions.askForApprovalDesc"),
         icon: Hand,
       };
     case "agent":
       return {
-        label: "Approve for me",
-        description: "Work in this workspace and ask before elevated actions.",
+        label: t("chat.permissions.approveForMe"),
+        description: t("chat.permissions.approveForMeDesc"),
         icon: ShieldCheck,
       };
     case "acceptEdits":
       return {
-        label: "Approve edits",
+        label: t("chat.permissions.approveEdits"),
         description:
-          mode.description || "Automatically approve file edit operations.",
+          mode.description || t("chat.permissions.approveEditsDesc"),
         icon: ShieldCheck,
       };
     case "plan":
       return {
-        label: "Plan only",
-        description: mode.description || "Plan without changing files.",
+        label: t("chat.permissions.planOnly"),
+        description: mode.description || t("chat.permissions.planOnlyDesc"),
         icon: Shield,
       };
     case "dontAsk":
       return {
-        label: "Don't ask",
+        label: t("chat.permissions.dontAsk"),
         description:
-          mode.description || "Deny actions that are not already approved.",
+          mode.description || t("chat.permissions.dontAskDesc"),
         icon: Shield,
       };
     case "agent-full-access":
       return {
-        label: "Full access",
+        label: t("chat.permissions.fullAccess"),
         description:
-          "Unrestricted access to the internet and any file on your computer.",
+          t("chat.permissions.fullAccessDesc"),
         icon: ShieldAlert,
         warning: true,
       };
     case "bypassPermissions":
       return {
-        label: "Full access",
-        description: mode.description || "Bypass all permission checks.",
+        label: t("chat.permissions.fullAccess"),
+        description: mode.description || t("chat.permissions.bypassAllDesc"),
         icon: ShieldAlert,
         warning: true,
       };
     default:
       return {
         label: mode.name,
-        description: mode.description || "Use this agent permission mode.",
+        description: mode.description || t("chat.permissions.defaultModeDesc"),
         icon: isUnrestrictedMode(mode) ? ShieldAlert : Shield,
         warning: isUnrestrictedMode(mode),
       };
@@ -175,6 +176,7 @@ export function AcpPermissionSelector({
   const live = useAcpSessionConfig((state) =>
     sessionId ? state.sessions[sessionId] : undefined,
   );
+  const t = useT();
   const cached = useAcpSessionConfig((state) =>
     agentId ? state.byAgent[agentId] : undefined,
   );
@@ -199,7 +201,7 @@ export function AcpPermissionSelector({
     control.values.find((mode) => mode.value === selectedValue) ??
     control.values[0];
   if (!selectedMode) return null;
-  const selected = permissionPresentation(selectedMode);
+  const selected = permissionPresentation(selectedMode, t);
   const SelectedIcon = selected.icon;
 
   const apply = async (mode: AcpConfigValue) => {
@@ -228,7 +230,7 @@ export function AcpPermissionSelector({
       }
       setOpen(false);
     } catch (error) {
-      toast.error(`could not change ${agentName.toLowerCase()} permissions`, {
+      toast.error(t("chat.permissions.changeFailed", { agent: agentName.toLowerCase() }), {
         description: String(error),
       });
     } finally {
@@ -250,7 +252,7 @@ export function AcpPermissionSelector({
               : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
           )}
           title={selected.description}
-          aria-label={`${agentName} permissions: ${selected.label}`}
+          aria-label={`${agentName} ${t("chat.permissions.ariaSuffix")}: ${selected.label}`}
           data-testid="acp-permission-trigger"
         >
           <SelectedIcon
@@ -273,10 +275,10 @@ export function AcpPermissionSelector({
         }}
       >
         <p className="px-2 pb-1 pt-0.5 text-xs text-muted-foreground">
-          how should {agentName.toLowerCase()} actions be approved?
+          {t("chat.permissions.howShouldBeApproved", { agent: agentName.toLowerCase() })}
         </p>
         {control.values.map((mode) => {
-          const presentation = permissionPresentation(mode);
+          const presentation = permissionPresentation(mode, t);
           const ModeIcon = presentation.icon;
           const isSelected = mode.value === selectedValue;
           const isPending = mode.value === pendingValue;
@@ -323,12 +325,12 @@ export function AcpPermissionSelector({
               {isPending ? (
                 <Loader2
                   className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-muted-foreground"
-                  aria-label="changing permissions"
+                  aria-label={t("chat.permissions.changing")}
                 />
               ) : isSelected ? (
                 <Check
                   className="mt-0.5 h-4 w-4 shrink-0"
-                  aria-label="selected"
+                  aria-label={t("chat.permissions.selected")}
                 />
               ) : null}
             </button>

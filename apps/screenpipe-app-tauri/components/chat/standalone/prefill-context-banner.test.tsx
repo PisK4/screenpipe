@@ -6,6 +6,10 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PrefillContextBanner } from "./prefill-context-banner";
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 describe("PrefillContextBanner", () => {
   it("shows connected sharing as a readable frozen snapshot", () => {
     render(
@@ -25,7 +29,7 @@ describe("PrefillContextBanner", () => {
       />,
     );
 
-    expect(screen.getByText(/frozen Screenpipe snapshot/i)).toBeInTheDocument();
+    expect(screen.getByText(/frozen Cue snapshot/i)).toBeInTheDocument();
     expect(
       screen.getByText("Weekly product pulse · Live View · reviewed copy"),
     ).toBeInTheDocument();

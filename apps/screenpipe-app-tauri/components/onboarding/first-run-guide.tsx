@@ -11,6 +11,7 @@ import { emit } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useChatStore } from "@/lib/stores/chat-store";
 import posthog from "posthog-js";
+import { useT } from "@/lib/i18n";
 
 // One-time guided first run, shown on the Home window right after onboarding.
 // It does NOT replace the chat — it guides the REAL chat:
@@ -95,6 +96,7 @@ export default function FirstRunGuide({
   onGoToAutomations,
   onEnsureChatVisible,
 }: FirstRunGuideProps) {
+  const t = useT();
   const [phase, setPhase] = useState<Phase>("invite");
   const phaseRef = useRef<Phase>("invite");
   phaseRef.current = phase;
@@ -472,29 +474,28 @@ export default function FirstRunGuide({
             <div className="flex items-center gap-2 mb-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-foreground" />
               <span className="font-mono text-[10px] tracking-wider lowercase text-muted-foreground/70">
-                you&apos;re all set
+                {t("onboarding.firstRun.allSet")}
               </span>
             </div>
             <p className="font-sans text-sm text-foreground/90 leading-snug">
-              want to see how screenpipe works? one prompt, one automation,
-              about 30 seconds.
+              {t("onboarding.firstRun.inviteBody")}
             </p>
             <button
               onClick={acceptInvite}
               data-testid="firstrun-accept"
               className="mt-4 w-full flex items-center justify-center gap-1.5 border border-foreground bg-foreground py-2.5 font-mono text-xs uppercase tracking-widest text-background hover:bg-background hover:text-foreground transition-colors"
             >
-              show me · 30 sec
+              {t("onboarding.firstRun.inviteAccept")}
             </button>
             <button
               onClick={() => dismiss("declined")}
               data-testid="firstrun-decline"
               className={SKIP_BUTTON_CLASS}
             >
-              i&apos;ll explore
+              {t("onboarding.firstRun.inviteDecline")}
             </button>
             <p className="mt-2 text-center font-mono text-[9px] lowercase tracking-wider text-muted-foreground/60">
-              rerun anytime from help
+              {t("onboarding.firstRun.rerunHint")}
             </p>
           </motion.div>
         </div>
@@ -508,14 +509,14 @@ export default function FirstRunGuide({
           className="fixed top-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 border border-foreground/30 bg-background px-3 py-1.5 shadow-lg"
         >
           <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            2 of 3 · building your automation
+            {t("onboarding.firstRun.streamingStatus")}
           </span>
           <button
             onClick={skip}
-            aria-label="skip intro"
+            aria-label={t("onboarding.firstRun.skipIntro")}
             className="font-mono text-[10px] uppercase tracking-widest text-foreground transition-opacity hover:opacity-60"
           >
-            skip ✕
+            {t("onboarding.firstRun.skipShort")} ✕
           </button>
         </div>
       )}
@@ -537,31 +538,30 @@ export default function FirstRunGuide({
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-foreground" />
                   <span className="font-mono text-[10px] tracking-wider lowercase text-muted-foreground/70">
-                    let&apos;s try one thing
+                    {t("onboarding.firstRun.askEyebrow")}
                   </span>
                   <span className="ml-auto font-mono text-[10px] tracking-wider text-muted-foreground/70">
-                    1 of 3
+                    {t("onboarding.firstRun.stepOf", { n: 1 })}
                   </span>
                 </div>
                 <p className="font-sans text-sm text-foreground/90 leading-snug">
-                  i filled the prompt below. send it to create your first
-                  automation.
+                  {t("onboarding.firstRun.askBody")}
                 </p>
                 <button
                   type="button"
                   onClick={submitPrefilledPrompt}
                   className="mt-4 flex w-full items-center justify-center border border-foreground bg-foreground py-2.5 font-mono text-xs uppercase tracking-widest text-background transition-colors hover:bg-background hover:text-foreground"
                 >
-                  send prompt ↵
+                  {t("onboarding.firstRun.sendPrompt")}
                 </button>
                 <button
                   onClick={skip}
                   className={SKIP_BUTTON_CLASS}
                 >
-                  skip intro
+                  {t("onboarding.firstRun.skipIntro")}
                 </button>
                 <p className="mt-2 text-center font-mono text-[9px] lowercase tracking-wider text-muted-foreground/60">
-                  esc to exit anytime
+                  {t("onboarding.firstRun.escHint")}
                 </p>
               </div>
               {/* Speech-bubble tail pointing down at the composer */}
@@ -594,30 +594,31 @@ export default function FirstRunGuide({
                 <Zap className="w-4 h-4 text-foreground mt-0.5 shrink-0" strokeWidth={2} />
                 <div>
                   <p className="font-mono text-xs font-semibold lowercase text-foreground">
-                    your automation is being set up
+                    {t("onboarding.firstRun.automateTitle")}
                   </p>
                   <p className="font-mono text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                    head over to scheduled to see it running and explore more automations
+                    {t("onboarding.firstRun.automateBody")}
                   </p>
                 </div>
                 <span className="ml-auto shrink-0 font-mono text-[10px] tracking-wider text-muted-foreground/70">
-                  2 of 3
+                  {t("onboarding.firstRun.stepOf", { n: 2 })}
                 </span>
               </div>
               <button
                 onClick={goToPipes}
                 className="w-full flex items-center justify-center gap-1.5 border border-foreground bg-foreground py-2.5 font-mono text-xs uppercase tracking-widest text-background hover:bg-background hover:text-foreground transition-colors"
               >
-                go to scheduled <ArrowRight className="w-3 h-3" strokeWidth={2} />
+                {t("onboarding.firstRun.goToScheduled")}{" "}
+                <ArrowRight className="w-3 h-3" strokeWidth={2} />
               </button>
               <button
                 onClick={skip}
                 className={SKIP_BUTTON_CLASS}
               >
-                skip intro
+                {t("onboarding.firstRun.skipIntro")}
               </button>
               <p className="mt-2 text-center font-mono text-[9px] lowercase tracking-wider text-muted-foreground/60">
-                esc to exit anytime
+                {t("onboarding.firstRun.escHint")}
               </p>
             </motion.div>
           )}
@@ -680,32 +681,33 @@ export default function FirstRunGuide({
           <div className="flex items-start gap-2.5 mb-3">
             <div>
               <p className="font-mono text-xs font-semibold lowercase text-foreground">
-                one last thing — run your scheduled task
+                {t("onboarding.firstRun.runPipeTitle")}
               </p>
               <p className="font-mono text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                hit the{" "}
+                {t("onboarding.firstRun.runPipeBodyBefore")}{" "}
                 <Play className="inline w-3 h-3 -mt-0.5" strokeWidth={2} />{" "}
-                button on your scheduled task to start it
+                {t("onboarding.firstRun.runPipeBodyAfter")}
               </p>
             </div>
             <span className="ml-auto shrink-0 font-mono text-[10px] tracking-wider text-muted-foreground/70">
-              3 of 3
+              {t("onboarding.firstRun.stepOf", { n: 3 })}
             </span>
           </div>
           <button
             onClick={finishGuide}
             className="w-full flex items-center justify-center gap-1.5 border border-foreground bg-foreground py-2.5 font-mono text-xs uppercase tracking-widest text-background hover:bg-background hover:text-foreground transition-colors"
           >
-            got it <ArrowRight className="w-3 h-3" strokeWidth={2} />
+            {t("onboarding.firstRun.gotIt")}{" "}
+            <ArrowRight className="w-3 h-3" strokeWidth={2} />
           </button>
           <button
             onClick={skip}
             className={SKIP_BUTTON_CLASS}
           >
-            skip intro
+            {t("onboarding.firstRun.skipIntro")}
           </button>
           <p className="mt-2 text-center font-mono text-[9px] lowercase tracking-wider text-muted-foreground/60">
-            esc to exit anytime
+            {t("onboarding.firstRun.escHint")}
           </p>
         </motion.div>
         );

@@ -5,6 +5,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ImageIcon } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export function DropOverlay({
   isEmbedded,
@@ -13,6 +14,7 @@ export function DropOverlay({
   isEmbedded: boolean;
   isDragging: boolean;
 }) {
+  const t = useT();
   if (!isEmbedded) return null;
 
   return (
@@ -27,7 +29,7 @@ export function DropOverlay({
         >
           <div className="flex flex-col items-center gap-2">
             <ImageIcon className="w-6 h-6 text-primary" />
-            <p className="text-sm font-medium text-foreground">drop image here</p>
+            <p className="text-sm font-medium text-foreground">{t("chat.dropOverlay.dropImageHere")}</p>
           </div>
         </motion.div>
       )}

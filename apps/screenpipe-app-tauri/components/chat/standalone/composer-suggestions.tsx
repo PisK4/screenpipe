@@ -15,12 +15,14 @@ import { ConnectionToolIcon } from "@/components/chat/standalone/message-content
 import type { ComposerSuggestionsProps } from "./composer-types";
 import type { Suggestion } from "@/lib/hooks/use-auto-suggestions";
 import { postChatSuggestionImpressionProperties } from "@/lib/chat/suggestion-telemetry";
+import { useT } from "@/lib/i18n";
 
 export function ComposerSuggestions({
   suggestions,
 }: {
   suggestions: ComposerSuggestionsProps;
 }) {
+  const t = useT();
   const lastImpressionSignatureRef = useRef<string | null>(null);
   const [compactOpen, setCompactOpen] = useState(false);
   const visibleSuggestions = suggestions.suggestions.slice(0, 3);
@@ -73,6 +75,7 @@ export function ComposerSuggestions({
           isRefreshing={suggestions.isRefreshing}
           onRefresh={suggestions.onRefresh}
           onHide={suggestions.onHide}
+          t={t}
         />
       </div>
     );
@@ -85,10 +88,10 @@ export function ComposerSuggestions({
           <button
             type="button"
             className="ph-no-capture flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono bg-muted/20 hover:bg-foreground hover:text-background border border-border/20 hover:border-foreground text-muted-foreground transition-all duration-150 cursor-pointer"
-            title="Suggested prompts"
+            title={t("chat.suggestions.title")}
           >
             <Sparkles className="w-3 h-3" strokeWidth={1.5} />
-            <span>suggestions</span>
+            <span>{t("chat.suggestions.label")}</span>
             <ChevronDown className="w-3 h-3" strokeWidth={1.5} />
           </button>
         </PopoverTrigger>
@@ -115,6 +118,7 @@ export function ComposerSuggestions({
         isRefreshing={suggestions.isRefreshing}
         onRefresh={suggestions.onRefresh}
         onHide={suggestions.onHide}
+        t={t}
       />
     </div>
   );
@@ -185,10 +189,12 @@ function SuggestionActionButtons({
   isRefreshing,
   onRefresh,
   onHide,
+  t,
 }: {
   isRefreshing: boolean;
   onRefresh: () => void;
   onHide: () => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }) {
   return (
     <>
@@ -196,7 +202,7 @@ function SuggestionActionButtons({
         onClick={onRefresh}
         disabled={isRefreshing}
         className="p-0.5 text-muted-foreground/30 hover:text-foreground transition-colors duration-150 disabled:opacity-30 cursor-pointer"
-        title="refresh suggestions"
+        title={t("chat.suggestions.refresh")}
       >
         <RefreshCw
           className={`w-3 h-3 ${isRefreshing ? "animate-spin" : ""}`}
@@ -207,8 +213,8 @@ function SuggestionActionButtons({
         type="button"
         onClick={onHide}
         className="p-0.5 text-muted-foreground/30 hover:text-foreground transition-colors duration-150 cursor-pointer"
-        title="Hide chat suggestions — re-enable in Settings → Display"
-        aria-label="Hide chat suggestions"
+        title={t("chat.suggestions.hideTitle")}
+        aria-label={t("chat.suggestions.hideAria")}
       >
         <X className="w-3 h-3" strokeWidth={1.5} />
       </button>

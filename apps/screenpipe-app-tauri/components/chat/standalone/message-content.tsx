@@ -47,6 +47,7 @@ import {
 } from "@/lib/source-citations";
 import { renderChartFence } from "@/components/chat/charts/chat-chart";
 import { PlanBlock } from "@/components/chat/standalone/plan-block";
+import { useT, type Translator } from "@/lib/i18n";
 
 const MermaidDiagram = React.lazy(() =>
   import("@/components/rewind/mermaid-diagram").then((mod) => ({
@@ -55,11 +56,12 @@ const MermaidDiagram = React.lazy(() =>
 );
 
 function MermaidDiagramBlock({ chart }: { chart: string }) {
+  const t = useT();
   return (
     <React.Suspense
       fallback={
         <div className="my-4 text-xs text-muted-foreground">
-          rendering diagram...
+          {t("chat.tools.renderingDiagram")}
         </div>
       }
     >
@@ -112,7 +114,7 @@ interface BashToolDetailsPresentation {
   rawResult?: string;
 }
 
-function bashToolDetailsPresentation(toolCall: ToolCall): BashToolDetailsPresentation | null {
+function bashToolDetailsPresentation(toolCall: ToolCall, t: Translator): BashToolDetailsPresentation | null {
   const command = effectiveCommand(toolCall);
   if (!command) return null;
 
@@ -128,7 +130,7 @@ function bashToolDetailsPresentation(toolCall: ToolCall): BashToolDetailsPresent
     fields.push({ label: "method", value: method });
     return {
       title: classified.label,
-      eyebrow: "Web request",
+      eyebrow: t("chat.tools.webRequest"),
       fields,
       resultSummary: summarizeToolResult(toolCall.result, "web"),
       rawCommand: command,
@@ -174,7 +176,8 @@ function bashToolDetailsPresentation(toolCall: ToolCall): BashToolDetailsPresent
 }
 
 function BashToolDetails({ toolCall }: { toolCall: ToolCall }) {
-  const details = bashToolDetailsPresentation(toolCall);
+  const t = useT();
+  const details = bashToolDetailsPresentation(toolCall, t);
   if (!details) {
     return (
       <div className="py-1.5">
@@ -216,11 +219,11 @@ function BashToolDetails({ toolCall }: { toolCall: ToolCall }) {
 
       <details className="group rounded-md border border-border/30 bg-background/40 px-2 py-1.5">
         <summary className="cursor-pointer select-none text-[10px] font-mono uppercase tracking-wide text-muted-foreground/70 transition-colors hover:text-foreground/70">
-          technical details
+          {t("chat.tools.technicalDetails")}
         </summary>
         <div className="mt-2 space-y-2">
-          <ToolCodeBlock label="command" code={sanitizeCommand(details.rawCommand)} language="shell" />
-          {formattedResult && <ToolCodeBlock label="response" code={formattedResult} language="json" />}
+          <ToolCodeBlock label={t("chat.tools.command")} code={sanitizeCommand(details.rawCommand)} language="shell" />
+          {formattedResult && <ToolCodeBlock label={t("chat.tools.response")} code={formattedResult} language="json" />}
         </div>
       </details>
     </div>

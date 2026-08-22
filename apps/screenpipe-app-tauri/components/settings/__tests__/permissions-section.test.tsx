@@ -32,6 +32,12 @@ vi.mock("@/lib/utils/tauri", () => ({
   commands: commandMocks,
 }));
 
+// PermissionsSection now uses useT() (lib/i18n), which reads the settings
+// store; provide an inert store so the component renders under test.
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 vi.mock("@/lib/utils/permission-flow", () => flowMocks);
 
 vi.mock("@/lib/hooks/use-platform", () => ({

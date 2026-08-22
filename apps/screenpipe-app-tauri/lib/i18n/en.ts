@@ -7,7 +7,11 @@
 // compiler enforces via `satisfies`. Brand name in user-visible copy is Cue.
 
 import { accountEn } from "./en-account";
+import { chatEn } from "./en-chat";
+import { meetingNotesEn } from "./en-meeting-notes";
 import { notificationsEn } from "./en-notifications";
+import { onboardingEn } from "./en-onboarding";
+import { settingsMiscEn } from "./en-settings-misc";
 import { storageEn } from "./en-storage";
 
 export const en = {
@@ -20,8 +24,12 @@ export const en = {
     enabled: "Enabled",
     disabled: "Disabled",
   },
+  chat: chatEn,
+  onboarding: onboardingEn,
+  meetingNotes: meetingNotesEn,
   settings: {
     account: accountEn,
+    ...settingsMiscEn,
     general: {
       subtitle: "Startup, updates, and notifications",
 

@@ -13,6 +13,7 @@ import {
   submitHostedCheckoutStart,
 } from "@/lib/onboarding-checkout-navigation";
 import type { AppUser } from "@/lib/app-entitlement";
+import { useT } from "@/lib/i18n";
 
 const HOSTED_CHECKOUT_URL = screenpipeWebUrl(
   "/onboarding/checkout",
@@ -31,6 +32,7 @@ export default function PlanSelectionStep({
   handleNextSlide: () => void | Promise<void>;
 }) {
   const { settings, loadUser } = useSettings();
+  const t = useT();
   const user = settings.user as AppUser | null | undefined;
   const [returnStatus] = useState(checkoutStatus);
   const [busy, setBusy] = useState(returnStatus !== "cancelled");
@@ -49,7 +51,7 @@ export default function PlanSelectionStep({
     if (submissionStartedRef.current) return;
     if (!userToken) {
       setBusy(false);
-      setError("sign in to continue");
+      setError(t("onboarding.plan.errorSignInToContinue"));
       return;
     }
 
@@ -71,10 +73,10 @@ export default function PlanSelectionStep({
       setError(
         checkoutError instanceof Error
           ? checkoutError.message
-          : "secure checkout could not be opened",
+          : t("onboarding.plan.errorCheckoutNotOpened"),
       );
     }
-  }, [userToken]);
+  }, [userToken, t]);
 
   useEffect(() => {
     if (returnStatus !== null) return;
@@ -97,7 +99,7 @@ export default function PlanSelectionStep({
     ) {
       if (returnStatus === "complete" && !userToken) {
         setBusy(false);
-        setError("sign in to confirm your payment");
+        setError(t("onboarding.plan.errorConfirmPayment"));
       }
       return;
     }
@@ -177,10 +179,10 @@ export default function PlanSelectionStep({
       >
         <div className="text-center">
           <h2 className="text-xl font-semibold lowercase">
-            confirming your payment
+            {t("onboarding.plan.confirmingTitle")}
           </h2>
           <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
-            setup continues automatically when your account is ready.
+            {t("onboarding.plan.confirmingBody")}
           </p>
         </div>
         <div className="mt-5 flex min-h-[150px] items-center justify-center border p-6 text-center">
@@ -188,7 +190,9 @@ export default function PlanSelectionStep({
             <p className="font-mono text-[11px] text-destructive">{error}</p>
           ) : (
             <p className="font-mono text-[11px] text-muted-foreground">
-              {busy ? "checking secure checkout" : "waiting for confirmation"}
+              {busy
+                ? t("onboarding.plan.checkingCheckout")
+                : t("onboarding.plan.waitingForConfirmation")}
             </p>
           )}
         </div>
@@ -203,10 +207,10 @@ export default function PlanSelectionStep({
         data-testid="onboarding-card-capture"
       >
         <h2 className="text-xl font-semibold lowercase">
-          checkout was not completed
+          {t("onboarding.plan.cancelledTitle")}
         </h2>
         <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
-          retry when you are ready to start your trial.
+          {t("onboarding.plan.cancelledBody")}
         </p>
         {error && (
           <p className="mt-4 font-mono text-[11px] text-destructive">{error}</p>
@@ -217,7 +221,9 @@ export default function PlanSelectionStep({
           disabled={busy}
           className="mt-5 border bg-foreground px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-background transition-opacity hover:opacity-80 disabled:opacity-50"
         >
-          {busy ? "opening checkout" : "retry secure checkout"}
+          {busy
+            ? t("onboarding.plan.openingCheckout")
+            : t("onboarding.plan.retryCheckout")}
         </button>
       </div>
     );
@@ -229,10 +235,10 @@ export default function PlanSelectionStep({
       data-testid="onboarding-card-capture"
     >
       <h2 className="text-xl font-semibold lowercase">
-        opening secure checkout
+        {t("onboarding.plan.openingTitle")}
       </h2>
       <p className="mt-3 font-mono text-[11px] text-muted-foreground">
-        {error || "loading screenpipe.com"}
+        {error || t("onboarding.plan.loadingSite")}
       </p>
       {error && (
         <button
@@ -240,7 +246,7 @@ export default function PlanSelectionStep({
           onClick={startCheckout}
           className="mt-5 border px-4 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors hover:bg-foreground hover:text-background"
         >
-          try again
+          {t("onboarding.plan.tryAgain")}
         </button>
       )}
     </div>

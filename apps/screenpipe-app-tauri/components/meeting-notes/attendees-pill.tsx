@@ -16,6 +16,7 @@ import {
   parseAttendees,
   serializeAttendees,
 } from "@/lib/utils/meeting-format";
+import { useT } from "@/lib/i18n";
 
 interface Speaker {
   id: number;
@@ -48,6 +49,7 @@ function Initial({ name }: { name: string }) {
  * endpoint — a named speaker is effectively an attendee — plus free-form "add".
  */
 export function AttendeesPill({ value, count, onChange }: AttendeesPillProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
@@ -197,8 +199,14 @@ export function AttendeesPill({ value, count, onChange }: AttendeesPillProps) {
         >
           <Users className="h-3.5 w-3.5" />
           {count === 0
-            ? "add attendees"
-            : `${count} ${count === 1 ? "attendee" : "attendees"}`}
+            ? t("meetingNotes.attendeesPill.triggerEmpty")
+            : t("meetingNotes.attendeesPill.triggerCount", {
+                count,
+                countLabel:
+                  count === 1
+                    ? t("meetingNotes.attendeesPill.countOne")
+                    : t("meetingNotes.attendeesPill.countMany"),
+              })}
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -211,7 +219,7 @@ export function AttendeesPill({ value, count, onChange }: AttendeesPillProps) {
           <input
             ref={inputRef}
             value={searchTerm}
-            placeholder="search or add attendee…"
+            placeholder={t("meetingNotes.attendeesPill.searchPlaceholder")}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
@@ -262,11 +270,9 @@ export function AttendeesPill({ value, count, onChange }: AttendeesPillProps) {
                 )}
                 <span className="flex-1 truncate">
                   {opt.kind === "create" ? (
-                    <>
-                      Add &quot;
-                      <span className="font-medium">{opt.name}</span>
-                      &quot;
-                    </>
+                    t("meetingNotes.attendeesPill.createRow", {
+                      name: opt.name,
+                    })
                   ) : (
                     opt.name
                   )}
@@ -283,8 +289,13 @@ export function AttendeesPill({ value, count, onChange }: AttendeesPillProps) {
         {attendees.length > 0 ? (
           <>
             <div className="px-2.5 pt-2 text-[11px] lowercase text-muted-foreground">
-              {attendees.length}{" "}
-              {attendees.length === 1 ? "attendee" : "attendees"}
+              {t("meetingNotes.attendeesPill.countHeading", {
+                count: attendees.length,
+                countLabel:
+                  attendees.length === 1
+                    ? t("meetingNotes.attendeesPill.countOne")
+                    : t("meetingNotes.attendeesPill.countMany"),
+              })}
             </div>
             <div className="flex max-h-[140px] flex-wrap gap-1.5 overflow-y-auto p-2.5">
               {attendees.map((name) => (
@@ -297,7 +308,9 @@ export function AttendeesPill({ value, count, onChange }: AttendeesPillProps) {
                   <span className="max-w-[140px] truncate">{name}</span>
                   <button
                     type="button"
-                    aria-label={`Remove ${name}`}
+                    aria-label={t("meetingNotes.attendeesPill.removeAria", {
+                      name,
+                    })}
                     onClick={() => removeAttendee(name)}
                     className="flex h-4 w-4 items-center justify-center text-muted-foreground hover:text-foreground"
                   >
@@ -310,7 +323,7 @@ export function AttendeesPill({ value, count, onChange }: AttendeesPillProps) {
         ) : (
           !searchTerm.trim() && (
             <div className="px-2.5 py-3 text-xs text-muted-foreground">
-              no attendees yet — type a name to add
+              {t("meetingNotes.attendeesPill.emptyHint")}
             </div>
           )
         )}

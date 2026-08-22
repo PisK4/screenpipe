@@ -11,6 +11,7 @@ import posthog from "posthog-js";
 import { useSettings } from "@/lib/hooks/use-settings";
 import { commands } from "@/lib/utils/tauri";
 import { localFetch } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
 interface TimelineChoiceProps {
   handleNextSlide: () => void;
@@ -31,12 +32,13 @@ const isLowTier = (tier: string | null | undefined) =>
 // no re-renders; the whole loop runs on the compositor.
 
 // Each "frame" is a skeleton layout of a different app the user was in.
+// Labels are i18n keys resolved by <TimelinePreview/> at render time.
 const MOCK_FRAMES = [
-  { label: "now · your editor", bars: [85, 60, 72, 40, 65] },
-  { label: "-2m · browser", bars: [50, 90, 45, 78, 30] },
-  { label: "-10m · a meeting", bars: [70, 35, 88, 55, 62] },
-  { label: "-1h · slack", bars: [40, 75, 52, 85, 48] },
-];
+  { labelKey: "onboarding.timelineChoice.previewNow", bars: [85, 60, 72, 40, 65] },
+  { labelKey: "onboarding.timelineChoice.previewBrowser", bars: [50, 90, 45, 78, 30] },
+  { labelKey: "onboarding.timelineChoice.previewMeeting", bars: [70, 35, 88, 55, 62] },
+  { labelKey: "onboarding.timelineChoice.previewSlack", bars: [40, 75, 52, 85, 48] },
+] as const;
 
 const FRAME_MS = 1800;
 const LOOP_MS = FRAME_MS * MOCK_FRAMES.length;
@@ -60,6 +62,7 @@ const PREVIEW_CSS = `
 `;
 
 function TimelinePreview() {
+  const t = useT();
   return (
     <div
       className="w-full border border-border/50 overflow-hidden select-none"
@@ -95,7 +98,7 @@ function TimelinePreview() {
             </div>
             {/* floating time chip, like the real rewind overlay */}
             <div className="absolute -top-6 right-0 px-2 py-0.5 border border-border/60 bg-background/80 font-mono text-[9px] text-muted-foreground">
-              {frame.label}
+              {t(frame.labelKey)}
             </div>
           </div>
         ))}
@@ -129,11 +132,13 @@ function TimelinePreview() {
 const COSTS = [
   {
     icon: Camera,
-    text: "takes periodic screenshots as you work",
+    textKey: "onboarding.timelineChoice.costScreenshots",
+    testId: undefined,
   },
   {
     icon: HardDrive,
-    text: "uses memory, cpu and disk",
+    textKey: "onboarding.timelineChoice.costResources",
+    testId: undefined,
   },
   // The bounds, stated where the user is actually deciding. Both controls
   // already ship in Settings → Privacy — `ignoreIncognitoWindows` defaults to
@@ -142,10 +147,10 @@ const COSTS = [
   // one moment the user is choosing whether to allow it.
   {
     icon: EyeOff,
-    text: "skips incognito windows. you can exclude any app in settings.",
+    textKey: "onboarding.timelineChoice.costBounds",
     testId: "timeline-capture-bounds",
   },
-];
+] as const;
 
 /**
  * Restart screenpipe if it is already running, so a choice made on an
@@ -197,6 +202,7 @@ export default function TimelineChoice({
   handleNextSlide,
 }: TimelineChoiceProps) {
   const { settings, updateSettings } = useSettings();
+  const t = useT();
   const mountTimeRef = useRef(Date.now());
   const hasAdvanced = useRef(false);
   const inFlight = useRef(false);
@@ -242,7 +248,7 @@ export default function TimelineChoice({
       posthog.capture("onboarding_timeline_choice_failed", {
         stage: "persist",
       });
-      setError("couldn't save that choice. check disk space and try again.");
+      setError(t("onboarding.timelineChoice.errorSave"));
       inFlight.current = false;
       setPending(null);
       return;
@@ -259,7 +265,7 @@ export default function TimelineChoice({
   const recommendedTag = (
     <span className="flex items-center gap-1 font-mono text-[9px] normal-case tracking-normal opacity-70">
       <Check className="w-2.5 h-2.5" strokeWidth={2.5} />
-      recommended
+      {t("onboarding.timelineChoice.recommended")}
     </span>
   );
   const subtext = (text: string) => (
@@ -283,10 +289,10 @@ export default function TimelineChoice({
         transition={{ delay: 0.1 }}
       >
         <h2 className="font-mono text-base font-bold lowercase">
-          meet the timeline
+          {t("onboarding.timelineChoice.title")}
         </h2>
         <p className="font-mono text-[10px] text-muted-foreground/60 mt-1 max-w-[320px]">
-          rewind what you&apos;ve seen on screen
+          {t("onboarding.timelineChoice.subtitle")}
         </p>
       </motion.div>
 
@@ -307,14 +313,14 @@ export default function TimelineChoice({
         animate={{ opacity: 1 }}
         transition={{ delay: 0.25 }}
       >
-        {COSTS.map(({ icon: Icon, text, testId }, i) => (
+        {COSTS.map(({ icon: Icon, textKey, testId }, i) => (
           <div key={i} data-testid={testId} className="flex items-start gap-2">
             <Icon
               className="w-3 h-3 mt-0.5 shrink-0 text-muted-foreground/60"
               strokeWidth={1.5}
             />
             <p className="font-mono text-[10px] text-muted-foreground/70 leading-snug">
-              {text}
+              {t(textKey)}
             </p>
           </div>
         ))}
@@ -329,12 +335,10 @@ export default function TimelineChoice({
           transition={{ delay: 0.3 }}
         >
           <p className="font-mono text-[10px] text-amber-500/90 font-semibold lowercase">
-            timeline may slow down this device
+            {t("onboarding.timelineChoice.lowTierTitle")}
           </p>
           <p className="font-mono text-[10px] text-muted-foreground/70 mt-1 leading-snug">
-            keeping it off saves memory, cpu and disk. text exposed by your apps
-            stays searchable; screenshots and image-only text won&apos;t be
-            captured.
+            {t("onboarding.timelineChoice.lowTierBody")}
           </p>
         </motion.div>
       )}
@@ -369,9 +373,13 @@ export default function TimelineChoice({
         >
           <span className="flex items-center gap-1.5">
             {pending === true && <Loader className="w-3 h-3 animate-spin" />}
-            timeline on
+            {t("onboarding.timelineChoice.timelineOn")}
           </span>
-          {recommendEnabled ? recommendedTag : subtext("visual rewind")}
+          {recommendEnabled ? (
+            recommendedTag
+          ) : (
+            subtext(t("onboarding.timelineChoice.visualRewind"))
+          )}
         </button>
         <button
           onClick={() => choose(false)}
@@ -384,11 +392,13 @@ export default function TimelineChoice({
         >
           <span className="flex items-center gap-1.5">
             {pending === false && <Loader className="w-3 h-3 animate-spin" />}
-            keep it off
+            {t("onboarding.timelineChoice.keepOff")}
           </span>
-          {!recommendEnabled
-            ? recommendedTag
-            : subtext("saves ram, cpu & disk")}
+          {!recommendEnabled ? (
+            recommendedTag
+          ) : (
+            subtext(t("onboarding.timelineChoice.savesResources"))
+          )}
         </button>
       </motion.div>
 
@@ -398,7 +408,7 @@ export default function TimelineChoice({
         animate={{ opacity: 1 }}
         transition={{ delay: 0.45 }}
       >
-        not a forever choice — change it anytime in settings
+        {t("onboarding.timelineChoice.footer")}
       </motion.p>
     </motion.div>
   );

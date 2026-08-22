@@ -17,6 +17,10 @@ vi.mock("@/components/chat/standalone/message-content", () => ({
   ConnectionToolIcon: () => <span aria-hidden>connection</span>,
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 const privatePrompt = "Alice's private roadmap in /Users/alice/secret";
 const privatePreview = "Confidential preview from a private calendar";
 
@@ -115,7 +119,6 @@ describe("ComposerSuggestions telemetry", () => {
     );
 
     expect(captureMock).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "suggestions" }));
-    await waitFor(() => expect(captureMock).toHaveBeenCalledTimes(3));
+    fireEvent.click(screen.getByRole("button", { name: "suggestions" }));    await waitFor(() => expect(captureMock).toHaveBeenCalledTimes(3));
   });
 });

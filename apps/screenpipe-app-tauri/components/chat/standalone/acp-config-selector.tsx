@@ -25,6 +25,7 @@ import {
   type AcpConfigOption,
 } from "@/lib/stores/acp-session-config";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 // A live-session command fails this way before the first prompt spawns the ACP
 // runtime. That's expected on a fresh chat — the choice is persisted to the
@@ -96,6 +97,7 @@ export function AcpConfigSelector({
   const live = useAcpSessionConfig((state) =>
     sessionId ? state.sessions[sessionId] : undefined,
   );
+  const t = useT();
   const cached = useAcpSessionConfig((state) =>
     agentId ? state.byAgent[agentId] : undefined,
   );
@@ -149,7 +151,7 @@ export function AcpConfigSelector({
       (modelOption.values.find((value) => value.value === modelValue)?.name ||
         modelValue)) ||
     modes?.availableModes.find((mode) => mode.value === selectedModeId)?.name ||
-    "config";
+    t("chat.acpConfig.config");
   // Re-authenticate is offered for every ACP agent (as Zed does): it re-runs the
   // agent's own auth flow, which re-shows whatever sign-in methods it has.
   const canReauth = !!onReauthenticate;
@@ -161,7 +163,7 @@ export function AcpConfigSelector({
     try {
       await action();
     } catch (error) {
-      toast.error(`could not change ${label.toLowerCase()}`, {
+      toast.error(t("chat.acpConfig.changeFailed", { label: label.toLowerCase() }), {
         description: String(error),
       });
     } finally {
@@ -195,8 +197,12 @@ export function AcpConfigSelector({
   return (
     <ComposerSettingsPopover
       label={triggerLabel}
-      title={`Agent configuration${triggerLabel === "config" ? "" : `: ${triggerLabel}`}`}
-      ariaLabel="Agent configuration"
+      title={
+        triggerLabel === t("chat.acpConfig.config")
+          ? t("chat.acpConfig.agentConfiguration")
+          : `${t("chat.acpConfig.agentConfiguration")}: ${triggerLabel}`
+      }
+      ariaLabel={t("chat.acpConfig.agentConfiguration")}
       triggerTestId="acp-config-trigger"
       contentTestId="acp-config-popover"
       open={open}
@@ -308,7 +314,7 @@ export function AcpConfigSelector({
             )}
           >
             {reauthPending && <Loader2 className="h-3 w-3 animate-spin" aria-hidden />}
-            {reauthPending ? "signing out…" : "re-authenticate"}
+            {reauthPending ? t("chat.acpConfig.signingOut") : t("chat.acpConfig.reauthenticate")}
           </button>
         )}
     </ComposerSettingsPopover>

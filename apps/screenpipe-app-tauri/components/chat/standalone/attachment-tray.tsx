@@ -12,6 +12,7 @@ import {
 } from "@/lib/chat/large-context";
 import type { PendingDoc } from "@/components/chat/standalone/hooks/use-chat-attachments";
 import type { ExtractedDoc } from "@/lib/pi/extract-document";
+import { useT } from "@/lib/i18n";
 
 interface AttachmentTrayProps {
   pendingDocs: PendingDoc[];
@@ -32,6 +33,7 @@ export function AttachmentTray({
   onImageClick,
   onRemoveImage,
 }: AttachmentTrayProps) {
+  const t = useT();
   if (attachedDocs.length === 0 && pendingDocs.length === 0 && pastedImages.length === 0) {
     return null;
   }
@@ -45,7 +47,7 @@ export function AttachmentTray({
             <div
               key={`pending-${doc.id}`}
               className="flex items-center gap-2.5 h-16 max-w-[240px] rounded-xl border border-border/50 bg-muted/40 px-2.5 shadow-sm opacity-80"
-              title={`${doc.name} — extracting…`}
+              title={`${doc.name} — ${t("chat.attachments.extracting")}`}
               aria-busy="true"
             >
               <div className={`relative shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-[10px] font-semibold tracking-tight ${badge.tint}`}>
@@ -53,7 +55,7 @@ export function AttachmentTray({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-xs font-medium text-foreground">{doc.name}</div>
-                <div className="truncate text-[10px] text-muted-foreground">extracting…</div>
+                <div className="truncate text-[10px] text-muted-foreground">{t("chat.attachments.extracting")}</div>
               </div>
             </div>
           );
@@ -66,7 +68,7 @@ export function AttachmentTray({
             <div
               key={`doc-${doc.name}-${i}`}
               className="relative group flex items-center gap-2.5 h-16 max-w-[240px] rounded-xl border border-border/50 bg-muted/40 px-2.5 shadow-sm"
-              title={`${doc.name} — ${doc.charCount.toLocaleString()} chars${doc.truncated ? " (truncated to fit)" : ""}`}
+              title={`${doc.name} — ${t("chat.attachments.charCount", { count: doc.charCount.toLocaleString() })}${doc.truncated ? ` ${t("chat.attachments.truncatedToFit")}` : ""}`}
             >
               <div className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-[10px] font-semibold tracking-tight ${badge.tint}`}>
                 {badge.label}
@@ -80,23 +82,23 @@ export function AttachmentTray({
                       onClick={() => onShowPastedTextInField(doc, i)}
                       className="inline-flex max-w-full items-center gap-0.5 truncate text-[10px] text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground"
                     >
-                      <span className="truncate">Show in text field</span>
+                      <span className="truncate">{t("chat.attachments.showInTextField")}</span>
                       <ChevronRight className="h-3 w-3 shrink-0" />
                     </button>
                   ) : (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="inline-flex max-w-full cursor-not-allowed items-center gap-0.5 truncate text-[10px] text-muted-foreground/70 underline decoration-dotted underline-offset-2">
-                          <span className="truncate">Show in text field</span>
+                          <span className="truncate">{t("chat.attachments.showInTextField")}</span>
                           <ChevronRight className="h-3 w-3 shrink-0" />
                         </span>
                       </TooltipTrigger>
-                      <TooltipContent side="top">Too long to show in text field</TooltipContent>
+                      <TooltipContent side="top">{t("chat.attachments.tooLongToShow")}</TooltipContent>
                     </Tooltip>
                   )
                 ) : (
                   <div className="truncate text-[10px] text-muted-foreground">
-                    {doc.charCount.toLocaleString()} chars{doc.truncated ? " • truncated" : ""}
+                    {t("chat.attachments.charCount", { count: doc.charCount.toLocaleString() })}{doc.truncated ? ` ${t("chat.attachments.truncated")}` : ""}
                   </div>
                 )}
               </div>
@@ -120,7 +122,7 @@ export function AttachmentTray({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={img}
-                alt={`Attached ${i + 1}`}
+                alt={t("chat.attachments.attachedN", { index: i + 1 })}
                 className="h-16 w-16 min-h-16 min-w-16 object-cover cursor-pointer"
               />
             </button>

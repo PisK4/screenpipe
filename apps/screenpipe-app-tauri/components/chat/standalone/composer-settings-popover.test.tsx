@@ -29,6 +29,10 @@ vi.mock("@/lib/hooks/use-pi-thinking-level", () => ({
   usePiThinkingLevel: () => ({ piLevel: "medium", piThinkingUnsupported: false }),
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 const SESSION = "chat-1";
 
 afterEach(() => {

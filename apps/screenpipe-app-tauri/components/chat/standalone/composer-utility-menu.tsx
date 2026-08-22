@@ -10,6 +10,7 @@ import { ConnectionToolIcon } from "@/components/chat/standalone/message-content
 import type { MentionSuggestion } from "@/components/chat/standalone/hooks/use-chat-mentions";
 import { connectionMentionTag, type ConnectedIntegration } from "@/lib/chat/connection-suggestions";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 type ActiveChatFilters = {
   timeRanges: { label: string }[];
@@ -94,6 +95,7 @@ export function ComposerUtilityMenu({
   applySpeakerFilterSuggestion,
   handleFilePicker,
 }: ComposerUtilityMenuProps) {
+  const t = useT();
   const timeLabels: Record<string, string> = {
     "today's activity": "today",
     yesterday: "yesterday",
@@ -123,7 +125,7 @@ export function ComposerUtilityMenu({
       >
         <span className="truncate">{suggestion.tag}</span>
         <span className="text-[10px] text-muted-foreground truncate shrink-0 max-w-[9rem]">
-          {isActive ? "selected" : suggestion.description}
+          {isActive ? t("chat.utilityMenu.selected") : suggestion.description}
         </span>
       </button>
     );
@@ -143,13 +145,13 @@ export function ComposerUtilityMenu({
           className="w-full flex items-center gap-2 px-2 py-2 text-left text-sm rounded-md hover:bg-muted disabled:opacity-40 disabled:pointer-events-none transition-colors"
         >
           <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
-          <span>add photos & files</span>
+          <span>{t("chat.utilityMenu.addPhotosAndFiles")}</span>
         </button>
       </div>
 
       <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/50 flex items-center gap-1.5">
         <Filter className="h-3 w-3" />
-        <span>filters</span>
+        <span>{t("chat.utilityMenu.filters")}</span>
         {activeFilterCount > 0 && (
           <span className="ml-auto text-foreground">{activeFilterCount}</span>
         )}
@@ -181,7 +183,7 @@ export function ComposerUtilityMenu({
                 }
               }
             }}
-            placeholder="search tags or speakers"
+            placeholder={t("chat.utilityMenu.searchTagsOrSpeakers")}
             className="h-8 pl-7 pr-7 text-xs"
             autoComplete="off"
           />
@@ -190,7 +192,7 @@ export function ComposerUtilityMenu({
               type="button"
               onClick={onClearFilterSearch}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              aria-label="Clear filter search"
+              aria-label={t("chat.utilityMenu.clearFilterSearch")}
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -202,14 +204,14 @@ export function ComposerUtilityMenu({
         <>
           <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/50 flex items-center gap-1.5">
             <Search className="h-3 w-3" />
-            <span>matching filters</span>
+            <span>{t("chat.utilityMenu.matchingFilters")}</span>
             {isLoadingFilterSearch && (
               <Loader2 className="ml-auto h-3 w-3 animate-spin text-muted-foreground" />
             )}
           </div>
           {filterSearchResults.length === 0 && !isLoadingFilterSearch ? (
             <div className="px-3 py-2 text-[10px] text-muted-foreground">
-              no matching tags or speakers
+              {t("chat.utilityMenu.noMatchingTagsOrSpeakers")}
             </div>
           ) : (
             filterSearchGroups.map((group) => (
@@ -229,7 +231,7 @@ export function ComposerUtilityMenu({
       {!filterQuery && (
         <>
           <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/50">
-            time
+            {t("chat.utilityMenu.time")}
           </div>
           {staticMentionSuggestions
             .filter((s) => s.category === "time")
@@ -256,7 +258,7 @@ export function ComposerUtilityMenu({
             })}
 
           <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/50 border-t">
-            content type
+            {t("chat.utilityMenu.contentType")}
           </div>
           {staticMentionSuggestions
             .filter((s) => s.category === "content")
@@ -289,11 +291,11 @@ export function ComposerUtilityMenu({
             })}
 
           <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/50 border-t">
-            apps
+            {t("chat.utilityMenu.apps")}
           </div>
           {appMentionSuggestions.length === 0 ? (
             <div className="px-3 py-2 text-[10px] text-muted-foreground">
-              {appsLoading ? "loading apps..." : "no apps detected yet"}
+              {appsLoading ? t("chat.utilityMenu.loadingApps") : t("chat.utilityMenu.noApps")}
             </div>
           ) : (
             appMentionSuggestions.map((suggestion) => {
@@ -318,11 +320,11 @@ export function ComposerUtilityMenu({
           )}
 
           <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/50 border-t">
-            tags
+            {t("chat.utilityMenu.tags")}
           </div>
           {allTagMentionSuggestions.length === 0 ? (
             <div className="px-3 py-2 text-[10px] text-muted-foreground">
-              {tagsLoading ? "loading tags..." : "no tags yet"}
+              {tagsLoading ? t("chat.utilityMenu.loadingTags") : t("chat.utilityMenu.noTags")}
             </div>
           ) : (
             tagMentionSections.map((section) => (
@@ -357,7 +359,7 @@ export function ComposerUtilityMenu({
           {connections.length > 0 && (
             <>
               <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/50 border-t">
-                connections
+                {t("chat.utilityMenu.connections")}
               </div>
               {connections.map((connection) => {
                 const tag = connectionMentionTag(connection, isWindows);
@@ -386,7 +388,7 @@ export function ComposerUtilityMenu({
           {recentSpeakers.length > 0 && (
             <>
               <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground bg-muted/30 border-b border-border/50 border-t">
-                speakers
+                {t("chat.utilityMenu.speakers")}
               </div>
               {recentSpeakers.map((s) => {
                 const speakerName = s.tag.startsWith("@\"")
@@ -405,7 +407,7 @@ export function ComposerUtilityMenu({
                   >
                     <span>{s.tag}</span>
                     <span className="text-[10px] text-muted-foreground">
-                      speaker
+                      {t("chat.utilityMenu.speaker")}
                     </span>
                   </button>
                 );

@@ -5,6 +5,7 @@
 
 import { X } from "lucide-react";
 import { getApiBaseUrl, appendAuthToken } from "@/lib/api";
+import { useT, type Translator } from "@/lib/i18n";
 import type { PrefillComposerProps } from "./composer-types";
 
 type ContextPresentation = {
@@ -15,6 +16,7 @@ type ContextPresentation = {
 export function prefillContextPresentation(
   context: string,
   source: string | null,
+  t: Translator,
 ): ContextPresentation {
   if (source?.startsWith("connected-share-")) {
     try {
@@ -28,8 +30,8 @@ export function prefillContextPresentation(
         typeof value.title === "string"
       ) {
         return {
-          label: "frozen Screenpipe snapshot",
-          preview: `${value.title} · ${value.source === "live-view" ? "Live View" : "meeting notes"} · reviewed copy`,
+          label: t("chat.prefill.frozenSnapshotLabel"),
+          preview: `${value.title} · ${value.source === "live-view" ? t("chat.prefill.liveView") : t("chat.prefill.meetingNotes")} · ${t("chat.prefill.reviewedCopy")}`,
         };
       }
     } catch {
@@ -39,10 +41,10 @@ export function prefillContextPresentation(
 
   return {
     label: source?.startsWith("activity-history-")
-      ? "activity episode"
+      ? t("chat.prefill.activityEpisode")
       : source === "timeline"
-        ? "timeline selection"
-        : "search",
+        ? t("chat.prefill.timelineSelection")
+        : t("chat.prefill.search"),
     preview: `${context.slice(0, 150)}${context.length > 150 ? "..." : ""}`,
   };
 }
@@ -52,9 +54,10 @@ export function PrefillContextBanner({
 }: {
   prefill: PrefillComposerProps;
 }) {
+  const t = useT();
   if (!prefill.context && !prefill.frameId) return null;
   const contextPresentation = prefill.context
-    ? prefillContextPresentation(prefill.context, prefill.source)
+    ? prefillContextPresentation(prefill.context, prefill.source, t)
     : null;
 
   return (
@@ -68,7 +71,7 @@ export function PrefillContextBanner({
                 src={appendAuthToken(
                   `${getApiBaseUrl()}/frames/${prefill.frameId}`,
                 )}
-                alt="Attached frame"
+                alt={t("chat.prefill.attachedFrame")}
                 className="w-16 h-12 object-cover rounded border border-border/50"
               />
               <button
@@ -84,7 +87,7 @@ export function PrefillContextBanner({
         {prefill.context && (
           <div className="flex-1 min-w-0">
             <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1">
-              context from {contextPresentation?.label}
+              {t("chat.prefill.contextFrom", { label: contextPresentation?.label ?? "" })}
             </div>
             <p className="text-xs text-foreground font-mono line-clamp-2">
               {contextPresentation?.preview}

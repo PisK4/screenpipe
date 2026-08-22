@@ -45,6 +45,7 @@ import {
   redactApiUrlForLogs,
 } from "@/lib/api";
 import { showChatWithPrefill } from "@/lib/chat-utils";
+import { useT, type Translator } from "@/lib/i18n";
 
 interface AudioSample {
   path: string;
@@ -81,14 +82,17 @@ function parseSamples(metadata: string): AudioSample[] {
   }
 }
 
-function formatTimeAgo(timestamp: number): string {
+function formatTimeAgo(timestamp: number, t: Translator): string {
   if (!timestamp) return "";
   const now = Date.now() / 1000;
   const diff = now - timestamp;
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  if (diff < 60) return t("settings.speakers.justNow");
+  if (diff < 3600)
+    return t("settings.speakers.minutesAgo", { count: Math.floor(diff / 60) });
+  if (diff < 86400)
+    return t("settings.speakers.hoursAgo", { count: Math.floor(diff / 3600) });
+  if (diff < 604800)
+    return t("settings.speakers.daysAgo", { count: Math.floor(diff / 86400) });
   return new Date(timestamp * 1000).toLocaleDateString();
 }
 
@@ -98,8 +102,8 @@ function getLatestSampleTime(speaker: Speaker): number {
   return Math.max(...samples.map((s) => s.timestamp || 0));
 }
 
-function buildOrganizeSpeakersDisplayLabel(): string {
-  return "Organize speakers";
+function buildOrganizeSpeakersDisplayLabel(t: Translator): string {
+  return t("settings.speakers.organizeSpeakersLabel");
 }
 
 function AudioClip({
@@ -120,6 +124,7 @@ function AudioClip({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { toast } = useToast();
+  const t = useT();
 
   const stop = useCallback(() => {
     const el = audioRef.current;
@@ -175,10 +180,10 @@ function AudioClip({
     } else {
       if (!audioSrc) {
         toast({
-          title: "couldn't play sample",
+          title: t("settings.speakers.couldntPlayTitle"),
           description: audioChunkId
-            ? "this voice sample is not ready yet"
-            : "this voice sample is missing its audio chunk id",
+            ? t("settings.speakers.sampleNotReady")
+            : t("settings.speakers.sampleMissingChunkId"),
           variant: "destructive",
         });
         return;
@@ -200,8 +205,8 @@ function AudioClip({
           });
           setPlaying(false);
           toast({
-            title: "couldn't play sample",
-            description: "screenpipe couldn't load this voice clip",
+            title: t("settings.speakers.couldntPlayTitle"),
+            description: t("settings.speakers.sampleLoadFailed"),
             variant: "destructive",
           });
         });
@@ -234,8 +239,8 @@ function AudioClip({
           });
           stop();
           toast({
-            title: "couldn't play sample",
-            description: "screenpipe couldn't load this voice clip",
+            title: t("settings.speakers.couldntPlayTitle"),
+            description: t("settings.speakers.sampleLoadFailed"),
             variant: "destructive",
           });
         }}
@@ -282,6 +287,7 @@ function QuickNameInput({
 }) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
+  const t = useT();
 
   const save = async () => {
     if (!name.trim()) return;
@@ -299,7 +305,7 @@ function QuickNameInput({
       <Input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder={placeholder || "who is this?"}
+        placeholder={placeholder || t("settings.speakers.whoIsThis")}
         className="h-7 text-xs flex-1 min-w-0"
         onKeyDown={(e) => {
           if (e.key === "Enter") save();
@@ -322,7 +328,7 @@ function QuickNameInput({
         variant="ghost"
         size="icon"
         className="h-7 w-7 shrink-0 text-muted-foreground"
-        title="not a real speaker (noise)"
+        title={t("settings.speakers.notRealSpeakerTitle")}
         onClick={() => onHallucination(speakerIds)}
       >
         <UserX className="h-3 w-3" />
@@ -352,6 +358,7 @@ function ClusterCard({
   const isMulti = members.length > 1;
   const allIds = members.map((m) => m.id);
   const latestTime = Math.max(...members.map(getLatestSampleTime));
+  const t = useT();
 
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20 overflow-hidden">
@@ -383,20 +390,20 @@ function ClusterCard({
             <div className="flex flex-col">
               <span className="text-xs font-medium">
                 {isMulti
-                  ? `${members.length} similar voices`
-                  : `Speaker #${members[0].id}`}
+                  ? t("settings.speakers.similarVoices", { count: members.length })
+                  : t("settings.speakers.speakerNumber", { id: members[0].id })}
               </span>
               {latestTime > 0 && (
                 <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                   <Clock className="h-2.5 w-2.5" />
-                  {formatTimeAgo(latestTime)}
+                  {formatTimeAgo(latestTime, t)}
                 </span>
               )}
             </div>
           </div>
           {isMulti && (
             <span className="text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.5 rounded">
-              cluster
+              {t("settings.speakers.clusterBadge")}
             </span>
           )}
         </div>
@@ -437,7 +444,9 @@ function ClusterCard({
           onName={onNameCluster}
           onHallucination={onHallucination}
           placeholder={
-            isMulti ? `name all ${members.length} as...` : "who is this?"
+            isMulti
+              ? t("settings.speakers.nameAllAs", { count: members.length })
+              : t("settings.speakers.whoIsThis")
           }
         />
       </div>
@@ -468,6 +477,7 @@ function IdentifiedSpeakerCard({
   const [deleting, setDeleting] = useState(false);
   const samples = parseSamples(speaker.metadata);
   const latestTime = getLatestSampleTime(speaker);
+  const t = useT();
 
   const save = async () => {
     if (!editName.trim()) return;
@@ -509,7 +519,7 @@ function IdentifiedSpeakerCard({
             <Input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              placeholder="enter name..."
+              placeholder={t("settings.speakers.enterName")}
               className="h-7 text-sm"
               autoFocus
               onKeyDown={(e) => {
@@ -544,11 +554,13 @@ function IdentifiedSpeakerCard({
             <div className="flex-1 min-w-0 flex items-center gap-2">
               <span className="text-sm font-medium">{speaker.name}</span>
               <span className="text-xs text-muted-foreground">
-                {samples.length} sample{samples.length !== 1 ? "s" : ""}
+                {samples.length === 1
+                  ? t("settings.speakers.samplesOne", { count: samples.length })
+                  : t("settings.speakers.samplesMany", { count: samples.length })}
               </span>
               {latestTime > 0 && (
                 <span className="text-[10px] text-muted-foreground">
-                  {formatTimeAgo(latestTime)}
+                  {formatTimeAgo(latestTime, t)}
                 </span>
               )}
             </div>
@@ -579,7 +591,7 @@ function IdentifiedSpeakerCard({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                title="rename"
+                title={t("settings.speakers.renameTitle")}
                 onClick={() => {
                   setEditing(true);
                   setEditName(speaker.name || "");
@@ -591,7 +603,7 @@ function IdentifiedSpeakerCard({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-destructive"
-                title="delete"
+                title={t("settings.speakers.deleteTitle")}
                 disabled={deleting}
                 onClick={async () => {
                   setDeleting(true);
@@ -636,6 +648,7 @@ function SpeakerDetail({
 }) {
   const [similar, setSimilar] = useState<SimilarSpeaker[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(true);
+  const t = useT();
 
   const samples = parseSamples(speaker.metadata);
 
@@ -664,11 +677,11 @@ function SpeakerDetail({
       {/* Audio samples */}
       <div className="space-y-1.5">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          voice samples ({samples.length})
+          {t("settings.speakers.voiceSamples", { count: samples.length })}
         </h4>
         {samples.length === 0 && (
           <p className="text-xs text-muted-foreground">
-            no audio samples stored
+            {t("settings.speakers.noSamplesStored")}
           </p>
         )}
         {samples.map((s, i) => (
@@ -686,7 +699,7 @@ function SpeakerDetail({
             </span>
             {s.timestamp && s.timestamp > 0 && (
               <span className="text-[10px] text-muted-foreground shrink-0">
-                {formatTimeAgo(s.timestamp)}
+                {formatTimeAgo(s.timestamp, t)}
               </span>
             )}
           </div>
@@ -696,14 +709,14 @@ function SpeakerDetail({
       {/* Similar speakers */}
       <div className="space-y-1.5">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          sounds similar — same person?
+          {t("settings.speakers.soundsSimilar")}
         </h4>
         {loadingSimilar && (
-          <p className="text-xs text-muted-foreground">searching...</p>
+          <p className="text-xs text-muted-foreground">{t("settings.speakers.searching")}</p>
         )}
         {!loadingSimilar && similar.length === 0 && (
           <p className="text-xs text-muted-foreground">
-            no similar speakers found
+            {t("settings.speakers.noSimilarFound")}
           </p>
         )}
         {similar.map((s) => {
@@ -725,14 +738,16 @@ function SpeakerDetail({
               )}
               <div className="flex-1 min-w-0">
                 <span className="font-medium">
-                  {s.name || `Speaker #${s.id}`}
+                  {s.name || t("settings.speakers.speakerNumber", { id: s.id })}
                 </span>
               </div>
               <Button
                 variant="outline"
                 size="icon"
                 className="h-6 w-6 border-green-300 text-green-600 hover:bg-green-100 hover:text-green-700"
-                title={`yes, merge into ${speaker.name || "this speaker"}`}
+                title={t("settings.speakers.mergeYesTitle", {
+                  name: speaker.name || t("settings.speakers.thisSpeaker"),
+                })}
                 onClick={() => onMerge(speaker.id, s.id)}
               >
                 <ThumbsUp className="h-3 w-3" />
@@ -741,7 +756,7 @@ function SpeakerDetail({
                 variant="outline"
                 size="icon"
                 className="h-6 w-6 border-red-300 text-red-500 hover:bg-red-100 hover:text-red-600"
-                title="no, different person"
+                title={t("settings.speakers.mergeNoTitle")}
               >
                 <ThumbsDown className="h-3 w-3" />
               </Button>
@@ -767,6 +782,7 @@ function MergeBanner({
 }) {
   const [current, setCurrent] = useState(0);
   const [merging, setMerging] = useState(false);
+  const t = useT();
 
   if (suggestions.length === 0) return null;
 
@@ -796,7 +812,10 @@ function MergeBanner({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm font-medium">
           <GitMerge className="h-4 w-4 text-primary" />
-          same person? ({current + 1}/{suggestions.length})
+          {t("settings.speakers.samePersonProgress", {
+            current: current + 1,
+            total: suggestions.length,
+          })}
         </div>
         <div className="flex gap-1">
           <Button
@@ -806,7 +825,7 @@ function MergeBanner({
             disabled={current === 0}
             onClick={() => setCurrent(current - 1)}
           >
-            prev
+            {t("settings.speakers.prev")}
           </Button>
           <Button
             variant="ghost"
@@ -815,7 +834,7 @@ function MergeBanner({
             disabled={current >= suggestions.length - 1}
             onClick={() => setCurrent(current + 1)}
           >
-            next
+            {t("settings.speakers.next")}
           </Button>
         </div>
       </div>
@@ -832,7 +851,7 @@ function MergeBanner({
             <span className="text-sm font-medium truncate">
               {suggestion.speaker.isNamed
                 ? suggestion.speaker.name
-                : `Speaker #${suggestion.speaker.id}`}
+                : t("settings.speakers.speakerNumber", { id: suggestion.speaker.id })}
             </span>
           </div>
           {speakerSamples[0] && (
@@ -860,7 +879,8 @@ function MergeBanner({
                 : "?"}
             </div>
             <span className="text-sm font-medium truncate">
-              {suggestion.similar.name || `Speaker #${suggestion.similar.id}`}
+              {suggestion.similar.name ||
+                t("settings.speakers.speakerNumber", { id: suggestion.similar.id })}
             </span>
           </div>
           {similarSamples[0] && (
@@ -893,7 +913,7 @@ function MergeBanner({
           ) : (
             <ThumbsUp className="h-3.5 w-3.5" />
           )}
-          yes, merge
+          {t("settings.speakers.yesMerge")}
         </Button>
         <Button
           variant="outline"
@@ -902,7 +922,7 @@ function MergeBanner({
           onClick={handleDismiss}
         >
           <ThumbsDown className="h-3.5 w-3.5" />
-          different people
+          {t("settings.speakers.differentPeople")}
         </Button>
       </div>
     </div>
@@ -922,6 +942,7 @@ export function SpeakersSection() {
   const [clusters, setClusters] = useState<SpeakerCluster[]>([]);
   const [clusterLoading, setClusterLoading] = useState(false);
   const { toast } = useToast();
+  const t = useT();
 
   const fetchSpeakers = useCallback(async () => {
     try {
@@ -1077,7 +1098,7 @@ export function SpeakersSection() {
       body: JSON.stringify({ id, name }),
     });
     if (!res.ok) throw new Error("failed");
-    toast({ title: `speaker renamed to "${name}"` });
+    toast({ title: t("settings.speakers.renamedToast", { name }) });
     fetchSpeakers();
   };
 
@@ -1088,7 +1109,7 @@ export function SpeakersSection() {
       body: JSON.stringify({ id }),
     });
     if (!res.ok) throw new Error("failed");
-    toast({ title: "speaker deleted" });
+    toast({ title: t("settings.speakers.deletedToast") });
     if (expandedId === id) setExpandedId(null);
     fetchSpeakers();
   };
@@ -1100,7 +1121,7 @@ export function SpeakersSection() {
       body: JSON.stringify({ speaker_id: id }),
     });
     if (!res.ok) throw new Error("failed");
-    toast({ title: "marked as false detection" });
+    toast({ title: t("settings.speakers.falseDetectionToast") });
     fetchSpeakers();
   };
 
@@ -1116,7 +1137,7 @@ export function SpeakersSection() {
       }),
     });
     if (!res.ok) throw new Error("failed");
-    toast({ title: "speakers merged" });
+    toast({ title: t("settings.speakers.mergedToast") });
     fetchSpeakers();
   };
 
@@ -1187,7 +1208,10 @@ export function SpeakersSection() {
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">
-              {namedCount} of {total} speakers identified
+              {t("settings.speakers.identifiedProgress", {
+                named: namedCount,
+                total,
+              })}
             </span>
             <span className="font-mono text-xs text-muted-foreground">
               {progress}%
@@ -1203,19 +1227,22 @@ export function SpeakersSection() {
           <div className="flex items-center gap-2 text-sm">
             <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
             <span className="font-medium text-amber-700 dark:text-amber-400">
-              {unnamed.length} unidentified speaker
-              {unnamed.length !== 1 ? "s" : ""}
+              {unnamed.length === 1
+                ? t("settings.speakers.unidentifiedOne")
+                : t("settings.speakers.unidentifiedMany", { count: unnamed.length })}
             </span>
             {multiClusters.length > 0 && (
               <span className="text-xs text-amber-600 dark:text-amber-500">
-                ({multiClusters.length} cluster
-                {multiClusters.length !== 1 ? "s" : ""} of similar voices)
+                {multiClusters.length === 1
+                  ? t("settings.speakers.clusterOfSimilarOne")
+                  : t("settings.speakers.clustersOfSimilarMany", {
+                      count: multiClusters.length,
+                    })}
               </span>
             )}
           </div>
           <p className="text-xs text-amber-600/80 dark:text-amber-500/80 mt-1 ml-6">
-            unidentified speakers show as &ldquo;Speaker #N&rdquo; in meeting
-            notes and scheduled tasks. name them below to fix downstream output.
+            {t("settings.speakers.downstreamHint")}
           </p>
         </div>
       )}
@@ -1231,7 +1258,7 @@ export function SpeakersSection() {
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="search speakers..."
+            placeholder={t("settings.speakers.searchSpeakersPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 h-9"
@@ -1261,7 +1288,7 @@ export function SpeakersSection() {
               context: `here are my current speakers:\n${speakerSummary}\n\nYou have access to the screenpipe API to manage speakers:\n- POST /speakers/update {id, name} to rename\n- POST /speakers/merge {speaker_to_keep_id, speaker_to_merge_id} to merge duplicates\n- POST /speakers/delete {speaker_id} to delete\n- POST /speakers/hallucination {speaker_id} to mark false detections`,
               prompt:
                 "look at my speakers and help me organize them. find likely duplicates to merge, suggest better names for vague ones, and flag any that look like false detections. make the changes directly via the API.",
-              displayLabel: buildOrganizeSpeakersDisplayLabel(),
+              displayLabel: buildOrganizeSpeakersDisplayLabel(t),
               autoSend: true,
               source: "speakers-organize",
               useHomeChat: true,
@@ -1269,7 +1296,7 @@ export function SpeakersSection() {
           }}
         >
           <Sparkles className="h-3 w-3" />
-          organize with ai
+          {t("settings.speakers.organizeWithAi")}
         </Button>
       </div>
 
@@ -1278,9 +1305,15 @@ export function SpeakersSection() {
         <div className="space-y-2">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
             <Users className="h-3 w-3" />
-            pending identification ({unnamed.length} speaker
-            {unnamed.length !== 1 ? "s" : ""} in {filteredClusters.length} group
-            {filteredClusters.length !== 1 ? "s" : ""})
+            {unnamed.length === 1 && filteredClusters.length === 1
+              ? t("settings.speakers.pendingSummaryOne", {
+                  speakers: unnamed.length,
+                  groups: filteredClusters.length,
+                })
+              : t("settings.speakers.pendingSummaryMany", {
+                  speakers: unnamed.length,
+                  groups: filteredClusters.length,
+                })}
           </h3>
           {clusterLoading ? (
             <div className="space-y-2">
@@ -1312,7 +1345,7 @@ export function SpeakersSection() {
         <div className="space-y-1.5">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
             <Volume2 className="h-3 w-3" />
-            identified ({filteredSpeakers.length})
+            {t("settings.speakers.identifiedLabel", { count: filteredSpeakers.length })}
           </h3>
           {filteredSpeakers.map((s) => (
             <IdentifiedSpeakerCard
@@ -1332,8 +1365,8 @@ export function SpeakersSection() {
       {filteredSpeakers.length === 0 && filteredClusters.length === 0 && (
         <p className="text-sm text-muted-foreground py-8 text-center">
           {searchQuery
-            ? "no speakers match your search"
-            : "no speakers detected yet"}
+            ? t("settings.speakers.noSearchMatch")
+            : t("settings.speakers.noneDetected")}
         </p>
       )}
     </div>

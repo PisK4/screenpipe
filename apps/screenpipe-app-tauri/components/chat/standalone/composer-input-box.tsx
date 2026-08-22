@@ -11,6 +11,7 @@ import type {
   ComposerMentionsProps,
 } from "./composer-types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 export function ComposerInputBox({
   input,
@@ -19,6 +20,7 @@ export function ComposerInputBox({
   input: ComposerInputProps;
   mentions: ComposerMentionsProps;
 }) {
+  const t = useT();
   return (
     <div
       className={cn(
@@ -48,7 +50,7 @@ export function ComposerInputBox({
             </div>
             <button
               type="button"
-              aria-label="Remove connection context"
+              aria-label={t("chat.composer.removeConnectionContext")}
               onClick={input.onClearConnectionChip}
               className="absolute right-2.5 top-2 z-10 text-muted-foreground/60 hover:text-foreground transition-colors shrink-0"
             >
@@ -68,11 +70,11 @@ export function ComposerInputBox({
             input.disabledReason
               ? input.disabledReason
               : input.isLoading || input.isStreaming
-                ? "Message will be queued..."
+                ? t("chat.composer.queuedPlaceholder")
                 : // Kept to the same rendered width as the previous legend so it
                   // still fits the 600px minimum chat window on one line. `~`
                   // and `#` stay live and are taught by the palette itself.
-                  "Ask about your screen... (/ for commands, @ chats, $ skills)"
+                  t("chat.composer.placeholder")
           }
           disabled={!input.canChat}
           spellCheck={false}

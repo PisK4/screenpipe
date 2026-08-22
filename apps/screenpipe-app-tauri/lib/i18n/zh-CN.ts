@@ -8,7 +8,11 @@
 
 import type { Dictionary } from "./en";
 import { accountZh } from "./zh-account";
+import { chatZh } from "./zh-chat";
+import { meetingNotesZh } from "./zh-meeting-notes";
 import { notificationsZh } from "./zh-notifications";
+import { onboardingZh } from "./zh-onboarding";
+import { settingsMiscZh } from "./zh-settings-misc";
 import { storageZh } from "./zh-storage";
 
 export const zhCN = {
@@ -21,8 +25,12 @@ export const zhCN = {
     enabled: "已开启",
     disabled: "已关闭",
   },
+  chat: chatZh,
+  onboarding: onboardingZh,
+  meetingNotes: meetingNotesZh,
   settings: {
     account: accountZh,
+    ...settingsMiscZh,
     general: {
       subtitle: "启动、更新与通知",
 

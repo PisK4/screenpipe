@@ -5,6 +5,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "@/lib/i18n";
 
 export type FocusedSpotlightDismissReason =
   "skip_button" | "escape" | "click_away" | "target_missing";
@@ -55,6 +56,7 @@ export function FocusedSpotlight({
   onPrimary: () => void;
   onDismiss: (reason: FocusedSpotlightDismissReason) => void;
 }) {
+  const t = useT();
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const missingSweepsRef = useRef(0);
   const dismissedRef = useRef(false);
@@ -234,10 +236,10 @@ export function FocusedSpotlight({
           onClick={() => onDismiss("skip_button")}
           className="mt-2 w-full border border-foreground/40 px-3 py-2 font-mono text-[10px] uppercase tracking-widest text-foreground transition-colors hover:border-foreground"
         >
-          skip guide
+          {t("onboarding.spotlight.skipGuide")}
         </button>
         <p className="mt-2 text-center font-mono text-[9px] lowercase tracking-wide text-muted-foreground">
-          esc to exit anytime
+          {t("onboarding.spotlight.escHint")}
         </p>
       </div>
     </div>

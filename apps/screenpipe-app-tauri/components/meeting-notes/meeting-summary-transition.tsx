@@ -6,6 +6,7 @@
 import React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, FileText, Loader2, Play, Sparkles } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export type MeetingSummaryTransitionPhase = "finalizing" | "writing" | null;
 
@@ -30,11 +31,15 @@ export function MeetingSummaryTransition({
   onOpenSummary,
 }: MeetingSummaryTransitionProps) {
   const reduceMotion = useReducedMotion();
-  const label = phase === "finalizing" ? "meeting saved" : "writing summary";
+  const t = useT();
+  const label =
+    phase === "finalizing"
+      ? t("meetingNotes.summaryTransition.savedLabel")
+      : t("meetingNotes.summaryTransition.writingLabel");
   const detail =
     phase === "finalizing"
-      ? "Your notes are saved. Finishing the transcript before the summary starts."
-      : "Your notes and transcript are safe. The draft appears in Summary as it is written.";
+      ? t("meetingNotes.summaryTransition.savedDetail")
+      : t("meetingNotes.summaryTransition.writingDetail");
 
   // Capture and resume replace the summary transition immediately. Letting
   // AnimatePresence hold the old card for its exit frame briefly recreates
@@ -81,7 +86,7 @@ export function MeetingSummaryTransition({
                 className="inline-flex h-8 shrink-0 items-center gap-2 border border-foreground bg-foreground px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-background transition-colors duration-150 hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <Play className="h-3 w-3" aria-hidden="true" />
-                resume recording
+                {t("meetingNotes.summaryTransition.resumeButton")}
               </button>
             ) : null}
             {phase === "writing" && onOpenSummary ? (
@@ -91,7 +96,7 @@ export function MeetingSummaryTransition({
                 className="inline-flex h-8 shrink-0 items-center gap-2 border border-foreground bg-foreground px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-background transition-colors duration-150 hover:bg-background hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <Sparkles className="h-3 w-3" aria-hidden="true" />
-                view summary
+                {t("meetingNotes.summaryTransition.viewSummaryButton")}
               </button>
             ) : null}
             <button
@@ -101,7 +106,9 @@ export function MeetingSummaryTransition({
               className="inline-flex h-8 shrink-0 items-center gap-2 border border-border bg-background px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-foreground transition-colors duration-150 hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <FileText className="h-3 w-3" aria-hidden="true" />
-              {transcriptOpen ? "hide transcript" : "show transcript"}
+              {transcriptOpen
+                ? t("meetingNotes.summaryTransition.hideTranscript")
+                : t("meetingNotes.summaryTransition.showTranscript")}
             </button>
           </div>
         </div>

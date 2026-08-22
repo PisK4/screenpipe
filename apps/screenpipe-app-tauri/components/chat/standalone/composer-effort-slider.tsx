@@ -5,6 +5,7 @@
 
 import { useId } from "react";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 /**
  * The reasoning-effort dial, shared by every provider.
@@ -41,8 +42,8 @@ export function ComposerEffortSlider({
   onValueChange,
   disabled = false,
   /** Ends of the scale. Named per provider so the axis reads honestly. */
-  minLabel = "Faster",
-  maxLabel = "Smarter",
+  minLabel,
+  maxLabel,
   testId,
 }: {
   label: string;
@@ -54,6 +55,9 @@ export function ComposerEffortSlider({
   maxLabel?: string;
   testId?: string;
 }) {
+  const t = useT();
+  const scaleMinLabel = minLabel ?? t("chat.effort.faster");
+  const scaleMaxLabel = maxLabel ?? t("chat.effort.smarter");
   const labelId = useId();
   const index = Math.max(
     0,
@@ -94,8 +98,8 @@ export function ComposerEffortSlider({
       </div>
 
       <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-        <span>{minLabel}</span>
-        <span>{maxLabel}</span>
+        <span>{scaleMinLabel}</span>
+        <span>{scaleMaxLabel}</span>
       </div>
 
       <div

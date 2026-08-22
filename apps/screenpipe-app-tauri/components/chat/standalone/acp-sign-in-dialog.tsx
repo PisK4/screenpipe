@@ -15,6 +15,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Button } from "@/components/ui/button";
 import { commands } from "@/lib/utils/tauri";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import type { AgentActionOption } from "@/lib/chat/types";
 
 // Render text with any https URLs as clickable links (opened in the system
@@ -59,11 +60,12 @@ export type AcpSignInRequest =
 
 function CopyCommandButton({ command }: { command: string }) {
   const [copied, setCopied] = useState(false);
+  const t = useT();
   return (
     <button
       type="button"
-      aria-label="copy command"
-      title={copied ? "copied" : "copy"}
+      aria-label={t("chat.signIn.copyCommand")}
+      title={copied ? t("chat.signIn.copied") : t("chat.signIn.copy")}
       onClick={async () => {
         try {
           await commands.copyTextToClipboard(command);
@@ -113,6 +115,7 @@ export function AcpSignInDialog({
   onDismiss: () => void;
 }) {
   const [state, setState] = useState<"idle" | "waiting" | "error">("idle");
+  const t = useT();
   // Which row's action is in flight, so only that button shows a spinner.
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -157,13 +160,13 @@ export function AcpSignInDialog({
 
   const isCli = request?.kind === "cli";
   const hasCommand = isCli && Boolean(request.command?.trim());
-  const title = `sign in to ${agentName}`;
+  const title = t("chat.signIn.title", { agent: agentName });
   const description = isCli
     ? hasCommand
-      ? `${agentName} signs in through its own terminal. run this command, then retry:`
-      : `${agentName} needs to be set up to continue.`
+      ? t("chat.signIn.cliWithCommand", { agent: agentName })
+      : t("chat.signIn.cliSetupNeeded", { agent: agentName })
     : request?.kind === "methods"
-      ? "choose how to sign in."
+      ? t("chat.signIn.chooseMethod")
       : "";
 
   const respond = async (optionId?: string, id?: string) => {
@@ -204,7 +207,7 @@ export function AcpSignInDialog({
             <DialogTitle className="min-w-0 break-words leading-tight">{title}</DialogTitle>
           </div>
           <DialogDescription className="pt-0.5">
-            {state === "error" ? "that didn't work. please try again." : description}
+            {state === "error" ? t("chat.signIn.errorRetry") : description}
           </DialogDescription>
         </DialogHeader>
 
@@ -246,7 +249,7 @@ export function AcpSignInDialog({
                 ) : (
                   <RefreshCw className="mr-1.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 )}
-                {busy ? "checking…" : "i've signed in, retry"}
+                {busy ? t("chat.signIn.checking") : t("chat.signIn.retryAfterSignIn")}
               </Button>
               <Button
                 variant="outline"
@@ -255,7 +258,7 @@ export function AcpSignInDialog({
                 onClick={onSwitchToDefault}
                 className="h-auto min-h-8 w-full whitespace-normal py-1.5 leading-tight"
               >
-                switch to {defaultPresetLabel}
+                {t("chat.signIn.switchTo", { preset: defaultPresetLabel })}
               </Button>
             </>
           ) : request?.kind === "methods" ? (
@@ -288,7 +291,7 @@ export function AcpSignInDialog({
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="block text-xs font-semibold">
-                        {isPending ? "signing in…" : method.title}
+                        {isPending ? t("chat.signIn.signingIn") : method.title}
                       </span>
                       {method.sub && !isPending && (
                         <span
@@ -310,7 +313,7 @@ export function AcpSignInDialog({
                 onClick={onDismiss}
                 className="h-auto min-h-8 w-full py-1.5"
               >
-                {state === "waiting" ? "cancel" : "not now"}
+                {state === "waiting" ? t("common.cancel") : t("chat.signIn.notNow")}
               </Button>
             </>
           ) : null}

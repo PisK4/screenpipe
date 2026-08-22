@@ -25,6 +25,7 @@ import {
   type UsageStatusQuery,
   useUsageStatusQuery,
 } from "@/lib/hooks/use-usage-status";
+import { useT } from "@/lib/i18n";
 
 type TimeRange = "day" | "week" | "month" | "all";
 
@@ -148,6 +149,7 @@ function getTimeSince(range: TimeRange): number | undefined {
 export function HostedUsageLimits({ query }: { query: UsageStatusQuery }) {
   const hosted = query.usage?.hosted_ai;
   const allowances = hosted?.allowances;
+  const t = useT();
 
   if (query.isLoading) {
     return (
@@ -166,13 +168,13 @@ export function HostedUsageLimits({ query }: { query: UsageStatusQuery }) {
       <Card>
         <CardContent className="flex items-center justify-between gap-4 pt-6">
           <div>
-            <h2 className="text-sm font-medium lowercase">usage unavailable</h2>
+            <h2 className="text-sm font-medium lowercase">{t("settings.usage.unavailableTitle")}</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              no balance was assumed. try refreshing.
+              {t("settings.usage.noBalanceAssumed")}
             </p>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={query.refresh}>
-            refresh
+            {t("settings.usage.refresh")}
           </Button>
         </CardContent>
       </Card>
@@ -188,16 +190,16 @@ export function HostedUsageLimits({ query }: { query: UsageStatusQuery }) {
       <Card data-testid="hosted-usage-limits">
         <CardContent className="flex items-center justify-between gap-4 pt-6">
           <div>
-            <h2 className="text-sm font-medium lowercase">usage unavailable</h2>
+            <h2 className="text-sm font-medium lowercase">{t("settings.usage.unavailableTitle")}</h2>
             <p className="mt-1 text-xs text-muted-foreground">
               {hosted.plan === "unknown"
-                ? "sign in to view your usage limits."
-                : "no balance was assumed. try refreshing."}
+                ? t("settings.usage.signInToView")
+                : t("settings.usage.noBalanceAssumed")}
             </p>
           </div>
           {hosted.plan !== "unknown" && (
             <Button type="button" variant="outline" size="sm" onClick={query.refresh}>
-              refresh
+              {t("settings.usage.refresh")}
             </Button>
           )}
         </CardContent>
@@ -218,9 +220,9 @@ export function HostedUsageLimits({ query }: { query: UsageStatusQuery }) {
       <CardContent className="space-y-5 pt-6">
         <div className="flex items-baseline justify-between gap-4 border-b border-border pb-4">
           <div>
-            <h2 className="text-base font-medium lowercase">your usage limits</h2>
+            <h2 className="text-base font-medium lowercase">{t("settings.usage.yourLimits")}</h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              each listed allowance applies independently.
+              {t("settings.usage.independentAllowances")}
             </p>
           </div>
           {plan && (
@@ -241,7 +243,9 @@ export function HostedUsageLimits({ query }: { query: UsageStatusQuery }) {
 
         <div className="flex items-center justify-between border-t border-border pt-4 text-[11px] text-muted-foreground">
           <span className="font-mono">
-            {updatedAt ? `last updated ${updatedAt}` : "last updated unavailable"}
+            {updatedAt
+              ? t("settings.usage.lastUpdated", { time: updatedAt })
+              : t("settings.usage.lastUpdatedUnavailable")}
           </span>
           <Button
             type="button"
@@ -255,7 +259,7 @@ export function HostedUsageLimits({ query }: { query: UsageStatusQuery }) {
               className={`h-3.5 w-3.5 ${query.isRefreshing ? "animate-spin" : ""}`}
               aria-hidden
             />
-            refresh
+            {t("settings.usage.refresh")}
           </Button>
         </div>
 
@@ -266,7 +270,11 @@ export function HostedUsageLimits({ query }: { query: UsageStatusQuery }) {
             rel="noopener noreferrer"
             className="inline-block text-xs underline underline-offset-4 hover:text-foreground"
           >
-            upgrade to {quotaPlanLabel(hosted.upgrade.requiredPlan) ?? "a higher plan"}
+            {t("settings.usage.upgradeTo", {
+              plan:
+                quotaPlanLabel(hosted.upgrade.requiredPlan) ??
+                t("settings.usage.upgradeHigherPlan"),
+            })}
           </a>
         )}
       </CardContent>
@@ -276,6 +284,7 @@ export function HostedUsageLimits({ query }: { query: UsageStatusQuery }) {
 
 export function UsageSection() {
   const hostedUsageQuery = useUsageStatusQuery();
+  const t = useT();
   const [entries, setEntries] = useState<UsageEntry[]>([]);
   const [totalChats, setTotalChats] = useState(0);
   const [totalChatMessages, setTotalChatMessages] = useState(0);
@@ -440,10 +449,10 @@ export function UsageSection() {
     const d = new Date(ts);
     const now = new Date();
     const diff = now.getTime() - d.getTime();
-    if (diff < 60000) return "just now";
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+    if (diff < 60000) return t("settings.usage.justNow");
+    if (diff < 3600000) return t("settings.usage.minutesAgo", { count: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t("settings.usage.hoursAgo", { count: Math.floor(diff / 3600000) });
+    if (diff < 604800000) return t("settings.usage.daysAgo", { count: Math.floor(diff / 86400000) });
     return d.toLocaleDateString();
   };
 
@@ -452,7 +461,7 @@ export function UsageSection() {
       case "screenpipe-cloud":
       case "screenpipe":
       case "pi":
-        return "Screenpipe Cloud";
+        return t("settings.usage.cueCloud");
       case "native-ollama":
       case "ollama":
         return "Ollama";
@@ -469,9 +478,9 @@ export function UsageSection() {
 
   const sourceIcon = (s: "chat" | "pipe" | "both") => {
     switch (s) {
-      case "chat": return "Chat";
-      case "pipe": return "Scheduled tasks";
-      case "both": return "Chat + scheduled tasks";
+      case "chat": return t("settings.usage.sourceChat");
+      case "pipe": return t("settings.usage.sourceTasks");
+      case "both": return t("settings.usage.sourceBoth");
     }
   };
 
@@ -525,33 +534,33 @@ export function UsageSection() {
       <HostedUsageLimits query={hostedUsageQuery} />
 
       <div className="border-t border-border pt-6">
-        <h2 className="text-base font-medium lowercase">activity</h2>
+        <h2 className="text-base font-medium lowercase">{t("settings.usage.activity")}</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          local conversations and scheduled runs. these do not determine your allowance.
+          {t("settings.usage.activityDescription")}
         </p>
       </div>
 
       {updating && (
-        <p className="text-xs text-muted-foreground">Updating...</p>
+        <p className="text-xs text-muted-foreground">{t("settings.usage.updating")}</p>
       )}
 
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{totalChats}</div>
-            <p className="text-xs text-muted-foreground">Conversations</p>
+            <p className="text-xs text-muted-foreground">{t("settings.usage.conversations")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{filteredChatMsgs}</div>
-            <p className="text-xs text-muted-foreground">Chat responses</p>
+            <p className="text-xs text-muted-foreground">{t("settings.usage.chatResponses")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="text-2xl font-bold">{filteredPipeExecs}</div>
-            <p className="text-xs text-muted-foreground">Task runs</p>
+            <p className="text-xs text-muted-foreground">{t("settings.usage.taskRuns")}</p>
           </CardContent>
         </Card>
       </div>
@@ -574,12 +583,19 @@ export function UsageSection() {
         <div className="rounded-lg border border-dashed p-6 text-center">
           <p className="text-sm text-muted-foreground">
             {timeRange === "all"
-              ? "No model data yet — tracking starts from your next conversation"
-              : `No usage in the last ${timeRange === "day" ? "24 hours" : timeRange === "week" ? "7 days" : "30 days"}`}
+              ? t("settings.usage.emptyAll")
+              : t("settings.usage.emptyRange", {
+                  range:
+                    timeRange === "day"
+                      ? t("settings.usage.range24h")
+                      : timeRange === "week"
+                        ? t("settings.usage.range7d")
+                        : t("settings.usage.range30d"),
+                })}
           </p>
           {timeRange === "all" && untrackedMessages > 0 && (
             <p className="text-xs text-muted-foreground mt-2">
-              {untrackedMessages} older chat responses without model info.
+              {t("settings.usage.untrackedOlder", { count: untrackedMessages })}
             </p>
           )}
         </div>
@@ -587,10 +603,10 @@ export function UsageSection() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium text-muted-foreground">
-              Requests per model
+              {t("settings.usage.requestsPerModel")}
             </h3>
             <span className="text-xs text-muted-foreground">
-              {totalTracked} Tracked
+              {t("settings.usage.trackedCount", { count: totalTracked })}
             </span>
           </div>
           {usage.map((u) => {
@@ -628,7 +644,7 @@ export function UsageSection() {
           })}
           {timeRange === "all" && untrackedMessages > 0 && (
             <p className="text-xs text-muted-foreground pt-2">
-              + {untrackedMessages} older chat responses without model tracking.
+              {t("settings.usage.untrackedOlderPlus", { count: untrackedMessages })}
             </p>
           )}
         </div>

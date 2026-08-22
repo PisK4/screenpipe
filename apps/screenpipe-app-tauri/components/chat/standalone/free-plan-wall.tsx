@@ -31,6 +31,7 @@ import { formatAllowanceReset, useUsageStatus } from "@/lib/hooks/use-usage-stat
 import { openExternalUrl } from "@/lib/open-external-url";
 import { UpgradeVignette } from "@/components/chat/standalone/upgrade-vignettes";
 import { isLocalLearningMode } from "@/lib/local-learning-mode";
+import { useT } from "@/lib/i18n";
 
 const VALUE_CARDS = [
   { scene: "pipes", title: "scheduled automations" },
@@ -43,6 +44,7 @@ const VALUE_CARDS = [
 export function FreePlanCounterChip() {
   const usage = useUsageStatus();
   const wall = useFreeWall();
+  const t = useT();
   if (isLocalLearningMode()) return null;
   // Only for signed-in free-tier users with a small message-style allowance;
   // weighted paid allowances (hundreds of units) are not message counts.
@@ -63,7 +65,7 @@ export function FreePlanCounterChip() {
         data-testid="free-plan-counter-chip"
         className="inline-flex items-center gap-1 border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground"
       >
-        {usage.remaining} of {usage.limit_today} free messages left
+        {t("chat.freeWall.messagesLeft", { remaining: usage.remaining, limit: usage.limit_today })}
       </span>
     </div>
   );
@@ -72,6 +74,7 @@ export function FreePlanCounterChip() {
 /** Stage 2 — the wall strip. Not dismissible while the wall holds. */
 export function FreePlanWallStrip() {
   const wall = useFreeWall();
+  const t = useT();
   if (isLocalLearningMode()) return null;
   if (!wall) return null;
   const resets = formatAllowanceReset(wall.resetsAt);
@@ -84,10 +87,9 @@ export function FreePlanWallStrip() {
       <div className="flex items-center gap-3">
         <Zap className="h-4 w-4 shrink-0 text-foreground/70" />
         <div className="min-w-0 flex-1 text-[12px] leading-snug">
-          <span className="font-medium">Ran out of messages</span>
+          <span className="font-medium">{t("chat.freeWall.ranOut")}</span>
           <span className="text-muted-foreground">
-            {resets ? ` · resets ${resets}` : ""} · local &amp; own-key models
-            still work
+            {resets ? ` · ${t("chat.freeWall.resets", { resets })}` : ""} · {t("chat.freeWall.localStillWork")}
           </span>
         </div>
         <Button
@@ -102,7 +104,7 @@ export function FreePlanWallStrip() {
             void openExternalUrl(wall.plansUrl);
           }}
         >
-          See plans
+          {t("chat.freeWall.seePlans")}
         </Button>
       </div>
     </div>
@@ -112,6 +114,7 @@ export function FreePlanWallStrip() {
 /** Stage 3 — conversion sheet, once per reset window. */
 export function FreeUpgradeSheet() {
   const wall = useFreeWall();
+  const t = useT();
   const [openFor, setOpenFor] = useState<FreeWallState | null>(null);
 
   useEffect(() => {
@@ -133,10 +136,12 @@ export function FreeUpgradeSheet() {
     <Dialog open onOpenChange={(open) => !open && close()}>
       <DialogContent data-testid="free-upgrade-sheet" className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>upgrade to keep going</DialogTitle>
+          <DialogTitle>{t("chat.freeWall.upgradeTitle")}</DialogTitle>
           <DialogDescription>
-            Free messages{resets ? ` reset ${resets}` : " reset daily"}.
-            Upgrading unlocks:
+            {resets
+              ? t("chat.freeWall.freeMessagesReset", { resets })
+              : t("chat.freeWall.freeMessagesResetDaily")}
+            {t("chat.freeWall.upgradingUnlocks")}
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -144,21 +149,21 @@ export function FreeUpgradeSheet() {
             <div key={card.scene} className="border border-border bg-background">
               <UpgradeVignette scene={card.scene} />
               <div className="px-3 py-2 font-mono text-[10px] uppercase tracking-wide">
-                {card.title}
+                {t(`chat.freeWall.valueCard.${card.scene}`)}
               </div>
             </div>
           ))}
         </div>
         <div className="flex items-center gap-4">
           <span className="mr-auto text-[10px] text-muted-foreground">
-            cancel anytime
+            {t("chat.freeWall.cancelAnytime")}
           </span>
           <button
             type="button"
             onClick={close}
             className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
           >
-            not now
+            {t("chat.freeWall.notNow")}
           </button>
           <Button
             type="button"
@@ -171,7 +176,7 @@ export function FreeUpgradeSheet() {
               close();
             }}
           >
-            See plans
+            {t("chat.freeWall.seePlans")}
           </Button>
         </div>
       </DialogContent>

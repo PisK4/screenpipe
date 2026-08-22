@@ -4,13 +4,17 @@
 
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   AttachedContextCard,
   parseAttachedContext,
 } from "./attached-context";
 import { attachContextToUserMessage } from "@/lib/chat/attached-context";
+
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
 
 // Shaped after a real saved conversation: a 4,853-character user bubble whose
 // visible text opened with raw JSON and pushed the actual instruction below

@@ -14,6 +14,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/stores/chat-store", () => ({
   useChatStore: { subscribe: mocks.subscribe },
 }));
+// Guide copy goes through useT, which reads the locale from the settings store.
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: { locale: "en" }, updateSettings: vi.fn() }),
+}));
 vi.mock("@tauri-apps/api/event", () => ({ emit: mocks.emit }));
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({ label: "main" }),

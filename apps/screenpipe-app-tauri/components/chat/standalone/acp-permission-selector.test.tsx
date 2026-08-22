@@ -26,6 +26,10 @@ vi.mock("@/lib/utils/tauri", () => ({
   },
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 import { AcpPermissionSelector } from "./acp-permission-selector";
 
 const SESSION = "chat-1";

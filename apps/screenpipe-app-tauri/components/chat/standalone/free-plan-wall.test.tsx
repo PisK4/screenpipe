@@ -41,6 +41,10 @@ vi.mock("@/components/chat/standalone/upgrade-vignettes", () => ({
   ),
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 const WALL = {
   plansUrl: "https://screenpi.pe/onboarding",
   resetsAt: "2026-08-06T00:00:00Z",

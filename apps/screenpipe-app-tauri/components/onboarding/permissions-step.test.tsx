@@ -29,6 +29,9 @@ const mocks = vi.hoisted(() => ({
   revealInDefaultBrowser: vi.fn(async () => ({ status: "ok", data: null })),
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: { locale: "en" }, updateSettings: vi.fn() }),
+}));
 vi.mock("@/lib/hooks/use-platform", () => ({
   usePlatform: () => ({ isMac: true, isLoading: false }),
 }));
@@ -259,7 +262,7 @@ describe("onboarding permission wheel", () => {
     );
     expect(prompt).toHaveTextContent("restart required");
     expect(prompt).toHaveTextContent(
-      "screenpipe won't work until you restart."
+      "Cue won't work until you restart."
     );
     expect(handleNextSlide).not.toHaveBeenCalled();
 
@@ -359,7 +362,7 @@ describe("onboarding permission wheel", () => {
     fireEvent.click(summary);
     expect(
       await screen.findByTestId("onboarding-pause-detail")
-    ).toHaveTextContent("pause recording anytime from the screenpipe icon");
+    ).toHaveTextContent("pause recording anytime from the Cue icon");
   });
 
   it("keeps the trust disclosure out of the restart-required state", async () => {

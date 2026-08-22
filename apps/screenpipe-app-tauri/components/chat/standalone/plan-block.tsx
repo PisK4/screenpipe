@@ -4,6 +4,7 @@
 
 import type { ContentBlock } from "@/lib/chat/types";
 import { planProgress } from "@/lib/chat/acp-plan";
+import { useT } from "@/lib/i18n";
 
 type PlanEntries = Extract<ContentBlock, { type: "plan" }>["entries"];
 
@@ -30,6 +31,7 @@ function entryClass(status: PlanEntries[number]["status"]): string {
  * update the agent made.
  */
 export function PlanBlock({ entries }: { entries: PlanEntries }) {
+  const t = useT();
   if (entries.length === 0) return null;
   const { completed, total } = planProgress(entries);
 
@@ -41,7 +43,7 @@ export function PlanBlock({ entries }: { entries: PlanEntries }) {
       className="my-2 rounded-none border border-border bg-muted/30 px-3 py-2"
     >
       <div className="mb-1.5 flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
-        <span>plan</span>
+        <span>{t("chat.plan.title")}</span>
         <span data-testid="chat-plan-progress">
           {completed}/{total}
         </span>

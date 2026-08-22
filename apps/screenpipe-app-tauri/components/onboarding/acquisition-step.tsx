@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import { motion } from "framer-motion";
 import posthog from "posthog-js";
 import { useSettings } from "@/lib/hooks/use-settings";
+import { useT } from "@/lib/i18n";
 
 interface AcquisitionStepProps {
   handleNextSlide: () => void;
@@ -25,19 +26,19 @@ interface AcquisitionStepProps {
  * users who made it through.
  */
 export const ACQUISITION_SOURCES = [
-  { value: "search", label: "search engine" },
-  { value: "friend", label: "friend or colleague" },
-  { value: "x", label: "x / twitter" },
-  { value: "linkedin", label: "linkedin" },
-  { value: "reddit", label: "reddit" },
-  { value: "hacker_news", label: "hacker news" },
-  { value: "youtube", label: "youtube or video" },
-  { value: "github", label: "github" },
-  { value: "newsletter", label: "newsletter" },
-  { value: "podcast", label: "podcast" },
-  { value: "ai_assistant", label: "an ai assistant" },
-  { value: "ai_directory", label: "ai tool directory" },
-  { value: "other", label: "something else" },
+  { value: "search", labelKey: "onboarding.acquisition.sourceSearch" },
+  { value: "friend", labelKey: "onboarding.acquisition.sourceFriend" },
+  { value: "x", labelKey: "onboarding.acquisition.sourceX" },
+  { value: "linkedin", labelKey: "onboarding.acquisition.sourceLinkedin" },
+  { value: "reddit", labelKey: "onboarding.acquisition.sourceReddit" },
+  { value: "hacker_news", labelKey: "onboarding.acquisition.sourceHackerNews" },
+  { value: "youtube", labelKey: "onboarding.acquisition.sourceYoutube" },
+  { value: "github", labelKey: "onboarding.acquisition.sourceGithub" },
+  { value: "newsletter", labelKey: "onboarding.acquisition.sourceNewsletter" },
+  { value: "podcast", labelKey: "onboarding.acquisition.sourcePodcast" },
+  { value: "ai_assistant", labelKey: "onboarding.acquisition.sourceAiAssistant" },
+  { value: "ai_directory", labelKey: "onboarding.acquisition.sourceAiDirectory" },
+  { value: "other", labelKey: "onboarding.acquisition.sourceOther" },
 ] as const;
 
 export type AcquisitionSource = (typeof ACQUISITION_SOURCES)[number]["value"];
@@ -46,6 +47,7 @@ const AcquisitionStep: React.FC<AcquisitionStepProps> = ({
   handleNextSlide,
 }) => {
   const { updateSettings } = useSettings();
+  const t = useT();
   const [selected, setSelected] = useState<AcquisitionSource | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -87,10 +89,10 @@ const AcquisitionStep: React.FC<AcquisitionStepProps> = ({
         transition={{ delay: 0.1 }}
       >
         <h2 className="font-mono text-base font-bold lowercase">
-          how did you find screenpipe?
+          {t("onboarding.acquisition.title")}
         </h2>
         <p className="font-mono text-[10px] text-muted-foreground/60 mt-1 max-w-[320px]">
-          one tap. it helps us know where to show up.
+          {t("onboarding.acquisition.subtitle")}
         </p>
       </motion.div>
 
@@ -117,7 +119,7 @@ const AcquisitionStep: React.FC<AcquisitionStepProps> = ({
                 : "border-border/60 hover:border-foreground/40"
             }`}
           >
-            {source.label}
+            {t(source.labelKey)}
           </button>
         ))}
       </motion.div>
@@ -132,7 +134,7 @@ const AcquisitionStep: React.FC<AcquisitionStepProps> = ({
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
       >
-        skip →
+        {t("onboarding.acquisition.skip")}
       </motion.button>
     </motion.div>
   );

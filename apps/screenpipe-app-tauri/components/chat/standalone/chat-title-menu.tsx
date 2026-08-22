@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { Message } from "@/lib/chat/types";
 import { useChatStore } from "@/lib/stores/chat-store";
 import { resolveVisibleChatTitle } from "@/lib/chat/conversation-title";
+import { useT } from "@/lib/i18n";
 
 interface ChatTitleMenuProps {
   conversationId: string | null;
@@ -35,6 +36,7 @@ export function ChatTitleMenu({
   deleteConversation,
   startNewConversation,
 }: ChatTitleMenuProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -152,7 +154,7 @@ export function ChatTitleMenu({
             setOpen((o) => !o);
           }}
           className="relative z-10 inline-flex items-center gap-1 max-w-[260px] h-7 px-2 rounded-md text-xs font-medium text-foreground hover:bg-muted/50 transition-colors"
-          title="Chat options"
+          title={t("chat.titleMenu.options")}
         >
           <span data-testid="chat-title" className="truncate">{title}</span>
           <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/70" />
@@ -169,14 +171,14 @@ export function ChatTitleMenu({
           onClick={handleStartRename}
         >
           <Pencil className="h-3.5 w-3.5 shrink-0" />
-          Rename
+          {t("chat.titleMenu.rename")}
         </button>
         <button
           className="w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-muted text-left"
           onClick={() => void handleTogglePin()}
         >
           <Pin className="h-3.5 w-3.5 shrink-0" />
-          {isPinned ? "Unpin" : "Pin"}
+          {isPinned ? t("chat.titleMenu.unpin") : t("chat.titleMenu.pin")}
         </button>
         <div className="my-1 border-t border-border" />
         <button
@@ -184,23 +186,23 @@ export function ChatTitleMenu({
           onClick={() => void handleDelete()}
         >
           <Trash2 className="h-3.5 w-3.5 shrink-0" />
-          Delete
+          {t("chat.titleMenu.delete")}
         </button>
       </PopoverContent>
       <Dialog open={confirmingDelete} onOpenChange={setConfirmingDelete}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>delete chat</DialogTitle>
+            <DialogTitle>{t("chat.titleMenu.deleteTitle")}</DialogTitle>
             <p className="text-sm text-muted-foreground">
-              Delete this chat? This cannot be undone.
+              {t("chat.titleMenu.deleteConfirm")}
             </p>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmingDelete(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button variant="destructive" onClick={() => void confirmDelete()}>
-              Delete
+              {t("chat.titleMenu.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -46,6 +46,9 @@ vi.mock("@/components/thinking-level-selector", () => ({
 vi.mock("@/components/usage/usage-popover", () => ({
   UsagePopover: () => null,
 }));
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
 
 import { ComposerControlsRow } from "./composer-controls-row";
 

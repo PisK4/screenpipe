@@ -6,6 +6,44 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { HostedUsageLimits } from "../usage-section";
 
+// HostedUsageLimits now uses useT() (lib/i18n), which reads the settings
+// store; provide an inert store and resolve translations against the English
+// dictionary plus the settings-misc shard (mirroring the merge the main
+// dictionary performs) so text assertions keep working before and after.
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+vi.mock("@/lib/i18n", async () => {
+  const { en } = await import("@/lib/i18n/en");
+  const { settingsMiscEn } = await import("@/lib/i18n/en-settings-misc");
+  const dict = { ...en, settings: { ...en.settings, ...settingsMiscEn } };
+  const lookup = (key: string): string | undefined => {
+    let node: unknown = dict;
+    for (const part of key.split(".")) {
+      if (!node || typeof node !== "object") return undefined;
+      node = (node as Record<string, unknown>)[part];
+    }
+    return typeof node === "string" ? node : undefined;
+  };
+  const makeT =
+    () =>
+    (key: string, params?: Record<string, string | number>): string => {
+      const raw = lookup(key) ?? key;
+      if (!params) return raw;
+      return raw.replace(/\{(\w+)\}/g, (match, name: string) =>
+        name in params ? String(params[name]) : match,
+      );
+    };
+  return {
+    useT: makeT,
+    translate: (
+      _locale: string,
+      key: string,
+      params?: Record<string, string | number>,
+    ) => makeT()(key, params),
+  };
+});
+
 describe("HostedUsageLimits", () => {
   it("renders percentages for all rules and never renders dollar fields", () => {
     const query = {

@@ -7,6 +7,7 @@ import * as React from "react";
 import { Check, ChevronDown } from "lucide-react";
 import type { ToolCall } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 export type AskUserOption = {
   value: string;
@@ -172,6 +173,7 @@ export function AskUserToolCard({
   toolCall: ToolCall;
   onSubmit?: (reply: string, displayLabel: string) => Promise<void> | void;
 }) {
+  const t = useT();
   const argsSignature = React.useMemo(() => {
     try {
       return `${toolCall.id}:${JSON.stringify(toolCall.args)}`;
@@ -241,22 +243,22 @@ export function AskUserToolCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs font-mono font-semibold text-foreground">
-            {parsed.title || "Ask user"}
+            {parsed.title || t("chat.askUser.defaultTitle")}
           </div>
           <div className="mt-0.5 text-[11px] text-muted-foreground">
             {submitted
-              ? "Answer sent"
+              ? t("chat.askUser.answerSent")
               : toolCall.isRunning
-                ? "Pi is waiting for your input"
+                ? t("chat.askUser.waitingForInput")
                 : needsManualFollowup
-                  ? "Pi needs this as a chat reply"
-                  : "Ready to answer"}
+                  ? t("chat.askUser.needsChatReply")
+                  : t("chat.askUser.readyToAnswer")}
           </div>
         </div>
         {submitted ? (
           <span className="inline-flex h-6 items-center gap-1 rounded-md border border-border bg-background px-2 text-[11px] text-muted-foreground">
             <Check className="h-3 w-3" />
-            sent
+            {t("chat.askUser.sent")}
           </span>
         ) : null}
       </div>
@@ -291,7 +293,7 @@ export function AskUserToolCard({
             {activeQuestion.prompt}
           </div>
           {activeQuestion.required ? (
-            <div className="mt-1 text-[11px] text-muted-foreground">required by Pi</div>
+            <div className="mt-1 text-[11px] text-muted-foreground">{t("chat.askUser.required")}</div>
           ) : null}
         </div>
 
@@ -328,7 +330,7 @@ export function AskUserToolCard({
         ) : activeQuestion.options.length > 0 ? (
           <div className="relative">
             <select
-              aria-label={`Answer ${activeQuestion.label}`}
+              aria-label={t("chat.askUser.answerAria", { label: activeQuestion.label })}
               data-testid={`ask-user-answer-${activeQuestion.id}`}
               value={activeAnswer.values[0] ?? ""}
               onChange={(event) => {
@@ -338,7 +340,7 @@ export function AskUserToolCard({
               }}
               className="h-9 w-full appearance-none rounded-md border border-border bg-background px-3 pr-8 text-sm text-foreground outline-none transition-colors focus:border-foreground"
             >
-              <option value="">Choose an answer...</option>
+              <option value="">{t("chat.askUser.chooseAnswer")}</option>
               {activeQuestion.options.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -364,11 +366,11 @@ export function AskUserToolCard({
         ) : null}
 
         <textarea
-          aria-label={`Custom answer ${activeQuestion.label}`}
+          aria-label={t("chat.askUser.customAnswerAria", { label: activeQuestion.label })}
           value={activeAnswer.customText}
           onChange={(event) => updateAnswer(activeQuestion.id, { customText: event.target.value })}
           rows={2}
-          placeholder={activeQuestion.options.length > 0 ? "Type your own answer or add nuance..." : "Type your answer..."}
+          placeholder={activeQuestion.options.length > 0 ? t("chat.askUser.customAnswerPlaceholder") : t("chat.askUser.answerPlaceholder")}
           className="min-h-16 w-full resize-y rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-foreground"
         />
       </div>
@@ -376,8 +378,8 @@ export function AskUserToolCard({
       <div className="mt-3 flex items-center justify-between gap-3">
         <div className="min-w-0 text-[11px] text-muted-foreground">
           {needsManualFollowup
-            ? "Screenpipe will send this as the next chat message."
-            : "Your selection is sent back into this chat."}
+            ? t("chat.askUser.willSendAsChatMessage")
+            : t("chat.askUser.sentBackIntoChat")}
         </div>
         <button
           type="submit"
@@ -390,7 +392,7 @@ export function AskUserToolCard({
               : "cursor-not-allowed border border-border bg-background text-muted-foreground",
           )}
         >
-          {submitting ? "Sending..." : "Reply"}
+          {submitting ? t("chat.askUser.sending") : t("chat.askUser.reply")}
         </button>
       </div>
     </form>

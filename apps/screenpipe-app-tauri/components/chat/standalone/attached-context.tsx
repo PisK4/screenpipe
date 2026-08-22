@@ -9,6 +9,7 @@ import {
   parseAttachedContext,
   type AttachedContext,
 } from "@/lib/chat/attached-context";
+import { useT } from "@/lib/i18n";
 
 export { parseAttachedContext } from "@/lib/chat/attached-context";
 
@@ -38,6 +39,7 @@ export { parseAttachedContext } from "@/lib/chat/attached-context";
  */
 
 export function AttachedContextCard({ context }: { context: AttachedContext }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -65,8 +67,8 @@ export function AttachedContextCard({ context }: { context: AttachedContext }) {
             }}
             onMouseUp={(event) => event.stopPropagation()}
             aria-expanded={expanded}
-            aria-label={expanded ? "hide attached context" : "show attached context"}
-            title={expanded ? "hide attached context" : "show attached context"}
+            aria-label={expanded ? t("chat.attachedContext.hide") : t("chat.attachedContext.show")}
+            title={expanded ? t("chat.attachedContext.hide") : t("chat.attachedContext.show")}
             className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-muted-foreground/10 hover:text-foreground"
           >
             {expanded ? (

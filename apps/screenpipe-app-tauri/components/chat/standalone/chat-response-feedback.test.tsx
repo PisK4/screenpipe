@@ -20,6 +20,10 @@ vi.mock("posthog-js", () => ({
   default: { capture: captureMock },
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 const privateMessage: Message = {
   id: "message-containing-private-id",
   role: "assistant",

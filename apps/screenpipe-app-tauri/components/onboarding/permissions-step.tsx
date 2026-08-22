@@ -14,6 +14,7 @@ import { usePlatform } from "@/lib/hooks/use-platform";
 import { motion } from "framer-motion";
 import posthog from "posthog-js";
 import { onboardingFunnel } from "@/lib/analytics/onboarding-funnel";
+import { useT } from "@/lib/i18n";
 
 interface PermissionsStepProps {
   handleNextSlide: () => void;
@@ -59,6 +60,8 @@ function PermissionRow({
   focused,
   distance,
   onGrant,
+  grantedLabel,
+  grantLabel,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -67,6 +70,8 @@ function PermissionRow({
   focused: boolean;
   distance: number;
   onGrant: () => void;
+  grantedLabel: string;
+  grantLabel: string;
 }) {
   const interactive = focused && !granted;
 
@@ -118,11 +123,11 @@ function PermissionRow({
       <div className="ml-auto shrink-0">
         {granted ? (
           <span className="font-mono text-[10px] text-muted-foreground">
-            granted
+            {grantedLabel}
           </span>
         ) : interactive ? (
           <span className="font-mono text-[10px] text-muted-foreground group-hover:text-background/70">
-            grant →
+            {grantLabel}
           </span>
         ) : null}
       </div>
@@ -135,6 +140,7 @@ export default function PermissionsStep({
   onProgressChange,
 }: PermissionsStepProps) {
   const { isMac, isLoading: isPlatformLoading } = usePlatform();
+  const t = useT();
   const [statuses, setStatuses] = useState<Record<string, boolean>>({});
   const [requesting, setRequesting] = useState(false);
   const [screenRestartRequired, setScreenRestartRequired] = useState(false);
@@ -156,16 +162,16 @@ export default function PermissionsStep({
     {
       id: "mic",
       icon: <Mic className="w-3.5 h-3.5" strokeWidth={1.5} />,
-      title: "Capture what you say",
-      subtitle: "Lets Screenpipe transcribe your voice in meetings and calls",
+      title: t("onboarding.permissions.micTitle"),
+      subtitle: t("onboarding.permissions.micSubtitle"),
       check: () => commands.checkMicrophonePermission(),
       request: () => commands.requestPermission("microphone"),
     },
     {
       id: "accessibility",
       icon: <Keyboard className="w-3.5 h-3.5" strokeWidth={1.5} />,
-      title: "Read on-screen text",
-      subtitle: "Lets Screenpipe understand app content without OCR",
+      title: t("onboarding.permissions.axTitle"),
+      subtitle: t("onboarding.permissions.axSubtitle"),
       // Silent poll until the user asks for it, then the live tccd probe so a
       // grant made in Settings is seen without an app relaunch.
       check: () =>
@@ -181,13 +187,12 @@ export default function PermissionsStep({
     {
       id: "screen",
       icon: <Monitor className="w-3.5 h-3.5" strokeWidth={1.5} />,
-      title: "Capture your screen",
+      title: t("onboarding.permissions.screenTitle"),
       subtitle: (
         <>
-          Lets Screenpipe index what&apos;s on your screen: windows, docs,
-          chats, code. {" "}
+          {t("onboarding.permissions.screenSubtitle")}{" "}
           <strong className="font-bold">
-            restart after granting this permission.
+            {t("onboarding.permissions.screenSubtitleRestart")}
           </strong>
         </>
       ),
@@ -379,12 +384,12 @@ export default function PermissionsStep({
       {/* Branding */}
       <div className="flex flex-col items-center mb-6">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img className="w-12 h-12 mb-2" src="/128x128.png" alt="screenpipe" />
+        <img className="w-12 h-12 mb-2" src="/128x128.png" alt="Cue" />
         <h1 className="font-mono text-base font-bold text-foreground">
-          Unlock the full experience
+          {t("onboarding.permissions.unlockTitle")}
         </h1>
         <p className="font-mono text-[10px] text-muted-foreground mt-1 text-center max-w-xs">
-          Three permissions turn on recording.
+          {t("onboarding.permissions.unlockSubtitle")}
         </p>
       </div>
 
@@ -393,9 +398,11 @@ export default function PermissionsStep({
           className="w-full max-w-sm border border-foreground px-5 py-5 text-center"
           data-testid="screen-recording-restart-prompt"
         >
-          <h2 className="font-mono text-sm font-semibold">restart required</h2>
+          <h2 className="font-mono text-sm font-semibold">
+            {t("onboarding.permissions.restartTitle")}
+          </h2>
           <p className="mt-1 font-mono text-xs text-muted-foreground">
-            screenpipe won&apos;t work until you restart.
+            {t("onboarding.permissions.restartBody")}
           </p>
           <button
             type="button"
@@ -407,7 +414,9 @@ export default function PermissionsStep({
             <RefreshCw
               className={`h-3.5 w-3.5 ${restarting ? "animate-spin" : ""}`}
             />
-            {restarting ? "restarting..." : "restart screenpipe"}
+            {restarting
+              ? t("onboarding.permissions.restarting")
+              : t("onboarding.permissions.restartButton")}
           </button>
         </div>
       ) : (
@@ -428,6 +437,8 @@ export default function PermissionsStep({
                 focused={focusIndex === i}
                 distance={focusIndex === -1 ? 0 : Math.abs(i - focusIndex)}
                 onGrant={() => handleGrant(perm)}
+                grantedLabel={t("onboarding.permissions.granted")}
+                grantLabel={t("onboarding.permissions.grant")}
               />
             ))}
           </div>

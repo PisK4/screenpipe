@@ -8,6 +8,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { meetingSummaryRevealBlocks } from "./note-editor";
 import { MeetingSummaryTransition } from "./meeting-summary-transition";
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 afterEach(cleanup);
 
 describe("MeetingSummaryTransition", () => {

@@ -7,6 +7,12 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FocusedSpotlight } from "./focused-spotlight";
 
+// The card pulls its own chrome (skip / esc hint) through useT, which reads
+// the locale from the settings store.
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: { locale: "en" }, updateSettings: vi.fn() }),
+}));
+
 afterEach(() => {
   vi.useRealTimers();
 });

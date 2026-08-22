@@ -14,6 +14,7 @@ import {
 import type { ChatTelemetryContext } from "@/lib/chat/response-feedback";
 import type { Message } from "@/lib/chat/types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 interface ChatResponseFeedbackProps {
   message: Message;
@@ -21,6 +22,7 @@ interface ChatResponseFeedbackProps {
 }
 
 export function ChatResponseFeedback({ message, telemetryContext }: ChatResponseFeedbackProps) {
+  const t = useT();
   const [rating, setRating] = useState<ChatResponseFeedbackRating | null>(null);
 
   const submitFeedback = (nextRating: ChatResponseFeedbackRating) => {
@@ -52,8 +54,8 @@ export function ChatResponseFeedback({ message, telemetryContext }: ChatResponse
         type="button"
         onClick={() => submitFeedback("positive")}
         className={buttonClass("positive")}
-        title="Good response"
-        aria-label="Good response"
+        title={t("chat.feedback.goodResponse")}
+        aria-label={t("chat.feedback.goodResponse")}
         aria-pressed={rating === "positive"}
       >
         <ThumbsUp className="h-3 w-3" />
@@ -62,8 +64,8 @@ export function ChatResponseFeedback({ message, telemetryContext }: ChatResponse
         type="button"
         onClick={() => submitFeedback("negative")}
         className={buttonClass("negative")}
-        title="Bad response"
-        aria-label="Bad response"
+        title={t("chat.feedback.badResponse")}
+        aria-label={t("chat.feedback.badResponse")}
         aria-pressed={rating === "negative"}
       >
         <ThumbsDown className="h-3 w-3" />

@@ -18,6 +18,7 @@ import type { AIPreset } from "@/lib/utils/tauri";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/lib/chat/types";
 import type { ContinuousPipeChatPolicy } from "@/lib/pipe-chat-policy";
+import { useT } from "@/lib/i18n";
 
 const CHAT_RAIL_CLASS = "max-w-4xl mx-auto w-full";
 
@@ -116,6 +117,7 @@ export function ChatMainPane({
   firstRunUserToken,
   firstRunAiSettingsLoaded,
 }: ChatMainPaneProps) {
+  const t = useT();
   const homeStarter =
     messages.length === 0 &&
     !pendingSend &&
@@ -173,21 +175,21 @@ export function ChatMainPane({
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-medium">
                     {continuousPipeChat.state === "on"
-                      ? "one chat"
+                      ? t("chat.mainPane.oneChat")
                       : continuousPipeChat.state === "off"
-                        ? "memory paused"
+                        ? t("chat.mainPane.memoryPaused")
                         : continuousPipeChat.state === "missing"
-                          ? "scheduled task unavailable"
-                          : "checking one-chat memory"}
+                          ? t("chat.mainPane.taskUnavailable")
+                          : t("chat.mainPane.checkingOneChat")}
                   </p>
                   <p className="mt-0.5 text-[11px] text-muted-foreground">
                     {continuousPipeChat.state === "on"
-                      ? "Future runs and your replies share context here."
+                      ? t("chat.mainPane.oneChatDesc")
                       : continuousPipeChat.state === "off"
-                        ? "Future runs start separate chats. Saved context stays here until you clear it."
+                        ? t("chat.mainPane.offDesc")
                         : continuousPipeChat.state === "missing"
-                          ? "This transcript is kept, but replies are disabled until you reinstall the task."
-                          : "The saved transcript is available while screenpipe checks the current task setting."}
+                          ? t("chat.mainPane.missingDesc")
+                          : t("chat.mainPane.checkingDesc")}
                   </p>
                 </div>
                 <Button
@@ -197,7 +199,7 @@ export function ChatMainPane({
                   className="h-7 shrink-0 px-2 text-[11px]"
                   onClick={onOpenPipeSettings}
                 >
-                  manage
+                  {t("chat.mainPane.manage")}
                 </Button>
               </div>
             )}
@@ -225,15 +227,15 @@ export function ChatMainPane({
                   <div className="text-center space-y-2">
                     <h3 className="font-semibold tracking-tight">
                       {!hasPresets
-                        ? "No AI Presets"
+                        ? t("chat.mainPane.noPresets")
                         : !hasValidModel
-                          ? "No Model Selected"
+                          ? t("chat.mainPane.noModel")
                           : needsLogin
-                            ? "Login to continue"
-                            : "Setup Required"}
+                            ? t("chat.mainPane.loginToContinue")
+                            : t("chat.mainPane.setupRequired")}
                     </h3>
                     <p className="text-sm text-muted-foreground max-w-sm">
-                      {needsLogin ? "Sign in to use the AI assistant" : disabledReason}
+                      {needsLogin ? t("chat.mainPane.signInToUse") : disabledReason}
                     </p>
                   </div>
                   {needsLogin && (
@@ -243,13 +245,13 @@ export function ChatMainPane({
                       onClick={onOpenLogin}
                       className="gap-2 font-medium bg-foreground text-background hover:bg-foreground/90 transition-colors duration-150 px-8"
                     >
-                      Sign in
+                      {t("chat.mainPane.signIn")}
                     </Button>
                   )}
                   {!hasPresets && (
                     <Button variant="outline" onClick={onOpenSettings} className="gap-2">
                       <Settings className="h-4 w-4" />
-                      Go to Settings
+                      {t("chat.mainPane.goToSettings")}
                     </Button>
                   )}
                 </div>
@@ -313,7 +315,7 @@ export function ChatMainPane({
             className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground shadow-lg text-xs font-medium hover:bg-primary/90 transition-opacity animate-in fade-in slide-in-from-bottom-2 duration-200"
           >
             <ChevronDown className="h-3.5 w-3.5" />
-            new content
+            {t("chat.mainPane.newContent")}
           </button>
         )}
       </div>

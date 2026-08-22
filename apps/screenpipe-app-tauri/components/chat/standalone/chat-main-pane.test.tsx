@@ -33,6 +33,10 @@ vi.mock("@/components/chat/summary-cards", () => ({
   SummaryCards: () => <div data-testid="summary-cards" />,
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 vi.mock("@/components/chat/standalone/chat-message-list", async () => {
   const ReactModule = await import("react");
   return {

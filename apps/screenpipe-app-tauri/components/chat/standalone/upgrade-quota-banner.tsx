@@ -19,6 +19,7 @@ import { openExternalUrl } from "@/lib/open-external-url";
 import { openBusinessUpgradeSurface } from "@/lib/upgrade-flow";
 import { quotaPlanLabel } from "@/lib/chat/quota-errors";
 import { isLocalLearningMode } from "@/lib/local-learning-mode";
+import { useT } from "@/lib/i18n";
 
 
 /**
@@ -36,6 +37,7 @@ import { isLocalLearningMode } from "@/lib/local-learning-mode";
  */
 export function UpgradeQuotaBanner() {
   const usage = useUsageStatus();
+  const t = useT();
   const upsellEnabled = useModelUpsellGating(usage?.upgrade_eligible);
   const blockedUpgrade = useQuotaUpgrade();
   const [dismissed, setDismissed] = useState(false);
@@ -127,15 +129,15 @@ export function UpgradeQuotaBanner() {
   const requiredPlanLabel = activeUpgrade
     ? quotaPlanLabel(activeUpgrade.requiredPlan)
     : null;
-  const requiredPlanProse = requiredPlanLabel ?? "a higher plan";
+  const requiredPlanProse = requiredPlanLabel ?? t("chat.quota.aHigherPlan");
   const weeklyAllowance =
     cloudflareBlocked && cloudflareAllowance.window_seconds === 7 * 86_400;
   const frontierBlocked = cloudflareBlocked && cloudflareAllowance.lane === "frontier";
   const blockedTitle = frontierBlocked
-    ? "Frontier model limit reached"
+    ? t("chat.quota.frontierLimitReached")
     : weeklyAllowance
-      ? "Weekly AI limit reached"
-      : "AI usage limit reached";
+      ? t("chat.quota.weeklyLimitReached")
+      : t("chat.quota.usageLimitReached");
 
   return (
     <>
@@ -158,33 +160,33 @@ export function UpgradeQuotaBanner() {
             <div className="font-medium">
               {blockedUpgrade || serverBlocked
                 ? blockedTitle
-                : "You're out of premium AI for today."}
+                : t("chat.quota.outOfPremiumToday")}
             </div>
             <div className="mt-0.5 text-muted-foreground">
               {cloudflareBlocked ? (
                 <>
-                  {formatUsagePercent(cloudflareAllowance.used_percent)} used
-                  {weeklyAllowance ? " this week." : "."}
-                  {resets ? ` Resets ${resets}.` : " Usage falls as the window moves."}{" "}
-                  {activeUpgrade ? "Switch to Auto or upgrade." : "Switch to Auto."}
+                  {t("chat.quota.percentUsed", { percent: formatUsagePercent(cloudflareAllowance.used_percent) })}
+                  {weeklyAllowance ? t("chat.quota.thisWeekSuffix") : "."}
+                  {resets
+                    ? ` ${t("chat.quota.resetsAt", { resets })}`
+                    : ` ${t("chat.quota.usageFallsAsWindowMoves")}`}{" "}
+                  {activeUpgrade ? t("chat.quota.switchToAutoOrUpgrade") : t("chat.quota.switchToAuto")}
                 </>
               ) : legacyCostBlocked ? (
                 activeUpgrade ? (
                   <>
-                    Upgrade to {requiredPlanProse} for a higher AI allowance,
-                    or switch to a local or own-key AI preset.
+                    {t("chat.quota.upgradeForHigherAllowance", { plan: requiredPlanProse })}
                   </>
                 ) : (
-                  <>Switch to a local or own-key AI preset to keep working.</>
+                  <>{t("chat.quota.switchToLocalToKeepWorking")}</>
                 )
               ) : blockedUpgrade ? (
                 <>
-                  {resets ? `Resets ${resets}. ` : ""}
-                  Upgrade to {requiredPlanProse} for a higher limit, or switch to a
-                  local or own-key AI preset.
+                  {resets ? `${t("chat.quota.resetsAt", { resets })} ` : ""}
+                  {t("chat.quota.upgradeForHigherLimit", { plan: requiredPlanProse })}
                 </>
               ) : (
-                <>Free models still work{resets ? ` · resets ${resets}` : ""}.</>
+                <>{t("chat.quota.freeModelsStillWork", { resets })}</>
               )}
             </div>
           </div>
@@ -202,10 +204,10 @@ export function UpgradeQuotaBanner() {
                     this opens the Business offer, so it says so; only an
                     upgrade to a plan this build cannot name is generic. */}
                 {requiredPlanLabel
-                  ? `Upgrade to ${requiredPlanLabel}`
+                  ? t("chat.quota.upgradeTo", { plan: requiredPlanLabel })
                   : activeUpgrade
-                    ? "See plans"
-                    : "View Business"}
+                    ? t("chat.quota.seePlans")
+                    : t("chat.quota.viewBusiness")}
               </Button>
             )}
             <button
@@ -218,7 +220,7 @@ export function UpgradeQuotaBanner() {
                 }
               }}
               className="ml-0.5 shrink-0 text-muted-foreground/50 transition-colors hover:text-foreground"
-              aria-label="dismiss AI usage notice"
+              aria-label={t("chat.quota.dismissNotice")}
             >
               <X className="h-3.5 w-3.5" />
             </button>

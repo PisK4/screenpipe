@@ -10,11 +10,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import posthog from "posthog-js";
 import { isDevBillingBypassEnabled } from "@/lib/app-entitlement";
 import { ArrowRight } from "lucide-react";
-import { LOCALITY_DETAIL } from "./trust-disclosure";
+import { useT } from "@/lib/i18n";
 
 const FAILURE_COPY: Record<string, string> = {
-  cancelled: "sign in was cancelled in your browser.",
-  timeout: "that sign-in link expired.",
+  cancelled: "onboarding.loginGate.failureCancelled",
+  timeout: "onboarding.loginGate.failureTimeout",
 };
 
 interface OnboardingLoginProps {
@@ -238,6 +238,7 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
   suppressAutoAdvance = false,
 }) => {
   const { settings, isSettingsLoaded } = useSettings();
+  const t = useT();
   const hasAdvanced = useRef(false);
   const [showSkip, setShowSkip] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -338,7 +339,7 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
           transition={{ duration: 0.5, delay: 0.3 }}
         >
           <span className="text-foreground/30 font-light">[</span>
-          screenpipe
+          {t("onboarding.loginGate.brand")}
           <span className="text-foreground/30 font-light">]</span>
         </motion.h1>
 
@@ -349,7 +350,7 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.5 }}
         >
-          ai finally knows what you&apos;re doing
+          {t("onboarding.loginGate.tagline")}
         </motion.p>
 
         {isLoggedIn ? (
@@ -359,7 +360,9 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
             animate={{ opacity: 1, scale: 1 }}
           >
             <span className="font-mono text-xs text-foreground/80">
-              ✓ signed in as {settings.user?.email || "user"}
+              {t("onboarding.loginGate.signedInAs", {
+                email: settings.user?.email || t("onboarding.loginGate.signedInFallbackUser"),
+              })}
             </span>
           </motion.div>
         ) : awaitingBrowser ? (
@@ -372,25 +375,24 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
             transition={{ duration: 0.35 }}
           >
             <span className="font-mono text-sm tracking-[0.18em] uppercase text-foreground/80">
-              waiting for your browser
+              {t("onboarding.loginGate.waitingForBrowser")}
             </span>
             <p className="font-mono text-[10px] text-muted-foreground/50 tracking-wide max-w-[280px] text-center leading-relaxed">
-              finish signing in there, then come back. this window updates on
-              its own.
+              {t("onboarding.loginGate.waitingDetail")}
             </p>
             <div className="flex flex-col items-center gap-2 mt-2">
               <button
                 onClick={handleLogin}
                 className="font-mono text-[10px] text-muted-foreground/70 hover:text-foreground underline underline-offset-4 transition-colors tracking-wide"
               >
-                open browser again
+                {t("onboarding.loginGate.openBrowserAgain")}
               </button>
               <button
                 data-testid="login-webview-fallback"
                 onClick={handleUseAppWindow}
                 className="font-mono text-[10px] text-muted-foreground/50 hover:text-foreground underline underline-offset-4 transition-colors tracking-wide"
               >
-                sign in inside screenpipe instead
+                {t("onboarding.loginGate.signInInsideApp")}
               </button>
             </div>
           </motion.div>
@@ -403,8 +405,10 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
               >
-                {FAILURE_COPY[browserFailure] ?? "sign in did not finish."}{" "}
-                try again.
+                {FAILURE_COPY[browserFailure]
+                  ? t(FAILURE_COPY[browserFailure])
+                  : t("onboarding.loginGate.failureGeneric")}{" "}
+                {t("onboarding.loginGate.tryAgain")}
               </motion.p>
             ) : null}
             {/* Button with internal geometry canvas */}
@@ -445,10 +449,10 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
                     and "sign in" reads as an instruction for people who
                     already have one. */}
                 {suppressAutoAdvance ? (
-                  "sign in"
+                  t("onboarding.loginGate.signIn")
                 ) : (
                   <>
-                    get started
+                    {t("onboarding.loginGate.getStarted")}
                     <ArrowRight
                       data-testid="login-cta-icon"
                       className="h-4 w-4"
@@ -473,8 +477,8 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
               transition={{ duration: 0.5, delay: 1.0 }}
             >
               {suppressAutoAdvance
-                ? "sign in with your enterprise account"
-                : "sign in or create a free account"}
+                ? t("onboarding.loginGate.benefitEnterprise")
+                : t("onboarding.loginGate.benefitFree")}
             </motion.p>
 
             {/* Locality promise. This slide is the only one every platform
@@ -495,7 +499,8 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 1.15 }}
             >
-              {LOCALITY_DETAIL} · pause anytime
+              {t("onboarding.trustDisclosure.localityDetail")} ·{" "}
+              {t("onboarding.trustDisclosure.pauseAnytime")}
             </motion.p>
           </>
         )}
@@ -509,7 +514,7 @@ const OnboardingLogin: React.FC<OnboardingLoginProps> = ({
               onClick={handleSkip}
               className="font-mono text-xs text-muted-foreground/70 hover:text-foreground underline underline-offset-4 decoration-muted-foreground/40 hover:decoration-foreground transition-colors mt-8 tracking-wide"
             >
-              skip for dev, continue without an account
+              {t("onboarding.loginGate.skipDev")}
             </motion.button>
           )}
         </AnimatePresence>

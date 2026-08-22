@@ -21,6 +21,7 @@ import type {
   ComposerModelControlsProps,
 } from "./composer-types";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 interface ComposerControlsRowProps {
   canChat: boolean;
@@ -43,6 +44,7 @@ export function ComposerControlsRow({
   sendButton,
 }: ComposerControlsRowProps) {
   const aiPresets = modelControls.settings.aiPresets;
+  const t = useT();
   // ACP presets drive their own model/mode/toggle selectors (AcpConfigSelector);
   // the pi thinking-level control belongs to raw screenpipe pi only.
   const isAcp = modelControls.activePreset?.provider === "acp";
@@ -69,8 +71,8 @@ export function ComposerControlsRow({
               "h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-muted/50 relative shrink-0",
               filters.hasActiveFilters && "text-foreground bg-muted/50",
             )}
-            title="Add attachments and filters"
-            aria-label="Add attachments and filters"
+            title={t("chat.controls.addAttachmentsAndFilters")}
+            aria-label={t("chat.controls.addAttachmentsAndFilters")}
           >
             <Plus className="h-4 w-4" />
             {filters.activeFilterCount > 0 && (
@@ -184,17 +186,17 @@ export function ComposerControlsRow({
         )}
         title={
           sendButton.isStopMode
-            ? "stop"
+            ? t("chat.controls.stop")
             : sendButton.hasPendingDocs
-              ? "waiting for attachment to finish extracting"
-              : "send"
+              ? t("chat.controls.waitingForAttachment")
+              : t("chat.controls.send")
         }
         aria-label={
           sendButton.isStopMode
-            ? "stop reply"
+            ? t("chat.controls.stopReply")
             : sendButton.hasPendingDocs
-              ? "send disabled while attachment is extracting"
-              : "send message"
+              ? t("chat.controls.sendDisabledWhileExtracting")
+              : t("chat.controls.sendMessage")
         }
       >
         {sendButton.isStopMode ? (
