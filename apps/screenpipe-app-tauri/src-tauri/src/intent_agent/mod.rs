@@ -10,6 +10,7 @@
 pub mod gate;
 pub mod instruct;
 pub mod parse;
+pub mod session;
 pub mod supply;
 
 /// Signal counts collected over the generation-attempt window.
