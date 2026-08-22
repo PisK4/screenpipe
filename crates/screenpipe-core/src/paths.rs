@@ -8,7 +8,7 @@ use std::path::Path;
 use std::{env, path::PathBuf};
 
 /// Default Screenpipe data directory. When `SCREENPIPE_DATA_DIR` is set (e.g. for E2E tests),
-/// that path is used; otherwise `~/.screenpipe`.
+/// that path is used; otherwise `~/.cue`.
 pub fn default_screenpipe_data_dir() -> PathBuf {
     env::var("SCREENPIPE_DATA_DIR")
         .ok()
@@ -17,7 +17,7 @@ pub fn default_screenpipe_data_dir() -> PathBuf {
         .unwrap_or_else(|| {
             dirs::home_dir()
                 .unwrap_or_else(|| PathBuf::from("/tmp"))
-                .join(".screenpipe")
+                .join(".cue")
         })
 }
 

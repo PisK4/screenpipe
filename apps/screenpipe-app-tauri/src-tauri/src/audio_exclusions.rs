@@ -17,7 +17,7 @@
 //! { "excluded_apps": [{ "bundle_id": "com.example.app", "name": "Example" }] }
 //! ```
 //!
-//! The path defaults to `$HOME/.screenpipe/audio-exclusions.json` and can
+//! The path defaults to `$HOME/.cue/audio-exclusions.json` and can
 //! be overridden with `SCREENPIPE_AUDIO_EXCLUSIONS_PATH` — both the engine
 //! reader and these commands honor the same env var so they always agree.
 
@@ -31,7 +31,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 const ENV_OVERRIDE: &str = "SCREENPIPE_AUDIO_EXCLUSIONS_PATH";
-const DEFAULT_RELATIVE_PATH: &str = ".screenpipe/audio-exclusions.json";
+const DEFAULT_RELATIVE_PATH: &str = ".cue/audio-exclusions.json";
 
 #[derive(Serialize, Deserialize, Type, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]

@@ -18,7 +18,7 @@
 //! `rfdetr_v9.safetensors` from
 //! `huggingface.co/screenpipe/pii-image-redactor` on first run
 //! (~108 MB), verifies SHA-256, atomic-renames into
-//! `~/.screenpipe/models/rfdetr_v9.safetensors`. Subsequent starts
+//! `~/.cue/models/rfdetr_v9.safetensors`. Subsequent starts
 //! are instant.
 
 use std::path::{Path, PathBuf};
@@ -80,7 +80,7 @@ fn macos_major_version() -> Option<u32> {
 pub struct RfdetrMlxConfig {
     /// Path to the safetensors weights produced from `rfdetr_vN.onnx`
     /// via `convert/onnx_to_mlx.py`. Defaults to
-    /// `~/.screenpipe/models/rfdetr_v9.safetensors`.
+    /// `~/.cue/models/rfdetr_v9.safetensors`.
     pub model_path: PathBuf,
     /// Score floor below which detections are dropped. The downstream
     /// [`crate::image::ImageRedactionPolicy`] applies a second floor —
@@ -101,7 +101,7 @@ impl RfdetrMlxConfig {
     pub fn default_model_path() -> PathBuf {
         dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join(".screenpipe")
+            .join(".cue")
             .join("models")
             .join("rfdetr_v9.safetensors")
     }
@@ -462,7 +462,7 @@ mod tests {
     fn default_path_under_screenpipe_dir() {
         let p = RfdetrMlxConfig::default_model_path();
         let s = p.to_string_lossy();
-        assert!(s.contains(".screenpipe/models/rfdetr_v9.safetensors"));
+        assert!(s.contains(".cue/models/rfdetr_v9.safetensors"));
     }
 
     #[test]

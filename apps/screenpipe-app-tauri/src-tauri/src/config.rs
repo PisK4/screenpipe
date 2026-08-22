@@ -117,11 +117,11 @@ pub async fn get_screenpipe_base_dir(app: tauri::AppHandle) -> Result<String, St
 /// Resolve the recording data directory from the store's `data_dir` setting.
 ///
 /// Returns `(resolved_path, fell_back)` where `fell_back` is true when the
-/// custom path was unusable and we silently fell back to default (~/.screenpipe or SCREENPIPE_DATA_DIR).
+/// custom path was unusable and we silently fell back to default (~/.cue or SCREENPIPE_DATA_DIR).
 pub fn resolve_data_dir(data_dir_setting: &str) -> anyhow::Result<(PathBuf, bool)> {
     let default_path = default_screenpipe_data_dir();
 
-    // "default" or empty → use ~/.screenpipe
+    // "default" or empty → use ~/.cue
     if data_dir_setting.is_empty() || data_dir_setting == "default" {
         fs::create_dir_all(default_path.join("data"))?;
         ensure_spotlight_excluded_best_effort(&default_path);
@@ -195,21 +195,21 @@ mod tests {
     fn test_resolve_default() {
         let (path, fell_back) = resolve_data_dir("default").unwrap();
         assert!(!fell_back);
-        assert!(path.ends_with(".screenpipe"));
+        assert!(path.ends_with(".cue"));
     }
 
     #[test]
     fn test_resolve_empty() {
         let (path, fell_back) = resolve_data_dir("").unwrap();
         assert!(!fell_back);
-        assert!(path.ends_with(".screenpipe"));
+        assert!(path.ends_with(".cue"));
     }
 
     #[test]
     fn test_resolve_relative_path_falls_back() {
         let (path, fell_back) = resolve_data_dir("relative/path").unwrap();
         assert!(fell_back);
-        assert!(path.ends_with(".screenpipe"));
+        assert!(path.ends_with(".cue"));
     }
 
     #[test]

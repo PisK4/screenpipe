@@ -151,7 +151,7 @@ fn resolve_hosted_v1_base(team_api_env: Option<&str>, legacy_origin_env: Option<
 
 fn read_enterprise_json() -> Option<Value> {
     let home = dirs::home_dir()?;
-    let path: PathBuf = home.join(".screenpipe").join("enterprise.json");
+    let path: PathBuf = home.join(".cue").join("enterprise.json");
     let raw = std::fs::read_to_string(&path).ok()?;
     serde_json::from_str(&raw).ok()
 }

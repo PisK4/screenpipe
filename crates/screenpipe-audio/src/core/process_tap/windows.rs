@@ -77,7 +77,7 @@ const CHANNELS: u16 = 2;
 const BITS_PER_SAMPLE: u16 = 16;
 const BYTES_PER_SAMPLE: u16 = BITS_PER_SAMPLE / 8;
 const AUDIO_EXCLUSIONS_ENV: &str = "SCREENPIPE_AUDIO_EXCLUSIONS_PATH";
-const AUDIO_EXCLUSIONS_PATH: &str = ".screenpipe/audio-exclusions.json";
+const AUDIO_EXCLUSIONS_PATH: &str = ".cue/audio-exclusions.json";
 
 static WINDOWS_BUILD: OnceLock<Option<u32>> = OnceLock::new();
 

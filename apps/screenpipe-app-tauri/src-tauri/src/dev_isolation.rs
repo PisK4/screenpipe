@@ -44,12 +44,12 @@
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-/// Data directory used by isolated debug builds. A sibling of `~/.screenpipe`
+/// Data directory used by isolated debug builds. A sibling of `~/.cue`
 /// rather than a child so production's disk-usage accounting, retention sweeps
 /// and Spotlight exclusion never see dev data.
 // Read only by the debug-only `apply_inner` (and the tests below).
 #[cfg_attr(not(any(debug_assertions, test)), allow(dead_code))]
-pub const DEV_DATA_DIR_NAME: &str = ".screenpipe-dev";
+pub const DEV_DATA_DIR_NAME: &str = ".cue-dev";
 
 /// Local API port. Production defaults to 3030.
 // Read only by the debug-only `apply_inner` (and the tests below).

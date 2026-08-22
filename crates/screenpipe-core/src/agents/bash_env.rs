@@ -150,12 +150,12 @@ pub fn ensure_wrapper(screenpipe_dir: &Path) -> Result<PathBuf> {
     Ok(path)
 }
 
-/// Resolve `~/.screenpipe` using the same logic the rest of the app uses,
+/// Resolve `~/.cue` using the same logic the rest of the app uses,
 /// then `ensure_wrapper`. Convenience for spawn sites that don't already
 /// know the data dir.
 pub fn ensure_wrapper_in_default_dir() -> Result<PathBuf> {
     let home = dirs::home_dir().context("home dir not found")?;
-    ensure_wrapper(&home.join(".screenpipe"))
+    ensure_wrapper(&home.join(".cue"))
 }
 
 #[cfg(test)]

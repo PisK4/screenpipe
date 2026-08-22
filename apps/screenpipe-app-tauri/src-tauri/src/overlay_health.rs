@@ -785,13 +785,13 @@ pub async fn dismiss_incident(app: tauri::AppHandle) {
 }
 
 /// Debug-only escape hatch for end-to-end testing the incident flow without
-/// breaking a real engine: `touch ~/.screenpipe/.simulate-recording-failure`
+/// breaking a real engine: `touch ~/.cue/.simulate-recording-failure`
 /// forces the broken signal; the overlay's restart clears it (and genuinely
 /// restarts the engine), so the full failure → fixing → recovered loop runs.
 #[cfg(debug_assertions)]
 pub fn simulated_break_active() -> bool {
     dirs::home_dir()
-        .map(|h| h.join(".screenpipe/.simulate-recording-failure").exists())
+        .map(|h| h.join(".cue/.simulate-recording-failure").exists())
         .unwrap_or(false)
 }
 
@@ -803,7 +803,7 @@ pub fn simulated_break_active() -> bool {
 #[cfg(debug_assertions)]
 fn clear_simulated_break() {
     if let Some(h) = dirs::home_dir() {
-        let _ = std::fs::remove_file(h.join(".screenpipe/.simulate-recording-failure"));
+        let _ = std::fs::remove_file(h.join(".cue/.simulate-recording-failure"));
     }
 }
 

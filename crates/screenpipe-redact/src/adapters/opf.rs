@@ -65,7 +65,7 @@ const OPF_TEXT_VERSION: u32 = 6;
 #[derive(Debug, Clone)]
 pub struct OpfConfig {
     /// Directory containing `config.json` + `model.safetensors`.
-    /// Default: `~/.screenpipe/models/opf-v6`. First-run is created
+    /// Default: `~/.cue/models/opf-v6`. First-run is created
     /// lazily by [`OpfAdapter::load_or_download`] which fetches the
     /// 2.8 GB checkpoint from HuggingFace and verifies SHA-256 before
     /// landing.
@@ -87,7 +87,7 @@ impl Default for OpfConfig {
 fn default_model_dir() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
-        .join(".screenpipe")
+        .join(".cue")
         .join("models")
         .join("opf-v6")
 }

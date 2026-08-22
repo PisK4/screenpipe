@@ -626,7 +626,7 @@ impl PiExecutor {
     /// prompts to non-admins is misleading (every call would 403) and dropping
     /// it onto the consumer app leaks our enterprise affordances.
     ///
-    /// Source of truth: `~/.screenpipe/enterprise.json`. The Tauri host
+    /// Source of truth: `~/.cue/enterprise.json`. The Tauri host
     /// keeps that file populated with `{is_admin, license_active,
     /// team_api_token, ...}` based on the user's current license + role.
     /// The caller must pass the returned path to Pi with `--skill`. Keeping
@@ -667,7 +667,7 @@ impl PiExecutor {
         Ok(None)
     }
 
-    /// True only in the Enterprise app when `~/.screenpipe/enterprise.json`
+    /// True only in the Enterprise app when `~/.cue/enterprise.json`
     /// declares this user as an active admin with a license key and dedicated
     /// team API token. The app-build check matters when the consumer and
     /// Enterprise apps share `~/.screenpipe` on one machine.
@@ -687,7 +687,7 @@ impl PiExecutor {
             Some(h) => h,
             None => return false,
         };
-        let ent_path = home.join(".screenpipe").join("enterprise.json");
+        let ent_path = home.join(".cue").join("enterprise.json");
         let raw = match std::fs::read_to_string(&ent_path) {
             Ok(s) => s,
             Err(_) => return false,

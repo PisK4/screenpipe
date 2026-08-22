@@ -84,11 +84,11 @@ impl Default for OnnxConfig {
 }
 
 impl OnnxConfig {
-    /// `~/.screenpipe/models/v50_distilled6l/` by convention.
+    /// `~/.cue/models/v50_distilled6l/` by convention.
     pub fn default_model_dir() -> PathBuf {
         dirs::home_dir()
-            .map(|h| h.join(".screenpipe").join("models").join("v50_distilled6l"))
-            .unwrap_or_else(|| PathBuf::from(".screenpipe/models/v50_distilled6l"))
+            .map(|h| h.join(".cue").join("models").join("v50_distilled6l"))
+            .unwrap_or_else(|| PathBuf::from(".cue/models/v50_distilled6l"))
     }
 
     fn resolve_model_file(&self) -> PathBuf {
