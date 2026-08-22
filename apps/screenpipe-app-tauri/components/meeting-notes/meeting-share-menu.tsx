@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useT, type Translator } from "@/lib/i18n";
 import { MEETING_RULE_ACTION_CLASS } from "./meeting-workspace";
 
 /**
@@ -79,14 +80,17 @@ export type MeetingShareAction =
 // floating on it. Now shared with the meeting actions that moved onto this rule.
 const RULE_ACTION_CLASS = MEETING_RULE_ACTION_CLASS;
 
-const ACTION_LABEL: Record<MeetingShareAction, string> = {
-  summary: "copy summary",
-  email: "email summary",
-  transcript: "copy transcript",
-  meeting: "copy meeting + transcript",
-  send: "send to an app…",
-  resend: "send again",
+const ACTION_LABEL_KEY: Record<MeetingShareAction, string> = {
+  summary: "meetingNotes.shareMenu.copySummary",
+  email: "meetingNotes.shareMenu.emailSummary",
+  transcript: "meetingNotes.shareMenu.copyTranscript",
+  meeting: "meetingNotes.shareMenu.copyMeeting",
+  send: "meetingNotes.shareMenu.sendToApp",
+  resend: "meetingNotes.shareMenu.sendAgain",
 };
+
+const actionLabel = (t: Translator, action: MeetingShareAction): string =>
+  t(ACTION_LABEL_KEY[action]);
 
 const ACTION_ICON: Record<
   MeetingShareAction,
@@ -165,6 +169,7 @@ export function MeetingShareMenu({
   onMenuOpenChange?: (open: boolean) => void;
   onShare: (action: MeetingShareAction) => void;
 }) {
+  const t = useT();
   const primary: MeetingShareAction = canShareSummary ? "summary" : "meeting";
   // `send` graduated to its own button, so it is no longer listed here.
   const clipboardActions: MeetingShareAction[] = canShareSummary
@@ -183,7 +188,7 @@ export function MeetingShareMenu({
   const toItems = (actions: MeetingShareAction[]) =>
     actions.map((action) => ({
       key: action,
-      label: ACTION_LABEL[action],
+      label: actionLabel(t, action),
       icon: ACTION_ICON[action],
       onSelect: () => onShare(action),
     }));
@@ -203,12 +208,12 @@ export function MeetingShareMenu({
   ];
 
   const groups: MeetingMenuGroup[] = [
-    { label: "copy", items: toItems(clipboardActions) },
+    { label: t("meetingNotes.shareMenu.groupCopy"), items: toItems(clipboardActions) },
     {
-      label: "send",
+      label: t("meetingNotes.shareMenu.groupSend"),
       items: toItems(sendGroupActions).map((item) =>
         item.key === "send"
-          ? { ...item, label: "send somewhere else…" }
+          ? { ...item, label: t("meetingNotes.shareMenu.sendElsewhere") }
           : item,
       ),
     },
@@ -222,11 +227,11 @@ export function MeetingShareMenu({
         onClick={() => onShare(primary)}
         disabled={busy}
         data-testid="meeting-share-button"
-        aria-label={ACTION_LABEL[primary]}
+        aria-label={actionLabel(t, primary)}
         title={
           canShareSummary
-            ? "copy the summary as rich text, without the transcript"
-            : "copy the meeting and its transcript"
+            ? t("meetingNotes.shareMenu.primaryTitleSummary")
+            : t("meetingNotes.shareMenu.primaryTitleMeeting")
         }
         className={cn(RULE_ACTION_CLASS, "px-4")}
       >
@@ -238,7 +243,11 @@ export function MeetingShareMenu({
         {/* Icon only at rest, so it does not compete with the tabs beside it.
             The word comes back to confirm the copy, which is the moment it
             carries information the icon does not. */}
-        {confirmed && <span className="hidden sm:inline">copied</span>}
+        {confirmed && (
+          <span className="hidden sm:inline">
+            {t("meetingNotes.shareMenu.copiedBadge")}
+          </span>
+        )}
       </button>
 
       {/* Visible, but icon-only like copy beside it.
@@ -254,8 +263,8 @@ export function MeetingShareMenu({
           onClick={() => onShare("send")}
           disabled={busy}
           data-testid="meeting-send-button"
-          aria-label={sendLabel ?? ACTION_LABEL.send}
-          title="review this meeting, then send it to a connected app"
+          aria-label={sendLabel ?? actionLabel(t, "send")}
+          title={t("meetingNotes.shareMenu.sendIconTitle")}
           className={cn(RULE_ACTION_CLASS, "px-4")}
         >
           <Share className="h-3.5 w-3.5" />
@@ -274,8 +283,12 @@ export function MeetingShareMenu({
           onClick={() => onShare("resend")}
           disabled={busy}
           data-testid="meeting-resend-button"
-          aria-label={`send to ${oneTap}`}
-          title={`send this meeting to ${oneTap} now`}
+          aria-label={t("meetingNotes.shareMenu.resendAria", {
+            destination: oneTap,
+          })}
+          title={t("meetingNotes.shareMenu.resendTitle", {
+            destination: oneTap,
+          })}
           className={cn(RULE_ACTION_CLASS, "gap-1.5 px-4")}
         >
           {busy ? (
@@ -294,8 +307,8 @@ export function MeetingShareMenu({
           <button
             type="button"
             disabled={busy}
-            aria-label="more meeting actions"
-            title="everything else for this meeting"
+            aria-label={t("meetingNotes.shareMenu.moreAria")}
+            title={t("meetingNotes.shareMenu.moreTitle")}
             className={cn(RULE_ACTION_CLASS, "px-3")}
             data-testid="meeting-more-button"
           >

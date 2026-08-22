@@ -67,6 +67,7 @@ import { usePipes } from "@/lib/hooks/use-pipes";
 import { useSettings } from "@/lib/hooks/use-settings";
 import { useHealthCheck } from "@/lib/hooks/use-health-check";
 import { usePlatform } from "@/lib/hooks/use-platform";
+import { useT } from "@/lib/i18n";
 import { useToast } from "@/components/ui/use-toast";
 import { localFetch } from "@/lib/api";
 import { createLiveViewShareArtifact } from "@/lib/connected-share";
@@ -256,32 +257,51 @@ function liveViewResultSignature(targetView: ViewDefinition): string | null {
 
 const COMPONENTS: Array<{
   value: ViewComponent;
-  label: string;
+  labelKey:
+    | "brain.components.metric"
+    | "brain.components.list"
+    | "brain.components.barChart"
+    | "brain.components.lineChart"
+    | "brain.components.table"
+    | "brain.components.timeline"
+    | "brain.components.text";
   schema: string;
 }> = [
   {
     value: "metric.v1",
-    label: "Metric",
+    labelKey: "brain.components.metric",
     schema: "one value, unit, and change",
   },
-  { value: "list.v1", label: "List", schema: "ranked items with status" },
+  {
+    value: "list.v1",
+    labelKey: "brain.components.list",
+    schema: "ranked items with status",
+  },
   {
     value: "bar-chart.v1",
-    label: "Bar chart",
+    labelKey: "brain.components.barChart",
     schema: "labels and numeric values",
   },
   {
     value: "line-chart.v1",
-    label: "Line chart",
+    labelKey: "brain.components.lineChart",
     schema: "numeric values changing over time",
   },
   {
     value: "table.v1",
-    label: "Table",
+    labelKey: "brain.components.table",
     schema: "scrollable rows with values and details",
   },
-  { value: "timeline.v1", label: "Timeline", schema: "timestamped events" },
-  { value: "markdown.v1", label: "Text", schema: "a short formatted brief" },
+  {
+    value: "timeline.v1",
+    labelKey: "brain.components.timeline",
+    schema: "timestamped events",
+  },
+  {
+    value: "markdown.v1",
+    labelKey: "brain.components.text",
+    schema: "a short formatted brief",
+  },
 ];
 
 function serializedSlots(slots: ViewSlot[]): BrainViewSlotInput[] {
@@ -297,29 +317,43 @@ function serializedSlots(slots: ViewSlot[]): BrainViewSlotInput[] {
 }
 
 function DataRefreshBanner({ state }: { state: DataRefreshState }) {
+  const t = useT();
   const active = state.status === "starting" || state.status === "running";
   const configurationNote =
     state.unconfiguredCount > 0
-      ? `${state.unconfiguredCount} section${
-          state.unconfiguredCount === 1 ? "" : "s"
-        } not configured`
+      ? t(
+          state.unconfiguredCount === 1
+            ? "brain.banner.notConfiguredOne"
+            : "brain.banner.notConfiguredMany",
+          { count: state.unconfiguredCount },
+        )
       : null;
   const withConfigurationNote = (message: string) =>
     configurationNote ? `${message} · ${configurationNote}` : message;
   const message =
     state.status === "starting"
-      ? withConfigurationNote(`starting ${state.pipeNames.join(", ")}`)
+      ? withConfigurationNote(
+          t("brain.banner.starting", { pipes: state.pipeNames.join(", ") }),
+        )
       : state.status === "running"
         ? state.filled > 0
           ? withConfigurationNote(
-              `${state.filled} of ${state.refreshableTotal} connected sections updated`,
+              t("brain.banner.updatedOf", {
+                filled: state.filled,
+                total: state.refreshableTotal,
+              }),
             )
           : withConfigurationNote(
-              `${state.pipeNames.join(", ")} ${state.pipeNames.length === 1 ? "is" : "are"} building your live data`,
+              t(
+                state.pipeNames.length === 1
+                  ? "brain.banner.buildingOne"
+                  : "brain.banner.buildingMany",
+                { pipes: state.pipeNames.join(", ") },
+              ),
             )
         : state.status === "complete"
-          ? `${state.total} sections updated from source data`
-          : state.message || "some sections could not be updated";
+          ? t("brain.banner.complete", { total: state.total })
+          : state.message || t("brain.banner.partialDefault");
 
   return (
     <div
@@ -528,6 +562,7 @@ export function BrainOverview({
   navigation?: React.ReactNode;
   onViewCountChange?: (count: number) => void;
 } = {}) {
+  const t = useT();
   const { toast } = useToast();
   const { pipes, refetch: refetchPipes } = usePipes();
   const { settings, isSettingsLoaded } = useSettings();
@@ -756,7 +791,7 @@ export function BrainOverview({
           if (canvasSaveErrorsRef.current.get(viewId) !== result.error) {
             canvasSaveErrorsRef.current.set(viewId, result.error);
             toast({
-              title: "canvas changes were not saved",
+              title: t("brain.toastsOverview.canvasNotSaved"),
               description: result.error,
               variant: "destructive",
             });
@@ -1232,7 +1267,9 @@ export function BrainOverview({
               startFailureCount: failures.length,
               message:
                 failures.length > 0
-                  ? `Could not start ${failures.join(", ")}`
+                  ? t("brain.banner.couldNotStart", {
+                      names: failures.join(", "),
+                    })
                   : undefined,
             }
           : current,
@@ -1325,9 +1362,8 @@ export function BrainOverview({
       onboardingRetrying
     ) {
       toast({
-        title: "setup could not resume",
-        description:
-          "Create or customize this Live View directly from Brain instead.",
+        title: t("brain.toastsOverview.setupResumeFailed"),
+        description: t("brain.toastsOverview.setupResumeFailedDesc"),
         variant: "destructive",
       });
       return;
@@ -1360,11 +1396,11 @@ export function BrainOverview({
           retryError instanceof Error ? retryError.name : "unknown",
       });
       toast({
-        title: "setup still needs attention",
+        title: t("brain.toastsOverview.setupStillNeedsAttention"),
         description:
           retryError instanceof Error
             ? retryError.message
-            : "Try again in a moment.",
+            : t("brain.toastsOverview.tryAgainInAMoment"),
         variant: "destructive",
       });
     } finally {
@@ -1419,7 +1455,11 @@ export function BrainOverview({
                 ...current,
                 status: "partial",
                 filled,
-                message: `${filled} of ${current.total} sections updated · ${current.unconfiguredCount} not configured`,
+                message: t("brain.refreshStatus.partialUpdatedOf", {
+                filled,
+                total: current.total,
+                unconfigured: current.unconfiguredCount,
+              }),
               };
             }
             return { ...current, status: "complete", filled };
@@ -1431,14 +1471,20 @@ export function BrainOverview({
               filled,
               message:
                 filled > 0
-                  ? `${filled} of ${current.refreshableTotal} connected sections updated. The scheduled tasks are still working on the rest.${
+                  ? `${t("brain.refreshStatus.timeoutUpdatedOf", {
+                      filled,
+                      total: current.refreshableTotal,
+                    })}${
                       current.unconfiguredCount > 0
-                        ? ` ${current.unconfiguredCount} section${
-                            current.unconfiguredCount === 1 ? " is" : "s are"
-                          } not configured.`
+                        ? ` ${t(
+                            current.unconfiguredCount === 1
+                              ? "brain.refreshStatus.unconfiguredIs"
+                              : "brain.refreshStatus.unconfiguredAre",
+                            { count: current.unconfiguredCount },
+                          )}`
                         : ""
                     }`
-                  : "The scheduled tasks are still working. This view will update when they publish data.",
+                  : t("brain.refreshStatus.stillWorking"),
             };
           }
           if (current.filled === filled) return current;
@@ -1519,8 +1565,10 @@ export function BrainOverview({
         dashboard_count: views.length,
       });
       toast({
-        title: "dashboard limit reached",
-        description: `Delete a dashboard before creating another. You can keep up to ${MAX_DASHBOARDS}.`,
+        title: t("brain.toastsOverview.dashboardLimitTitle"),
+        description: t("brain.toastsOverview.deleteBeforeCreateDesc", {
+          limit: MAX_DASHBOARDS,
+        }),
         variant: "destructive",
       });
       return;
@@ -1543,7 +1591,7 @@ export function BrainOverview({
     setCreateDashboardOpen(false);
     setDraft({
       id: uniqueDashboardId("untitled-dashboard", views),
-      title: "Untitled dashboard",
+      title: t("brain.overview.untitledDashboard"),
       revision: 0,
       timeRange: "today",
       periodPolicy: DEFAULT_LIVE_VIEW_PERIOD_POLICY,
@@ -1677,10 +1725,10 @@ export function BrainOverview({
             tone: "working",
             label:
               phase === "starting"
-                ? "starting"
+                ? t("brain.feedback.starting")
                 : phase === "working"
-                  ? "drafting changes"
-                  : "preparing review",
+                  ? t("brain.feedback.draftingChanges")
+                  : t("brain.feedback.preparingReview"),
           }),
       });
       if (!reference) {
@@ -1719,7 +1767,7 @@ export function BrainOverview({
           targetSlotId,
         );
         if (proposals.length === 0) {
-          throw new Error("The agent did not propose a visible change");
+          throw new Error(t("brain.toastsOverview.agentNoVisibleChange"));
         }
         setAiBlockProposals(proposals);
         setProposalTitle(target.scope === "dashboard" ? generated.title : null);
@@ -1746,7 +1794,10 @@ export function BrainOverview({
             ).length
           : generated.blocks.length,
       });
-      setBuilderFeedback({ tone: "success", label: "changes ready to review" });
+      setBuilderFeedback({
+        tone: "success",
+        label: t("brain.feedback.changesReady"),
+      });
       builderFeedbackTimerRef.current = window.setTimeout(
         () => setBuilderFeedback(null),
         2_500,
@@ -1771,17 +1822,17 @@ export function BrainOverview({
           ? quota.message
           : handoffError instanceof Error
             ? handoffError.message
-            : "The AI editor stopped before creating a review.";
+            : t("brain.toastsOverview.aiEditorStopped");
       setBuilderFeedback({
         tone: "error",
         label:
           quota.kind === "daily"
-            ? "AI usage limit reached"
-            : "could not update · try again",
+            ? t("brain.feedback.aiUsageLimit")
+            : t("brain.feedback.couldNotUpdate"),
         detail: failureDetail,
       });
       toast({
-        title: "could not update the Live View",
+        title: t("brain.toastsOverview.updateLiveViewFailed"),
         description: failureDetail,
         variant: "destructive",
       });
@@ -1912,7 +1963,7 @@ export function BrainOverview({
         failure_type: analyticsErrorType(feedbackError),
       });
       toast({
-        title: "failed to save feedback",
+        title: t("brain.toastsOverview.feedbackSaveFailed"),
         description:
           feedbackError instanceof Error
             ? feedbackError.message
@@ -1974,7 +2025,7 @@ export function BrainOverview({
         failure_type: analyticsErrorType(actionError),
       });
       toast({
-        title: "could not update this item",
+        title: t("brain.toastsOverview.itemUpdateFailed"),
         description:
           actionError instanceof Error
             ? actionError.message
@@ -2001,7 +2052,7 @@ export function BrainOverview({
       });
     } catch (handoffError) {
       toast({
-        title: "could not open the handoff",
+        title: t("brain.toastsOverview.handoffFailed"),
         description:
           handoffError instanceof Error
             ? handoffError.message
@@ -2017,8 +2068,8 @@ export function BrainOverview({
   ): Promise<boolean> => {
     if (!view || !selectedAiPreset) {
       toast({
-        title: "choose an AI model first",
-        description: "Add an AI preset in Settings, then try again.",
+        title: t("brain.toastsOverview.chooseModelFirst"),
+        description: t("brain.toastsOverview.chooseModelFirstDesc"),
         variant: "destructive",
       });
       return false;
@@ -2126,10 +2177,10 @@ export function BrainOverview({
       if (changedSlots.length > 0) {
         void refreshConnectedPipes(result.data, changedSlots, "card_ai_edit");
       }
-      toast({ title: "accepted changes applied" });
+      toast({ title: t("brain.toastsOverview.acceptedApplied") });
     } catch (applyError) {
       toast({
-        title: "could not apply accepted changes",
+        title: t("brain.toastsOverview.applyAcceptedFailed"),
         description:
           applyError instanceof Error ? applyError.message : String(applyError),
         variant: "destructive",
@@ -2163,7 +2214,7 @@ export function BrainOverview({
       const creatingNew = destination === "new" || draft.revision === 0;
       if (creatingNew && views.length >= MAX_DASHBOARDS) {
         throw new Error(
-          `You can keep up to ${MAX_DASHBOARDS} dashboards. Delete one before creating another.`,
+          t("brain.toastsOverview.upToLimitError", { limit: MAX_DASHBOARDS }),
         );
       }
       const previousView =
@@ -2193,7 +2244,9 @@ export function BrainOverview({
       setAiNote(null);
       setReplaceConfirmationOpen(false);
       toast({
-        title: creatingNew ? `${result.data.title} created` : "dashboard saved",
+        title: creatingNew
+          ? t("brain.toastsOverview.createdToast", { title: result.data.title })
+          : t("brain.toastsOverview.dashboardSaved"),
       });
       let slotsToRefresh: ViewSlot[] = [];
       if (refreshData) {
@@ -2243,7 +2296,7 @@ export function BrainOverview({
         failure_type: analyticsErrorType(saveError),
       });
       toast({
-        title: "failed to save Live View",
+        title: t("brain.toastsOverview.saveFailed"),
         description:
           saveError instanceof Error ? saveError.message : String(saveError),
         variant: "destructive",
@@ -2320,7 +2373,9 @@ export function BrainOverview({
         ...liveViewAnalyticsProperties(result.data, views.length),
         action: "renamed",
       });
-      toast({ title: `renamed to ${result.data.title}` });
+      toast({
+        title: t("brain.toastsOverview.renamedTo", { title: result.data.title }),
+      });
     } catch (renameError) {
       posthog.capture("live_view_dashboard_action_failed", {
         analytics_schema_version: LIVE_VIEW_ANALYTICS_SCHEMA_VERSION,
@@ -2328,7 +2383,7 @@ export function BrainOverview({
         failure_type: analyticsErrorType(renameError),
       });
       toast({
-        title: "could not rename dashboard",
+        title: t("brain.toastsOverview.renameFailed"),
         description:
           renameError instanceof Error
             ? renameError.message
@@ -2345,8 +2400,10 @@ export function BrainOverview({
     if (!view) return;
     if (views.length >= MAX_DASHBOARDS) {
       toast({
-        title: "dashboard limit reached",
-        description: `Delete a dashboard before duplicating another. You can keep up to ${MAX_DASHBOARDS}.`,
+        title: t("brain.toastsOverview.dashboardLimitTitle"),
+        description: t("brain.toastsOverview.deleteBeforeDuplicateDesc", {
+          limit: MAX_DASHBOARDS,
+        }),
         variant: "destructive",
       });
       return;
@@ -2397,7 +2454,9 @@ export function BrainOverview({
         source: "duplicate",
         refresh_requested: true,
       });
-      toast({ title: `${result.data.title} created` });
+      toast({
+        title: t("brain.toastsOverview.createdToast", { title: result.data.title }),
+      });
       void refreshConnectedPipes(
         result.data,
         undefined,
@@ -2413,7 +2472,7 @@ export function BrainOverview({
         failure_type: analyticsErrorType(duplicateError),
       });
       toast({
-        title: "could not duplicate dashboard",
+        title: t("brain.toastsOverview.duplicateFailed"),
         description:
           duplicateError instanceof Error
             ? duplicateError.message
@@ -2446,7 +2505,7 @@ export function BrainOverview({
         ...liveViewAnalyticsProperties(view, views.length),
         dashboard_count_after: nextViews.length,
       });
-      toast({ title: "dashboard deleted" });
+      toast({ title: t("brain.toastsOverview.dashboardDeleted") });
     } catch (deleteError) {
       posthog.capture("live_view_dashboard_action_failed", {
         analytics_schema_version: LIVE_VIEW_ANALYTICS_SCHEMA_VERSION,
@@ -2454,7 +2513,7 @@ export function BrainOverview({
         failure_type: analyticsErrorType(deleteError),
       });
       toast({
-        title: "could not delete dashboard",
+        title: t("brain.toastsOverview.deleteFailed"),
         description:
           deleteError instanceof Error
             ? deleteError.message
@@ -2494,7 +2553,7 @@ export function BrainOverview({
         source: "undo",
         refresh_requested: true,
       });
-      toast({ title: "previous dashboard restored" });
+      toast({ title: t("brain.toastsOverview.previousRestored") });
       void refreshConnectedPipes(result.data, undefined, "undo");
     } catch (restoreError) {
       posthog.capture("live_view_dashboard_action_failed", {
@@ -2503,7 +2562,7 @@ export function BrainOverview({
         failure_type: analyticsErrorType(restoreError),
       });
       toast({
-        title: "could not restore the previous dashboard",
+        title: t("brain.toastsOverview.restoreFailed"),
         description:
           restoreError instanceof Error
             ? restoreError.message
@@ -2549,9 +2608,8 @@ export function BrainOverview({
       )
     ) {
       toast({
-        title: "this dashboard uses a fixed period",
-        description:
-          "Choose another dashboard or template for a different period.",
+        title: t("brain.toastsOverview.fixedPeriodTitle"),
+        description: t("brain.toastsOverview.fixedPeriodDesc"),
         variant: "destructive",
       });
       return;
@@ -2576,7 +2634,9 @@ export function BrainOverview({
         previous_time_range: previousView.timeRange,
       });
       toast({
-        title: `showing ${getLiveViewTimeRangeOption(timeRange).label.toLowerCase()}`,
+        title: t("brain.toastsOverview.showingRange", {
+          range: getLiveViewTimeRangeOption(timeRange).label.toLowerCase(),
+        }),
       });
       void refreshConnectedPipes(result.data, undefined, "time_range");
     } catch (rangeError) {
@@ -2586,7 +2646,7 @@ export function BrainOverview({
         failure_type: analyticsErrorType(rangeError),
       });
       toast({
-        title: "could not change the time range",
+        title: t("brain.toastsOverview.timeRangeFailed"),
         description:
           rangeError instanceof Error ? rangeError.message : String(rangeError),
         variant: "destructive",
@@ -2600,7 +2660,8 @@ export function BrainOverview({
   if (loading) {
     return (
       <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> loading Live Views
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+        {t("brain.overview.loadingLiveViews")}
       </div>
     );
   }
@@ -2610,7 +2671,7 @@ export function BrainOverview({
       <div className="flex min-h-64 flex-col items-center justify-center gap-3 border border-border text-center">
         <AlertCircle className="h-5 w-5 text-muted-foreground" />
         <div>
-          <p className="text-sm">failed to load Live Views</p>
+          <p className="text-sm">{t("brain.overview.loadFailed")}</p>
           <p className="mt-1 text-xs text-muted-foreground">{error}</p>
         </div>
         <Button
@@ -2619,7 +2680,7 @@ export function BrainOverview({
           className="rounded-none"
           onClick={() => void load()}
         >
-          retry
+          {t("brain.overview.retry")}
         </Button>
       </div>
     );
@@ -2658,7 +2719,7 @@ export function BrainOverview({
             className="mt-4 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             onClick={beginManualCreate}
           >
-            or build it manually
+            {t("brain.overview.buildManually")}
           </button>
         </div>
       </div>
@@ -2699,7 +2760,9 @@ export function BrainOverview({
           <div className="mb-5 flex flex-wrap items-start justify-between gap-4 border-b border-border pb-4">
             <div>
               <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                {templatePreview ? "Template preview" : "AI draft"}
+                {templatePreview
+                  ? t("brain.overview.templatePreview")
+                  : t("brain.overview.aiDraft")}
               </p>
               <h2 className="text-lg font-semibold tracking-tight">
                 {draft.title}
@@ -2721,7 +2784,7 @@ export function BrainOverview({
                   setAiNote(null);
                 }}
               >
-                discard
+                {t("brain.overview.discard")}
               </Button>
               {!templatePreview && (
                 <Button
@@ -2735,7 +2798,7 @@ export function BrainOverview({
                     setEditing(true);
                   }}
                 >
-                  edit manually
+                  {t("brain.overview.editManually")}
                 </Button>
               )}
               <Button
@@ -2761,11 +2824,11 @@ export function BrainOverview({
                 )}
                 {replacingDashboard
                   ? templatePreview
-                    ? "replace with agent"
-                    : "replace current dashboard"
+                    ? t("brain.overview.replaceWithAgent")
+                    : t("brain.overview.replaceCurrentDashboard")
                   : templatePreview
-                    ? "build with agent"
-                    : "create dashboard & load data"}
+                    ? t("brain.overview.buildWithAgent")
+                    : t("brain.overview.createAndLoad")}
               </Button>
             </div>
           </div>
@@ -2784,7 +2847,7 @@ export function BrainOverview({
                   htmlFor="preview-dashboard-name"
                   className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground"
                 >
-                  Dashboard name
+                  {t("brain.overview.dashboardName")}
                 </label>
                 <Input
                   id="preview-dashboard-name"
@@ -2801,7 +2864,7 @@ export function BrainOverview({
                     <p>{templateReadiness?.explanation}</p>
                     <details className="mt-1 text-[11px]">
                       <summary className="cursor-pointer select-none hover:text-foreground">
-                        template starting points
+                        {t("brain.overview.templateStartingPoints")}
                       </summary>
                       <p className="mt-1 font-mono">
                         {templatePreview.pipes
@@ -2809,8 +2872,7 @@ export function BrainOverview({
                           .join(", ")}
                       </p>
                       <p className="mt-1">
-                        The agent decides which existing or new Pipes fit after
-                        checking a small relevant sample of your data.
+                        {t("brain.overview.templateAgentNote")}
                       </p>
                     </details>
                   </div>
@@ -2834,12 +2896,16 @@ export function BrainOverview({
                     onClick={() => setPreviewDestination("new")}
                   >
                     <span className="block text-xs font-medium">
-                      create new
+                      {t("brain.overview.createNew")}
                     </span>
                     <span className="mt-1 block text-[11px] text-muted-foreground">
                       {dashboardLimitReached
-                        ? `${MAX_DASHBOARDS} dashboard limit reached`
-                        : `keep “${view?.title}” unchanged`}
+                        ? t("brain.overview.dashboardLimitReached", {
+                            limit: MAX_DASHBOARDS,
+                          })
+                        : t("brain.overview.keepUnchanged", {
+                            title: view?.title ?? "",
+                          })}
                     </span>
                   </button>
                   <button
@@ -2854,17 +2920,18 @@ export function BrainOverview({
                     onClick={() => setPreviewDestination("replace")}
                   >
                     <span className="block text-xs font-medium">
-                      replace current
+                      {t("brain.overview.replaceCurrent")}
                     </span>
                     <span className="mt-1 block text-[11px] text-muted-foreground">
-                      confirmation required
+                      {t("brain.overview.confirmationRequired")}
                     </span>
                   </button>
                 </div>
               ) : (
                 <div className="border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-                  This creates a new dashboard with {previewSlots.length}{" "}
-                  sections.
+                  {t("brain.overview.createsNewWithSections", {
+                    count: previewSlots.length,
+                  })}
                 </div>
               )}
             </div>
@@ -2875,9 +2942,11 @@ export function BrainOverview({
               data-testid="overview-replacement-warning"
               className="mb-5 border border-destructive/60 bg-destructive/5 px-4 py-3 text-xs"
             >
-              This will replace {view?.slots.length ?? 0} sections in “
-              {view?.title}” with {previewSlots.length}. The previous layout
-              remains available through Undo.
+              {t("brain.overview.replaceWarning", {
+                current: view?.slots.length ?? 0,
+                title: view?.title ?? "",
+                next: previewSlots.length,
+              })}
             </div>
           )}
 
@@ -2886,8 +2955,7 @@ export function BrainOverview({
               data-testid="overview-dashboard-limit-warning"
               className="mb-5 border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground"
             >
-              You already have {MAX_DASHBOARDS} dashboards. Replace the current
-              dashboard, or delete one before creating another.
+              {t("brain.overview.limitWarning", { limit: MAX_DASHBOARDS })}
             </div>
           )}
 
@@ -2909,22 +2977,29 @@ export function BrainOverview({
         >
           <AlertDialogContent className="rounded-none">
             <AlertDialogHeader>
-              <AlertDialogTitle>Replace “{view?.title}”?</AlertDialogTitle>
+              <AlertDialogTitle>
+                {t("brain.overview.replaceDialogTitle", {
+                  title: view?.title ?? "",
+                })}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                This replaces {view?.slots.length ?? 0} current sections with{" "}
-                {previewSlots.length}. Your other dashboards are not affected,
-                and this layout can be restored with Undo.
+                {t("brain.overview.replaceDialogDescription", {
+                  current: view?.slots.length ?? 0,
+                  next: previewSlots.length,
+                })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={saving}>cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={saving}>
+                {t("brain.overview.cancel")}
+              </AlertDialogCancel>
               <AlertDialogAction
                 data-testid="overview-confirm-replace"
                 variant="destructive"
                 disabled={saving}
                 onClick={() => void applyPreview()}
               >
-                replace dashboard
+                {t("brain.overview.replaceDashboard")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -2938,7 +3013,11 @@ export function BrainOverview({
       <LiveViewLayoutEditor
         draft={draft}
         saving={saving}
-        componentOptions={COMPONENTS}
+        componentOptions={COMPONENTS.map(({ value, labelKey, schema }) => ({
+          value,
+          label: t(labelKey),
+          schema,
+        }))}
         pipeNames={installedPipes.map((pipe) => pipe.config.name)}
         onChange={setDraft}
         onCancel={() => {
@@ -3040,8 +3119,10 @@ export function BrainOverview({
                 variant="outline"
                 size="icon"
                 className="h-9 w-9 shrink-0 rounded-none"
-                aria-label="undo last Live View change"
-                title={`Undo last Live View change (${isMac ? "⌘Z" : "Ctrl+Z"})`}
+                aria-label={t("brain.overview.undoAria")}
+                title={t("brain.overview.undoTitle", {
+                  shortcut: isMac ? "⌘Z" : "Ctrl+Z",
+                })}
                 disabled={saving}
                 onClick={() => void restorePreviousView()}
               >
@@ -3060,8 +3141,10 @@ export function BrainOverview({
                   data-testid="overview-time-range"
                   aria-label={
                     latestUpdate
-                      ? `Live View time range. ${latestUpdate}`
-                      : "Live View time range"
+                      ? t("brain.overview.timeRangeAriaLatest", {
+                          latest: latestUpdate,
+                        })
+                      : t("brain.overview.timeRangeAria")
                   }
                   title={latestUpdate ?? undefined}
                   className="h-9 min-w-36 w-auto flex-1 text-xs sm:flex-none"
@@ -3083,8 +3166,16 @@ export function BrainOverview({
                 variant="outline"
                 size="icon"
                 className="h-9 w-9 shrink-0 rounded-none"
-                aria-label={refreshIsActive ? "loading data" : "refresh data"}
-                title={refreshIsActive ? "loading data" : "refresh data"}
+                aria-label={t(
+                  refreshIsActive
+                    ? "brain.overview.loadingData"
+                    : "brain.overview.refreshData",
+                )}
+                title={t(
+                  refreshIsActive
+                    ? "brain.overview.loadingData"
+                    : "brain.overview.refreshData",
+                )}
                 disabled={dashboardBusy}
                 onClick={() => void refreshConnectedPipes(view)}
               >
@@ -3104,7 +3195,8 @@ export function BrainOverview({
                 disabled={dashboardBusy}
                 onClick={() => setShareOpen(true)}
               >
-                <Send className="mr-1.5 h-3.5 w-3.5" /> send
+                <Send className="mr-1.5 h-3.5 w-3.5" />{" "}
+                {t("brain.overview.send")}
               </Button>
             )}
           </div>
@@ -3119,8 +3211,12 @@ export function BrainOverview({
               <>
                 {" · "}
                 <span data-testid="overview-stalled-sources">
-                  {stalledSourceCount} source
-                  {stalledSourceCount === 1 ? "" : "s"} only update on refresh
+                  {t(
+                    stalledSourceCount === 1
+                      ? "brain.overview.sourcesOnlyOnRefreshOne"
+                      : "brain.overview.sourcesOnlyOnRefreshMany",
+                    { count: stalledSourceCount },
+                  )}
                 </span>
               </>
             )}
@@ -3131,9 +3227,12 @@ export function BrainOverview({
             data-testid="overview-unconfigured-blocks"
             className="mb-3 shrink-0 text-[11px] text-muted-foreground"
           >
-            {unconfiguredBlockCount} Block
-            {unconfiguredBlockCount === 1 ? " is" : "s are"} not connected to a
-            scheduled task
+            {t(
+              unconfiguredBlockCount === 1
+                ? "brain.overview.blocksNotConnectedOne"
+                : "brain.overview.blocksNotConnectedMany",
+              { count: unconfiguredBlockCount },
+            )}
           </p>
         )}
         {canvasError && (
@@ -3142,20 +3241,18 @@ export function BrainOverview({
             className="mb-4 flex items-center gap-2 border border-border px-3 py-2 text-xs"
           >
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-            <span>
-              Canvas could not be loaded. Reopen Live Views to try again.
-            </span>
+            <span>{t("brain.overview.canvasError")}</span>
           </div>
         )}
         {canvasSaving && (
           <p className="sr-only" role="status">
-            saving canvas
+            {t("brain.overview.savingCanvas")}
           </p>
         )}
         {templateGalleryOpen && !onboardingColdStart && (
           <div className="relative mb-5 max-h-[min(50vh,32rem)] shrink-0 overflow-y-auto border border-border p-4 pr-12">
             <Button
-              aria-label="close templates"
+              aria-label={t("brain.overview.closeTemplates")}
               variant="ghost"
               size="icon"
               className="absolute right-2 top-2 h-8 w-8 rounded-none"
@@ -3176,22 +3273,25 @@ export function BrainOverview({
             className="mb-3 flex flex-wrap items-center gap-2 border border-amber-500/60 bg-amber-500/5 px-3 py-2 text-xs"
           >
             <span className="font-medium">
-              Review {aiBlockProposals.length} proposed Block
-              {aiBlockProposals.length === 1 ? "" : "s"}
+              {t(
+                aiBlockProposals.length === 1
+                  ? "brain.overview.reviewProposedOne"
+                  : "brain.overview.reviewProposedMany",
+                { count: aiBlockProposals.length },
+              )}
             </span>
             <span className="text-muted-foreground">
-              {
-                aiBlockProposals.filter(
+              {t("brain.overview.acceptedCount", {
+                count: aiBlockProposals.filter(
                   (proposal) => proposal.status === "accepted",
-                ).length
-              }{" "}
-              accepted ·{" "}
-              {
-                aiBlockProposals.filter(
+                ).length,
+              })}{" "}
+              ·{" "}
+              {t("brain.overview.rejectedCount", {
+                count: aiBlockProposals.filter(
                   (proposal) => proposal.status === "rejected",
-                ).length
-              }{" "}
-              rejected
+                ).length,
+              })}
             </span>
             <div className="ml-auto flex flex-wrap items-center gap-1">
               <Button
@@ -3200,10 +3300,10 @@ export function BrainOverview({
                 variant="ghost"
                 className="h-7 rounded-none px-2"
                 disabled={saving}
-                title="Accept and save every proposed change"
+                title={t("brain.overview.acceptAllTitle")}
                 onClick={() => void acceptAllAiProposals()}
               >
-                <Check className="mr-1 h-3 w-3" /> accept all
+                <Check className="mr-1 h-3 w-3" /> {t("brain.overview.acceptAll")}
               </Button>
               <Button
                 data-testid="live-view-ai-reject-all"
@@ -3211,10 +3311,10 @@ export function BrainOverview({
                 variant="ghost"
                 className="h-7 rounded-none px-2"
                 disabled={saving}
-                title="Reject and discard every proposed change"
+                title={t("brain.overview.rejectAllTitle")}
                 onClick={discardAiProposals}
               >
-                <X className="mr-1 h-3 w-3" /> reject all
+                <X className="mr-1 h-3 w-3" /> {t("brain.overview.rejectAll")}
               </Button>
               <Button
                 data-testid="live-view-ai-apply-accepted"
@@ -3228,14 +3328,14 @@ export function BrainOverview({
                 }
                 onClick={() => void applyAcceptedAiProposals()}
               >
-                apply accepted
+                {t("brain.overview.applyAccepted")}
               </Button>
               <Button
                 data-testid="live-view-ai-discard"
                 size="icon"
                 variant="ghost"
                 className="h-7 w-7 rounded-none"
-                aria-label="discard all AI changes"
+                aria-label={t("brain.overview.discardAllAria")}
                 onClick={discardAiProposals}
               >
                 <X className="h-3 w-3" />
@@ -3291,14 +3391,14 @@ export function BrainOverview({
             className="flex min-h-0 w-full flex-1 items-center justify-center border border-dashed border-border text-xs text-muted-foreground hover:text-foreground"
             onClick={beginEdit}
           >
-            add your first Block
+            {t("brain.overview.addFirstBlock")}
           </button>
         ) : applyingAiProposals ? (
           <div
             data-testid="live-view-canvas-applying"
             className="flex min-h-0 flex-1 items-center justify-center border border-border font-mono text-[10px] uppercase tracking-wide text-muted-foreground"
           >
-            applying changes
+            {t("brain.overview.applyingChanges")}
           </div>
         ) : canvasReady && canvasDocument ? (
           <LiveViewCanvas
@@ -3328,7 +3428,7 @@ export function BrainOverview({
             data-testid="live-view-canvas-loading"
             className="flex min-h-0 flex-1 items-center justify-center border border-border font-mono text-[10px] uppercase tracking-wide text-muted-foreground"
           >
-            loading process map
+            {t("brain.overview.loadingProcessMap")}
           </div>
         ) : null}
       </div>

@@ -5,6 +5,7 @@ import { memo, useCallback, useEffect, useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { getMediaFile } from '@/lib/actions/video-actions'
 import { isAudioMediaPath, normalizeMediaFilePath } from "@/lib/utils/media-file-path";
+import { useT } from "@/lib/i18n";
 
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 500; // ms
@@ -83,6 +84,7 @@ export const MediaComponent = memo(function MediaComponent({
   const [mediaSrc, setMediaSrc] = useState<string | null>(() => initialCachedMedia?.src ?? null);
   const [retryCount, setRetryCount] = useState(0);
   const mediaElementRef = useRef<HTMLAudioElement | HTMLVideoElement | null>(null);
+  const t = useT();
 
   const sanitizeFilePath = useCallback((path: string): string => {
     return normalizeMediaFilePath(path);
@@ -151,7 +153,7 @@ export const MediaComponent = memo(function MediaComponent({
             }
           }, delay);
         } else {
-          setError(`Failed to load media: ${errorMessage}`);
+          setError(t("timeline.media.loadFailed", { message: errorMessage }));
           setRetryCount(0);
         }
       }
@@ -232,7 +234,7 @@ export const MediaComponent = memo(function MediaComponent({
           className
         )}
       >
-        <span className="text-muted-foreground">Loading media...</span>
+        <span className="text-muted-foreground">{t("timeline.media.loading")}</span>
       </div>
     );
   }
@@ -243,7 +245,7 @@ export const MediaComponent = memo(function MediaComponent({
         <div className="relative z-10 bg-muted p-4 rounded-md min-h-[84px] flex items-center">
           <audio ref={(el) => { mediaElementRef.current = el; }} controls className="w-full pointer-events-auto">
             <source src={mediaSrc} type={mimeType || "audio/mpeg"} />
-            Your browser does not support the audio element.
+            {t("timeline.media.audioUnsupported")}
           </audio>
         </div>
       ) : (
@@ -252,7 +254,7 @@ export const MediaComponent = memo(function MediaComponent({
             <source src={mediaSrc} type='video/mp4; codecs="hvc1"' />
             <source src={mediaSrc} type='video/mp4; codecs="hvec"' />
             <source src={mediaSrc} type="video/mp4" />
-            Your browser does not support the video tag.
+            {t("timeline.media.videoUnsupported")}
           </video>
         </div>
       )}

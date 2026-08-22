@@ -10,6 +10,10 @@ import {
 	STRIP_WIDTH,
 } from "../search-result-strip";
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+	useSettings: () => ({ settings: {} }),
+}));
+
 // Search results are NEWEST-FIRST (index 0 = newest). The main timeline strip is
 // RTL — oldest on the LEFT, newest on the RIGHT. The dot-strip is mirrored to
 // match, so the active dot moves WITH the timeline cursor and the ◀/▶ + ←/→ + ⌘G

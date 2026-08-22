@@ -25,6 +25,7 @@ import {
   parseAttendees,
   type MeetingRecord,
 } from "@/lib/utils/meeting-format";
+import { useT, type Translator } from "@/lib/i18n";
 import { ListeningSticks } from "./listening-sticks";
 import { copyMeetingToClipboard } from "./copy-meeting";
 
@@ -39,11 +40,15 @@ interface PastMeetingsProps {
 }
 
 interface Bucket {
+  key: "today" | "yesterday" | "thisWeek" | "thisMonth" | "older";
   label: string;
   meetings: MeetingRecord[];
 }
 
-function bucketByRelativeDay(meetings: MeetingRecord[]): Bucket[] {
+function bucketByRelativeDay(
+  meetings: MeetingRecord[],
+  t: Translator,
+): Bucket[] {
   const now = new Date();
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
@@ -54,27 +59,48 @@ function bucketByRelativeDay(meetings: MeetingRecord[]): Bucket[] {
   const monthAgo = new Date(today);
   monthAgo.setDate(monthAgo.getDate() - 30);
 
-  const buckets = new Map<string, MeetingRecord[]>([
-    ["today", []],
-    ["yesterday", []],
-    ["earlier this week", []],
-    ["earlier this month", []],
-    ["older", []],
+  const labels = {
+    today: t("meetingNotes.pastMeetings.bucketToday"),
+    yesterday: t("meetingNotes.pastMeetings.bucketYesterday"),
+    thisWeek: t("meetingNotes.pastMeetings.bucketThisWeek"),
+    thisMonth: t("meetingNotes.pastMeetings.bucketThisMonth"),
+    older: t("meetingNotes.pastMeetings.bucketOlder"),
+  };
+  const buckets = new Map<string, { key: Bucket["key"]; ms: MeetingRecord[] }>([
+    ["today", { key: "today", ms: [] }],
+    ["yesterday", { key: "yesterday", ms: [] }],
+    ["earlier this week", { key: "thisWeek", ms: [] }],
+    ["earlier this month", { key: "thisMonth", ms: [] }],
+    ["older", { key: "older", ms: [] }],
   ]);
 
   for (const m of meetings) {
-    const t = new Date(m.meeting_start).getTime();
-    if (t >= today.getTime()) buckets.get("today")!.push(m);
-    else if (t >= yesterday.getTime()) buckets.get("yesterday")!.push(m);
-    else if (t >= weekAgo.getTime()) buckets.get("earlier this week")!.push(m);
-    else if (t >= monthAgo.getTime())
-      buckets.get("earlier this month")!.push(m);
-    else buckets.get("older")!.push(m);
+    const ts = new Date(m.meeting_start).getTime();
+    if (ts >= today.getTime()) buckets.get("today")!.ms.push(m);
+    else if (ts >= yesterday.getTime()) buckets.get("yesterday")!.ms.push(m);
+    else if (ts >= weekAgo.getTime())
+      buckets.get("earlier this week")!.ms.push(m);
+    else if (ts >= monthAgo.getTime())
+      buckets.get("earlier this month")!.ms.push(m);
+    else buckets.get("older")!.ms.push(m);
   }
 
   return Array.from(buckets.entries())
-    .filter(([, ms]) => ms.length > 0)
-    .map(([label, ms]) => ({ label, meetings: ms }));
+    .filter(([, b]) => b.ms.length > 0)
+    .map(([label, b]) => ({
+      key: b.key,
+      label:
+        b.key === "today"
+          ? labels.today
+          : b.key === "yesterday"
+            ? labels.yesterday
+            : b.key === "thisWeek"
+              ? labels.thisWeek
+              : b.key === "thisMonth"
+                ? labels.thisMonth
+                : labels.older,
+      meetings: b.ms,
+    }));
 }
 
 export function PastMeetings({
@@ -84,7 +110,8 @@ export function PastMeetings({
   onDelete,
   onMerged,
 }: PastMeetingsProps) {
-  const buckets = bucketByRelativeDay(meetings);
+  const t = useT();
+  const buckets = bucketByRelativeDay(meetings, t);
   const { toast } = useToast();
   const [draggingId, setDraggingId] = React.useState<number | null>(null);
   const [dropTargetId, setDropTargetId] = React.useState<number | null>(null);
@@ -170,14 +197,14 @@ export function PastMeetings({
       setPendingMerge(null);
     } catch (err) {
       toast({
-        title: "couldn't merge meetings",
+        title: t("meetingNotes.pastMeetings.mergeFailedToast"),
         description: String(err),
         variant: "destructive",
       });
     } finally {
       setMerging(false);
     }
-  }, [pendingMerge, onMerged, toast]);
+  }, [pendingMerge, onMerged, toast, t]);
 
   if (buckets.length === 0) return null;
 
@@ -193,7 +220,7 @@ export function PastMeetings({
               <PastMeetingRow
                 key={m.id}
                 meeting={m}
-                bucket={b.label}
+                bucket={b.key}
                 isActive={m.id === activeId}
                 onClick={() => onSelect(m.id)}
                 onDelete={onDelete}
@@ -219,11 +246,11 @@ export function PastMeetings({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>merge meetings</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("meetingNotes.pastMeetings.mergeTitle")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              combine these two meetings into one. titles, attendees, notes
-              and transcripts are joined chronologically. this can't be
-              undone.
+              {t("meetingNotes.pastMeetings.mergeBody")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {pendingMerge && (
@@ -233,7 +260,9 @@ export function PastMeetings({
             </div>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={merging}>cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={merging}>
+              {t("meetingNotes.pastMeetings.cancelButton")}
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -244,10 +273,10 @@ export function PastMeetings({
               {merging ? (
                 <span className="flex items-center gap-2">
                   <Loader2 className="h-3 w-3 animate-spin" />
-                  merging
+                  {t("meetingNotes.pastMeetings.mergingLabel")}
                 </span>
               ) : (
-                "merge"
+                t("meetingNotes.pastMeetings.mergeButton")
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -258,7 +287,9 @@ export function PastMeetings({
 }
 
 function MergePreviewRow({ meeting }: { meeting: MeetingRecord }) {
-  const title = meeting.title?.trim() || titleFromApp(meeting.meeting_app);
+  const t = useT();
+  const title =
+    meeting.title?.trim() || titleFromApp(meeting.meeting_app, t);
   return (
     <div className="flex items-center gap-3">
       <span className="text-foreground truncate">{title}</span>
@@ -285,7 +316,7 @@ function PastMeetingRow({
   onDrop,
 }: {
   meeting: MeetingRecord;
-  bucket: string;
+  bucket: Bucket["key"];
   isActive: boolean;
   onClick: () => void;
   onDelete: (id: number) => void;
@@ -299,6 +330,7 @@ function PastMeetingRow({
   onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
 }) {
   const { toast } = useToast();
+  const t = useT();
   const [copyState, setCopyState] = React.useState<
     "idle" | "copying" | "copied"
   >("idle");
@@ -310,11 +342,11 @@ function PastMeetingRow({
       await copyMeetingToClipboard(meeting);
       setCopyState("copied");
       window.setTimeout(() => setCopyState("idle"), 2000);
-      toast({ title: "copied meeting to clipboard" });
+      toast({ title: t("meetingNotes.pastMeetings.copyToast") });
     } catch (err) {
       setCopyState("idle");
       toast({
-        title: "couldn't copy meeting",
+        title: t("meetingNotes.pastMeetings.copyFailedToast"),
         description: String(err),
         variant: "destructive",
       });
@@ -330,14 +362,15 @@ function PastMeetingRow({
       onDelete(meeting.id);
     } catch (err) {
       toast({
-        title: "couldn't delete meeting",
+        title: t("meetingNotes.pastMeetings.deleteFailedToast"),
         description: String(err),
         variant: "destructive",
       });
     }
   };
 
-  const title = meeting.title?.trim() || titleFromApp(meeting.meeting_app);
+  const title =
+    meeting.title?.trim() || titleFromApp(meeting.meeting_app, t);
   const hasNote = Boolean(meeting.note?.trim());
   const Icon = isActive ? Phone : hasNote ? FileText : Phone;
   const stamp = formatRowStamp(meeting.meeting_start, bucket);
@@ -377,7 +410,9 @@ function PastMeetingRow({
                 gap={1.5}
                 className="text-foreground"
               />
-              <span className="sr-only">recording</span>
+              <span className="sr-only">
+                {t("meetingNotes.pastMeetings.srRecording")}
+              </span>
             </>
           ) : (
             <Icon className="h-3 w-3 text-muted-foreground" />
@@ -408,8 +443,8 @@ function PastMeetingRow({
             onClick={() => void handleCopy()}
             disabled={copyState === "copying"}
             className="h-7 w-7 flex items-center justify-center bg-transparent text-muted-foreground hover:text-foreground disabled:opacity-60"
-            title="copy full meeting"
-            aria-label="copy full meeting"
+            title={t("meetingNotes.pastMeetings.copyTitle")}
+            aria-label={t("meetingNotes.pastMeetings.copyAria")}
           >
             {copyState === "copying" ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -424,25 +459,29 @@ function PastMeetingRow({
               <AlertDialogTrigger asChild>
                 <button
                   className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 flex items-center justify-center bg-transparent text-muted-foreground hover:text-destructive"
-                  title="delete meeting"
+                  title={t("meetingNotes.pastMeetings.deleteTitle")}
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>delete meeting</AlertDialogTitle>
+                  <AlertDialogTitle>
+                    {t("meetingNotes.pastMeetings.deleteDialogTitle")}
+                  </AlertDialogTitle>
                   <AlertDialogDescription>
-                    your notes and transcript will be permanently deleted.
+                    {t("meetingNotes.pastMeetings.deleteBody")}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>cancel</AlertDialogCancel>
+                  <AlertDialogCancel>
+                    {t("meetingNotes.pastMeetings.cancelButton")}
+                  </AlertDialogCancel>
                   <AlertDialogAction
                     variant="destructive"
                     onClick={() => void handleDelete()}
                   >
-                    delete
+                    {t("meetingNotes.pastMeetings.deleteConfirm")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -454,13 +493,13 @@ function PastMeetingRow({
   );
 }
 
-function formatRowStamp(iso: string, bucket: string): string {
+function formatRowStamp(iso: string, bucket: Bucket["key"]): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   if (bucket === "today" || bucket === "yesterday") {
     return formatClock(iso);
   }
-  if (bucket === "earlier this week") {
+  if (bucket === "thisWeek") {
     return d.toLocaleDateString(undefined, { weekday: "short" }).toLowerCase();
   }
   const sameYear = d.getFullYear() === new Date().getFullYear();
@@ -473,8 +512,8 @@ function formatRowStamp(iso: string, bucket: string): string {
     .toLowerCase();
 }
 
-function titleFromApp(app: string): string {
-  if (!app || app === "manual") return "untitled meeting";
+function titleFromApp(app: string, t: Translator): string {
+  if (!app || app === "manual") return t("meetingNotes.pastMeetings.untitledMeeting");
   return app.toLowerCase();
 }
 

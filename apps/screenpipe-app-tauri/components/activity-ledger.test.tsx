@@ -317,8 +317,7 @@ describe("activity history helpers", () => {
       ),
     ).toEqual({
       kind: "invalid_activity_format",
-      message:
-        "Your AI provider returned an activity format Screenpipe could not use. Try again or choose a different AI preset.",
+      key: "activity.failure.invalidFormat",
     });
   });
 

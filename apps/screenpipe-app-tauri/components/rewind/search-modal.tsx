@@ -44,6 +44,7 @@ import { NearViewport } from "./near-viewport";
 import { localFetch, getApiBaseUrl, appendAuthToken } from "@/lib/api";
 import { searchInputBehaviorProps } from "@/lib/search-input-behavior";
 import { usePlatform } from "@/lib/hooks/use-platform";
+import { useT } from "@/lib/i18n";
 import posthog from "posthog-js";
 import { qualifiedValue } from "@/lib/analytics/qualified-value";
 
@@ -189,12 +190,6 @@ function getChatTimeBucket(ts: number): "today" | "yesterday" | "week" | "older"
   return "older";
 }
 
-const CHAT_BUCKET_LABELS: Record<string, string> = {
-  today: "today",
-  yesterday: "yesterday",
-  week: "previous 7 days",
-  older: "older",
-};
 const CHAT_BUCKET_ORDER = ["today", "yesterday", "week", "older"] as const;
 
 function useSuggestions(isOpen: boolean, enabled: boolean) {
@@ -364,6 +359,7 @@ const FrameThumbnail = ({
   const [retryNonce, setRetryNonce] = useState(0);
   const retryCount = useRef(0);
   const imgRef = useRef<HTMLImageElement>(null);
+  const t = useT();
   const sources = getFrameThumbnailSources(frameId, retryNonce, {
     fallback: !exact,
   });
@@ -404,16 +400,16 @@ const FrameThumbnail = ({
             className="h-4 w-4 animate-spin text-muted-foreground"
             aria-hidden="true"
           />
-          <span className="sr-only">loading frame</span>
+          <span className="sr-only">{t("timelineSearch.thumbnail.loading")}</span>
         </div>
       )}
       {hasError ? (
         <div
           className="absolute inset-0 flex items-center justify-center bg-muted"
           role="img"
-          aria-label={`${alt} unavailable`}
+          aria-label={t("timelineSearch.thumbnail.unavailableAria", { alt })}
         >
-          <span className="text-xs text-muted-foreground">unavailable</span>
+          <span className="text-xs text-muted-foreground">{t("timelineSearch.thumbnail.unavailable")}</span>
         </div>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
@@ -454,12 +450,13 @@ const FrameThumbnail = ({
   );
 };
 
-// Format relative time
-function formatRelativeTime(timestamp: string): string {
+// Format relative time. `yesterdayLabel` comes from the caller's dictionary —
+// this stays a pure helper.
+function formatRelativeTime(timestamp: string, yesterdayLabel: string): string {
   const date = new Date(timestamp);
   const time = format(date, "h:mm a");
   if (isToday(date)) return time;
-  if (isYesterday(date)) return `yesterday ${time}`;
+  if (isYesterday(date)) return `${yesterdayLabel} ${time}`;
   return format(date, "MMM d") + " " + time;
 }
 
@@ -539,6 +536,7 @@ function UiEventItem({ evt, onNavigate, selected = false, navIndex, onHover }: {
   navIndex?: number;
   onHover?: () => void;
 }) {
+  const t = useT();
   const EvtIcon = evt.event_type === "clipboard" ? ClipboardCopy
     : evt.event_type === "app_switch" ? AppWindow
     : Keyboard;
@@ -580,13 +578,14 @@ function UiEventItem({ evt, onNavigate, selected = false, navIndex, onHover }: {
         )}
       </div>
       <span className="text-[11px] text-muted-foreground font-mono shrink-0">
-        {formatRelativeTime(evt.timestamp)}
+        {formatRelativeTime(evt.timestamp, t("timelineSearch.time.yesterday"))}
       </span>
     </div>
   );
 }
 
 export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded = false, standalone = false }: SearchModalProps) {
+  const t = useT();
   const analyticsSurface: SearchAnalyticsSurface = standalone
     ? "standalone"
     : embedded
@@ -845,17 +844,17 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
   const speakerTimeRanges = useMemo(() => {
     if (speakerTranscriptions.length === 0) return [];
     const buckets = new Map<string, { label: string; dateKey: string; timestamp: string; count: number }>();
-    for (const t of speakerTranscriptions) {
-      const d = new Date(t.timestamp);
+    for (const item of speakerTranscriptions) {
+      const d = new Date(item.timestamp);
       if (isNaN(d.getTime())) continue;
       const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
       if (!buckets.has(key)) {
         const dateKey = format(d, "yyyy-MM-dd");
         let label: string;
         if (isToday(d)) label = format(d, "h a");
-        else if (isYesterday(d)) label = "yesterday " + format(d, "h a");
+        else if (isYesterday(d)) label = t("timelineSearch.time.yesterday") + " " + format(d, "h a");
         else label = format(d, "MMM d");
-        buckets.set(key, { label, dateKey, timestamp: t.timestamp, count: 1 });
+        buckets.set(key, { label, dateKey, timestamp: item.timestamp, count: 1 });
       } else {
         buckets.get(key)!.count++;
       }
@@ -863,7 +862,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
     return [...buckets.values()]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 10);
-  }, [speakerTranscriptions]);
+  }, [speakerTranscriptions, t]);
 
 
 
@@ -881,11 +880,11 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
   // Filter speaker transcriptions by app and time
   const filteredSpeakerTranscriptions = useMemo(() => {
     let items = speakerTranscriptions;
-    if (speakerAppFilter) items = items.filter(t => {
-      const info = transcriptionFrames.get(t.timestamp);
+    if (speakerAppFilter) items = items.filter(item => {
+      const info = transcriptionFrames.get(item.timestamp);
       return info?.app_name === speakerAppFilter;
     });
-    if (speakerTimeFilter) items = items.filter(t => t.timestamp.startsWith(speakerTimeFilter));
+    if (speakerTimeFilter) items = items.filter(item => item.timestamp.startsWith(speakerTimeFilter));
     return items;
   }, [speakerTranscriptions, speakerAppFilter, speakerTimeFilter, transcriptionFrames]);
 
@@ -2353,10 +2352,10 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
             ? "idle"
             : "results";
   const SCOPE_NOUNS: Record<ContentFilter, string> = {
-    all: "results",
-    screen: "screen matches",
-    input: "keyboard or clipboard matches",
-    chats: "chats",
+    all: t("timelineSearch.scopeNoun.all"),
+    screen: t("timelineSearch.scopeNoun.screen"),
+    input: t("timelineSearch.scopeNoun.input"),
+    chats: t("timelineSearch.scopeNoun.chats"),
   };
 
   // Scope lives in the search bar rather than as a row of chips above the
@@ -2381,16 +2380,16 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
       // height — softened, not pill-shaped.
       <div className="flex items-center gap-0.5 shrink-0 rounded-[8px] bg-muted/60 p-0.5">
         {([
-          { key: "all" as ContentFilter, label: "all", icon: null },
-          { key: "screen" as ContentFilter, label: "screen", icon: Monitor },
-          { key: "input" as ContentFilter, label: "keys", icon: Keyboard },
-          { key: "chats" as ContentFilter, label: "chats", icon: MessageSquare },
+          { key: "all" as ContentFilter, label: t("timelineSearch.scope.all"), icon: null },
+          { key: "screen" as ContentFilter, label: t("timelineSearch.scope.screen"), icon: Monitor },
+          { key: "input" as ContentFilter, label: t("timelineSearch.scope.keys"), icon: Keyboard },
+          { key: "chats" as ContentFilter, label: t("timelineSearch.scope.chats"), icon: MessageSquare },
         ] as const).map(({ key, label, icon: Icon }) => {
           const isActive = contentFilter === key;
           return (
             <button
               key={key}
-              title={key === "input" ? "keyboard & clipboard" : label}
+              title={key === "input" ? t("timelineSearch.scope.keysTitle") : label}
               aria-pressed={isActive}
               onClick={() => { setContentFilter(key); setNavIndex(0); }}
               className={cn(
@@ -2415,36 +2414,40 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
     if (selectedSpeaker) {
       return (
         <>
-          <span>↑↓ navigate</span>
-          <span>⏎ go to timeline</span>
-          <span>esc back</span>
+          <span>{t("timelineSearch.footer.navVertical")}</span>
+          <span>{t("timelineSearch.footer.enterTimeline")}</span>
+          <span>{t("timelineSearch.footer.escBack")}</span>
         </>
       );
     }
     if (selectedApp && !activeNavItem) {
       return (
         <>
-          <span>↑↓ navigate</span>
-          <span>esc back</span>
+          <span>{t("timelineSearch.footer.navVertical")}</span>
+          <span>{t("timelineSearch.footer.escBack")}</span>
         </>
       );
     }
-    if (!activeNavItem) return <span>type to search</span>;
+    if (!activeNavItem) return <span>{t("timelineSearch.footer.typeToSearch")}</span>;
     return (
       <>
-        <span>{activeNavItem.kind === "frame" ? "←→↑↓ navigate" : "↑↓ navigate"}</span>
+        <span>{activeNavItem.kind === "frame" ? t("timelineSearch.footer.navGrid") : t("timelineSearch.footer.navVertical")}</span>
         {/* Every non-chat row resolves to a moment — a frame, or the instant a
             line was typed or copied — and Enter opens the main timeline there. */}
-        <span>{activeNavItem.kind === "chat" ? "⏎ open chat" : "⏎ go to timeline"}</span>
+        <span>{activeNavItem.kind === "chat" ? t("timelineSearch.footer.enterChat") : t("timelineSearch.footer.enterTimeline")}</span>
         {activeNavItem.kind === "frame" && (
           <span className="flex items-center gap-1" suppressHydrationWarning>
             <MessageSquare className="w-2.5 h-2.5" />
-            {isMac ? "⌘⏎" : "Ctrl+⏎"} ask AI
+            {isMac ? "⌘⏎" : "Ctrl+⏎"} {t("timelineSearch.footer.askAi")}
           </span>
         )}
       </>
     );
   };
+
+  // Bucket headings come from the dictionary; the bucket keys stay data.
+  const chatBucketLabel = (bucket: string) =>
+    t(`timelineSearch.bucket.${bucket}`);
 
   const renderResults = () => (
     <>
@@ -2471,7 +2474,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
 
           {!isLoadingTranscriptions && speakerTranscriptions.length === 0 && (
             <div className="py-12 text-center text-sm text-muted-foreground">
-              no transcriptions found for {selectedSpeaker.name}
+              {t("timelineSearch.speaker.noTranscriptions", { name: selectedSpeaker.name })}
             </div>
           )}
 
@@ -2487,9 +2490,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                     : "border-border text-muted-foreground hover:border-foreground/40"
                 )}
               >
-                all ({speakerTranscriptions.length})
-              </button>
-              {speakerAppCounts.map(([app, count]) => (
+                {t("timelineSearch.speaker.all")} ({speakerTranscriptions.length})
+              </button>              {speakerAppCounts.map(([app, count]) => (
                 <button
                   key={app}
                   onClick={() => { setSpeakerAppFilter(speakerAppFilter === app ? null : app); setSelectedTranscriptionIndex(0); }}
@@ -2526,7 +2528,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                 )}
               >
                 <Clock className="w-3 h-3" />
-                all dates
+                {t("timelineSearch.speaker.allDates")}
               </button>
               {speakerTimeRanges.map((range) => (
                 <button
@@ -2554,22 +2556,22 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                   gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
                 }}
               >
-              {filteredSpeakerTranscriptions.map((t, index) => {
-                const frameInfo = transcriptionFrames.get(t.timestamp);
+              {filteredSpeakerTranscriptions.map((item, index) => {
+                const frameInfo = transcriptionFrames.get(item.timestamp);
                 const frameId = frameInfo?.frame_id;
                 return (
                   <div
-                    key={`${t.timestamp}-${index}`}
+                    key={`${item.timestamp}-${index}`}
                     data-index={index}
                     onClick={() => {
-                      if (t.timestamp) {
+                      if (item.timestamp) {
                         trackSearchResultSelected(
                           "speaker_transcription",
                           "click",
                           "timeline",
                         );
                         void navigateToResult(
-                          t.timestamp,
+                          item.timestamp,
                           undefined,
                           undefined,
                           undefined,
@@ -2589,7 +2591,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                       <FrameThumbnail
                         key={frameId}
                         frameId={frameId}
-                        alt={t.transcription || t.speaker_name}
+                        alt={item.transcription || item.speaker_name}
                       />
                     ) : (
                       <div className="aspect-video bg-muted flex items-center justify-center">
@@ -2598,15 +2600,15 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                     )}
                     <div className="p-2 bg-card">
                       <p className="text-xs text-foreground line-clamp-2 leading-relaxed mb-1">
-                        {t.transcription || "(empty)"}
+                        {item.transcription || t("timelineSearch.speaker.emptyTranscription")}
                       </p>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1 font-mono">
                           <Clock className="w-3 h-3" />
-                          {t.timestamp ? formatRelativeTime(t.timestamp) : "unknown"}
+                          {item.timestamp ? formatRelativeTime(item.timestamp, t("timelineSearch.time.yesterday")) : t("timelineSearch.speaker.unknownTime")}
                         </span>
                         <span className="flex items-center gap-0.5">
-                          {t.is_input ? <Mic className="w-2.5 h-2.5" /> : <Volume2 className="w-2.5 h-2.5" />}
+                          {item.is_input ? <Mic className="w-2.5 h-2.5" /> : <Volume2 className="w-2.5 h-2.5" />}
                         </span>
                       </div>
                     </div>
@@ -2622,7 +2624,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
               {isLoadingMoreTranscriptions ? (
                 <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
               ) : (
-                <span className="text-xs text-muted-foreground">scroll for more</span>
+                <span className="text-xs text-muted-foreground">{t("timelineSearch.speaker.scrollForMore")}</span>
               )}
             </div>
           )}
@@ -2649,16 +2651,16 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
 
           {selectedApp && !isLoadingAppFrames && appFrames.length === 0 && (
             <EmptyMessage
-              title={`No screen history for ${selectedApp.name}`}
-              hint="Frames may have been removed by a retention policy"
+              title={t("timelineSearch.appBrowse.noHistory", { name: selectedApp.name })}
+              hint={t("timelineSearch.appBrowse.noHistoryHint")}
             />
           )}
 
           {/* Empty state */}
           {showMinChars && (
             <EmptyMessage
-              title="Keep typing"
-              hint={`Search needs at least ${MIN_QUERY_CHARS} characters`}
+              title={t("timelineSearch.empty.keepTyping")}
+              hint={t("timelineSearch.empty.minCharsHint", { count: MIN_QUERY_CHARS })}
             />
           )}
 
@@ -2668,7 +2670,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
               land. Five rows everywhere: a different count per scope was the
               other half of the height jump. */}
           {showSkeleton && (
-            <div className="space-y-2 py-1" aria-busy="true" aria-label="searching">
+            <div className="space-y-2 py-1" aria-busy="true" aria-label={t("timelineSearch.empty.searchingAria")}>
               {Array.from({ length: 5 }).map((_, i) => (
                 <div
                   key={i}
@@ -2683,10 +2685,10 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
 
           {showSearchError && (
             <EmptyMessage
-              title="Search failed"
-              hint={searchError ?? "Something went wrong reaching your history"}
+              title={t("timelineSearch.empty.searchFailed")}
+              hint={searchError ?? t("timelineSearch.empty.searchFailedHint")}
               action={{
-                label: "Try again",
+                label: t("timelineSearch.empty.tryAgain"),
                 onClick: () => {
                   resetSearch();
                   // The keyword effect keys off the epoch, so bumping it reruns
@@ -2700,16 +2702,16 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
 
           {showEmpty && (
             <EmptyMessage
-              title={<>No {SCOPE_NOUNS[contentFilter]} for &ldquo;{trimmedQuery}&rdquo;</>}
+              title={<>{t("timelineSearch.empty.noResults", { scope: SCOPE_NOUNS[contentFilter], query: trimmedQuery })}</>}
               hint={
                 contentFilter === "all"
-                  ? "Try a different word, or check the spelling"
-                  : "This scope only searches part of your history"
+                  ? t("timelineSearch.empty.hintAll")
+                  : t("timelineSearch.empty.hintScoped")
               }
               action={
                 contentFilter === "all"
                   ? undefined
-                  : { label: "Search everything instead", onClick: () => { setContentFilter("all"); setNavIndex(0); } }
+                  : { label: t("timelineSearch.empty.searchEverything"), onClick: () => { setContentFilter("all"); setNavIndex(0); } }
               }
             />
           )}
@@ -2717,7 +2719,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           {/* Tag autocomplete pills */}
           {isTagSearch && allTags.length > 0 && (
             <div className="mb-4">
-              <SectionLabel>tags</SectionLabel>
+              <SectionLabel>{t("timelineSearch.tag.label")}</SectionLabel>
               <div className="flex flex-wrap gap-1.5 mb-3">
                 {allTags.map((t) => {
                   const tagQuery = query.slice(1).trim().toLowerCase();
@@ -2796,7 +2798,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                     title={frame.tag_names.join(", ")}
                   >
                     <span className="text-[11px] font-mono text-muted-foreground shrink-0">
-                      {formatRelativeTime(frame.timestamp)}
+                      {formatRelativeTime(frame.timestamp, t("timelineSearch.time.yesterday"))}
                     </span>
                     <p className="text-xs text-foreground truncate">
                       {frame.app_name || frame.tag_names[0]}
@@ -2820,8 +2822,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           {isTagSearch && !isSearchingTags && tagResults.length === 0 && allTags.length === 0 && (
             <div className="py-12 text-center text-sm text-muted-foreground">
               {query.slice(1).trim()
-                ? <>no tags matching &quot;{query.slice(1).trim()}&quot;</>
-                : "no tags found"}
+                ? t("timelineSearch.tag.noMatch", { query: query.slice(1).trim() })
+                : t("timelineSearch.tag.none")}
             </div>
           )}
 
@@ -2831,7 +2833,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
               a browse whereas a person row needs their name to be known. */}
           {isEntitySearch && appSuggestions.length > 0 && (
             <div className="mb-4">
-              <SectionLabel>apps</SectionLabel>
+              <SectionLabel>{t("timelineSearch.entity.appsLabel")}</SectionLabel>
               <div className="space-y-1">
                 {appSuggestions.map((app) => (
                   <button
@@ -2870,8 +2872,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
             && speakerResults.length === 0 && appSuggestions.length === 0 && (
             <div className="py-12 text-center text-sm text-muted-foreground">
               {entityFilter
-                ? <>no apps or people matching &quot;{entityFilter}&quot;</>
-                : "no apps or people found"}
+                ? t("timelineSearch.entity.noMatch", { query: entityFilter })
+                : t("timelineSearch.entity.none")}
             </div>
           )}
 
@@ -2912,7 +2914,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           {/* People section */}
           {speakerResults.length > 0 && (
             <div className="mb-4">
-              <SectionLabel>people</SectionLabel>
+              <SectionLabel>{t("timelineSearch.entity.peopleLabel")}</SectionLabel>
               <div className="flex gap-2 flex-wrap">
                 {speakerResults.map((speaker) => (
                   <button
@@ -2940,7 +2942,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           {/* Inline chat section in "All" view — appears instantly (in-memory filter) while screen results load */}
           {contentFilter === "all" && debouncedQuery.trim().length >= MIN_QUERY_CHARS && chatsFreshForQuery && filteredChats.length > 0 && !isTagSearch && !isEntitySearch && (
             <div className="mb-4">
-              <SectionLabel>chats</SectionLabel>
+              <SectionLabel>{t("timelineSearch.chats.label")}</SectionLabel>
               <div className="flex flex-col">
                 {filteredChats.slice(0, 5).map((chat) => {
                   const ts = new Date(chat.lastUserMessageAt ?? chat.updatedAt).toISOString();
@@ -2960,7 +2962,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                       <MessageSquare className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
                       <span className="text-sm truncate">{chat.title}</span>
                       <span className="ml-auto text-[11px] text-muted-foreground font-mono shrink-0">
-                        {formatRelativeTime(ts)}
+                        {formatRelativeTime(ts, t("timelineSearch.time.yesterday"))}
                       </span>
                     </button>
                   );
@@ -2968,7 +2970,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
               </div>
               {filteredChats.length > 5 && (
                 <SeeAllRow
-                  label={`See all ${filteredChats.length} chats`}
+                  label={t("timelineSearch.chats.seeAll", { count: filteredChats.length })}
                   onClick={() => { setContentFilter("chats"); setNavIndex(0); }}
                 />
               )}
@@ -2986,8 +2988,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                   so the two can't both fire. */}
               {!isLoadingChats && filteredChats.length === 0 && !debouncedQuery.trim() && (
                 <EmptyMessage
-                  title="No chats yet"
-                  hint="Ask about anything you've seen, said, or heard to start one"
+                  title={t("timelineSearch.chats.noneYet")}
+                  hint={t("timelineSearch.chats.noneYetHint")}
                 />
               )}
               {/* Below the minimum this scope shows the "keep typing" state
@@ -3002,7 +3004,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                   if (!items?.length) return null;
                   return (
                     <div key={bucket} className="mb-1">
-                      <SectionLabel>{CHAT_BUCKET_LABELS[bucket]}</SectionLabel>
+                      <SectionLabel>{chatBucketLabel(bucket)}</SectionLabel>
                       {items.map((chat) => {
                         const navKey = `chat:${chat.id}`;
                         const pos = navPositions.get(navKey);
@@ -3034,7 +3036,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           {/* Screen results skeleton — keyword search still in flight but UI events already loaded */}
           {contentFilter !== "chats" && isSearching && searchResults.length === 0 && contentFilter !== "input" && uiEventResults.length > 0 && (
             <div className="mb-4">
-              <SectionLabel>screen</SectionLabel>
+              <SectionLabel>{t("timelineSearch.screen.label")}</SectionLabel>
               <div
                 className="grid gap-2.5"
                 style={{
@@ -3058,7 +3060,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           {uiEventResults.length > 0 && contentFilter !== "screen" && contentFilter !== "chats" && (
             <div className={cn(contentFilter === "all" && "mb-4")}>
               {contentFilter === "all" && (
-                <SectionLabel>keyboard &amp; clipboard</SectionLabel>
+                <SectionLabel>{t("timelineSearch.uievents.label")}</SectionLabel>
               )}
               {/* In its own scope these group by day like the chats list does;
                   in "All" the five-row preview stays flat so the section reads
@@ -3103,7 +3105,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                   if (!items?.length) return null;
                   return (
                     <div key={bucket} className="mb-1">
-                      <SectionLabel>{CHAT_BUCKET_LABELS[bucket]}</SectionLabel>
+                      <SectionLabel>{chatBucketLabel(bucket)}</SectionLabel>
                       <div className="flex flex-col">{items.map(renderRow)}</div>
                     </div>
                   );
@@ -3111,7 +3113,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
               })()}
               {contentFilter === "all" && uiEventResults.length > 5 && (
                 <SeeAllRow
-                  label={`See all ${uiEventResults.length} keyboard & clipboard`}
+                  label={t("timelineSearch.uievents.seeAll", { count: uiEventResults.length })}
                   onClick={() => { setContentFilter("input"); setNavIndex(0); }}
                 />
               )}
@@ -3125,7 +3127,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                   only this section, so the heading is what scopes them — it
                   used to appear only when speaker or keyboard results happened
                   to exist, leaving the chips looking like global filters. */}
-              {contentFilter === "all" && <SectionLabel>screen</SectionLabel>}
+              {contentFilter === "all" && <SectionLabel>{t("timelineSearch.screen.label")}</SectionLabel>}
 
               {/* Facets on one scrollable row. Apps, sites and dates each had
                   their own full-width row before, so up to three rows of chips
@@ -3214,10 +3216,10 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                   query has results, an applied facet is hiding them. */}
               {facetsHidEverything && (
                 <EmptyMessage
-                  title="No results with these filters"
-                  hint={`${searchResults.length} screen results for "${trimmedQuery}" are hidden`}
+                  title={t("timelineSearch.empty.noResultsWithFilters")}
+                  hint={t("timelineSearch.empty.hiddenResults", { count: searchResults.length, query: trimmedQuery })}
                   action={{
-                    label: "Clear filters",
+                    label: t("timelineSearch.empty.clearFilters"),
                     onClick: () => {
                       setAppFilter(null);
                       setDomainFilter(null);
@@ -3289,7 +3291,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                         </NearViewport>
                         {groupSize > 1 && (
                           <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 text-[10px] font-medium bg-black/70 text-white rounded">
-                            {groupSize} frames
+                            {t("timelineSearch.screen.framesBadge", { count: groupSize })}
                           </span>
                         )}
                       </div>
@@ -3303,8 +3305,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                       >
                         <span className="text-[11px] font-mono text-muted-foreground shrink-0">
                           {groupSize > 1 && group
-                            ? `${formatRelativeTime(group.start_time)} – ${formatRelativeTime(group.end_time)}`
-                            : formatRelativeTime(result.timestamp)}
+                            ? `${formatRelativeTime(group.start_time, t("timelineSearch.time.yesterday"))} – ${formatRelativeTime(group.end_time, t("timelineSearch.time.yesterday"))}`
+                            : formatRelativeTime(result.timestamp, t("timelineSearch.time.yesterday"))}
                         </span>
                         <p className="text-xs text-foreground truncate">
                           {result.app_name}
@@ -3341,7 +3343,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                 const filled = CHAT_BUCKET_ORDER.filter((b) => buckets[b]?.length);
                 return filled.map((bucket) => (
                   <div key={bucket} className="mb-1">
-                    {filled.length > 1 && <SectionLabel>{CHAT_BUCKET_LABELS[bucket]}</SectionLabel>}
+                    {filled.length > 1 && <SectionLabel>{chatBucketLabel(bucket)}</SectionLabel>}
                     <div data-frame-grid className="grid gap-2.5" style={cellStyle}>
                       {buckets[bucket].map(({ result, index }) => renderCard(result, index))}
                     </div>
@@ -3360,7 +3362,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                       onClick={loadMoreOcr}
                       className="rounded-[6px] border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
                     >
-                      load more
+                      {t("timelineSearch.screen.loadMore")}
                     </button>
                   )}
                 </div>
@@ -3381,7 +3383,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                   onClick={loadMoreOcr}
                   className="rounded-[6px] border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-foreground/50 hover:text-foreground"
                 >
-                  search more frames
+                  {t("timelineSearch.screen.searchMoreFrames")}
                 </button>
               </div>
             )}
@@ -3395,7 +3397,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                 <div>
                   {/* No icon here — the chip in the search bar already names
                       this list as chats, and each row carries its own icon. */}
-                  <SectionLabel>recent</SectionLabel>
+                  <SectionLabel>{t("timelineSearch.chats.recent")}</SectionLabel>
                   <div className="flex flex-col">
                     {visibleRecentChats.map((chat) => {
                       const ts = new Date(chat.lastUserMessageAt ?? chat.updatedAt).toISOString();
@@ -3415,7 +3417,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                           <MessageSquare className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
                           <span className="text-sm truncate">{chat.title}</span>
                           <span className="ml-auto text-[11px] text-muted-foreground font-mono shrink-0">
-                            {formatRelativeTime(ts)}
+                            {formatRelativeTime(ts, t("timelineSearch.time.yesterday"))}
                           </span>
                         </button>
                       );
@@ -3426,7 +3428,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
               {/* Suggestion chips from recent screen activity */}
               {suggestions.length > 0 && (
                 <div>
-                  <SectionLabel>from your recent activity</SectionLabel>
+                  <SectionLabel>{t("timelineSearch.suggestions.fromActivity")}</SectionLabel>
                   <div className="flex flex-wrap gap-2">
                     {suggestions.map((suggestion) => (
                       <button
@@ -3449,8 +3451,8 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                   name what this searches and what typing will do. */}
               {!visibleRecentChats.length && !suggestionsLoading && !isLoadingChats && (
                 <EmptyMessage
-                  title="Nothing recent yet"
-                  hint="Start typing to search everything you've seen, said, or heard"
+                  title={t("timelineSearch.suggestions.nothingYet")}
+                  hint={t("timelineSearch.suggestions.nothingYetHint")}
                 />
               )}
             </div>
@@ -3498,7 +3500,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                 setHasMoreTranscriptions(true);
               }
             }}
-            placeholder="search memory & chats... (# tags, @ apps & people)"
+            placeholder={t("timelineSearch.searchPlaceholder")}
             className={cn(
               "min-w-[120px] flex-1 bg-transparent text-foreground placeholder:text-muted-foreground/60 outline-none",
               standalone ? "text-base" : "text-sm",
@@ -3555,7 +3557,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           <div className="flex items-center gap-4">
             {renderFooterHints()}
           </div>
-          <span>esc close</span>
+          <span>{t("timelineSearch.footer.escClose")}</span>
         </div>
       </div>
     );
@@ -3598,7 +3600,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
                 setHasMoreTranscriptions(true);
               }
             }}
-            placeholder="Search memory & chats... (# tags, @ apps & people)"
+            placeholder={t("timelineSearch.searchPlaceholder")}
             className="min-w-[120px] flex-1 bg-transparent text-foreground placeholder:text-muted-foreground text-sm outline-none"
             {...searchInputBehaviorProps}
           />
@@ -3647,7 +3649,7 @@ export function SearchModal({ isOpen, onClose, onNavigateToTimestamp, embedded =
           <div className="flex items-center gap-4">
             {renderFooterHints()}
           </div>
-          <span>esc {selectedSpeaker || selectedApp ? "back" : "close"}</span>
+          <span>{selectedSpeaker || selectedApp ? t("timelineSearch.footer.escBack") : t("timelineSearch.footer.escClose")}</span>
         </div>
       </div>
     </div>

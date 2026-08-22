@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from "react";
 import { useQueryState } from "nuqs";
+import { useT } from "@/lib/i18n";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -50,6 +51,7 @@ function getRegistrySlug(url: string): string {
 }
 
 export function PipeInstallDialog() {
+  const t = useT();
   const [request, setRequest] = useState<PipeInstallRequest | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -159,7 +161,7 @@ export function PipeInstallDialog() {
       if (pipeConnections.length > 0) setSection("pipes");
     } catch (err: any) {
       toast({
-        title: "failed to install scheduled task",
+        title: t("pipesStore.toasts.installFailed"),
         description: (
           <span>
             {err.message}{" "}
@@ -168,7 +170,7 @@ export function PipeInstallDialog() {
               className="underline underline-offset-2 text-inherit opacity-80 hover:opacity-100"
               onClick={() => openFeedback(`Scheduled task install failed: ${err.message}`)}
             >
-              report issue
+              {t("pipesStore.toasts.reportIssue")}
             </button>
           </span>
         ),
@@ -203,13 +205,13 @@ export function PipeInstallDialog() {
       <AlertDialog open={!!request} onOpenChange={(open) => !open && handleCancel()}>
         <AlertDialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm">review scheduled task access</AlertDialogTitle>
+            <AlertDialogTitle className="text-sm">{t("pipesStore.gate.title")}</AlertDialogTitle>
             <AlertDialogDescription className="text-xs">
               {isRegistry
                 ? registryRisk === "high"
-                  ? "Unverified publisher. Can access all your screen data."
-                  : "Review the requested access before installing."
-                : "an external link wants to install a scheduled task. these are AI agents that run on your screen data — review the prompt below before installing."}
+                  ? t("pipesStore.installDialog.highRisk")
+                  : t("pipesStore.installDialog.reviewFirst")
+                : t("pipesStore.installDialog.externalLinkDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
@@ -220,7 +222,7 @@ export function PipeInstallDialog() {
           {loading ? (
             <div className="flex items-center gap-2 py-4 text-xs text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
-              {isRegistry ? "loading scheduled task details..." : "loading scheduled task content..."}
+              {isRegistry ? t("pipesStore.installDialog.loadingDetails") : t("pipesStore.installDialog.loadingContent")}
             </div>
           ) : isRegistry && registryDetail ? (
             <InstallRiskSummary
@@ -232,25 +234,25 @@ export function PipeInstallDialog() {
           ) : preview ? (
             <div className="border rounded overflow-hidden">
               <div className="px-3 py-1.5 bg-muted text-[10px] uppercase tracking-wider text-muted-foreground border-b">
-                pipe.md preview
+                {t("pipesStore.installDialog.previewHeader")}
               </div>
               <pre className="p-3 text-[11px] leading-relaxed whitespace-pre-wrap max-h-48 overflow-y-auto">
                 {previewLines}
                 {body.split("\n").length > 15 && (
                   <span className="text-muted-foreground">
-                    {"\n"}... {body.split("\n").length - 15} more lines
+                    {"\n"}{t("pipesStore.installDialog.moreLines", { count: body.split("\n").length - 15 })}
                   </span>
                 )}
               </pre>
             </div>
           ) : (
             <p className="text-xs text-muted-foreground py-2">
-              could not preview scheduled task content. you can still install it.
+              {t("pipesStore.installDialog.couldNotPreview")}
             </p>
           )}
 
           <AlertDialogFooter>
-            <AlertDialogCancel className="text-xs">not now</AlertDialogCancel>
+            <AlertDialogCancel className="text-xs">{t("pipesStore.gate.notNow")}</AlertDialogCancel>
             <Button
               type="button"
               className="text-xs"
@@ -260,10 +262,10 @@ export function PipeInstallDialog() {
               {installing ? (
                 <>
                   <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                  installing...
+                  {t("pipesStore.gate.installing")}
                 </>
               ) : (
-                "install scheduled task"
+                t("pipesStore.gate.install")
               )}
             </Button>
           </AlertDialogFooter>

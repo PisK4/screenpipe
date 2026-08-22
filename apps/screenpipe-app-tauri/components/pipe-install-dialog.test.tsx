@@ -45,6 +45,9 @@ vi.mock("nuqs", async (importOriginal) => {
   };
 });
 vi.mock("@/lib/api", () => ({ localFetch: mocks.localFetch }));
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
 vi.mock("@/components/ui/use-toast", () => ({
   useToast: () => ({ toast: mocks.toast }),
 }));

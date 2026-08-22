@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { commands, type IcsCalendarEntry } from "@/lib/utils/tauri";
 import { getStore, saveAndEncrypt } from "@/lib/hooks/use-settings";
 import { cn } from "@/lib/utils";
+import { useT, type Translator } from "@/lib/i18n";
 
 export type CalendarProviderId = "native" | "google" | "ics";
 
@@ -46,42 +47,50 @@ async function setCalendarPref(key: string, value: boolean): Promise<void> {
   }
 }
 
-export function nativeCalendarLabel({
-  isMac,
-  isWindows,
-}: {
-  isMac: boolean;
-  isWindows: boolean;
-}): string {
-  if (isMac) return "Apple Calendar";
-  if (isWindows) return "Windows Calendar";
-  return "OS Calendar";
+export function nativeCalendarLabel(
+  platform: { isMac: boolean; isWindows: boolean },
+  t?: Translator,
+): string {
+  if (isMacLike(platform)) {
+    return t?.("meetingNotes.calendarConnect.nativeNameMac") ?? "Apple Calendar";
+  }
+  if (platform.isWindows) {
+    return (
+      t?.("meetingNotes.calendarConnect.nativeNameWindows") ??
+      "Windows Calendar"
+    );
+  }
+  return t?.("meetingNotes.calendarConnect.nativeNameOther") ?? "OS Calendar";
 }
 
-export function calendarProviderOptions(platform: {
-  isMac: boolean;
-  isWindows: boolean;
-}): CalendarProviderOption[] {
-  const nativeLabel = nativeCalendarLabel(platform);
+function isMacLike(platform: { isMac: boolean }): boolean {
+  return platform.isMac;
+}
+
+export function calendarProviderOptions(
+  platform: { isMac: boolean; isWindows: boolean },
+  t: Translator,
+): CalendarProviderOption[] {
+  const nativeLabel = nativeCalendarLabel(platform, t);
   return [
     {
       id: "native",
       label: nativeLabel,
       description: platform.isMac
-        ? "Use calendars synced through macOS Internet Accounts."
+        ? t("meetingNotes.calendarConnect.nativeDescriptionMac")
         : platform.isWindows
-          ? "Use calendars available through Windows Calendar."
-          : "Use calendars available through your operating system.",
+          ? t("meetingNotes.calendarConnect.nativeDescriptionWindows")
+          : t("meetingNotes.calendarConnect.nativeDescriptionOther"),
     },
     {
       id: "google",
-      label: "Google Calendar",
-      description: "Connect directly with Google OAuth.",
+      label: t("meetingNotes.calendarConnect.googleLabel"),
+      description: t("meetingNotes.calendarConnect.googleDescription"),
     },
     {
       id: "ics",
-      label: "ICS",
-      description: "Paste a read-only webcal or ICS feed URL.",
+      label: t("meetingNotes.calendarConnect.icsLabel"),
+      description: t("meetingNotes.calendarConnect.icsDescription"),
     },
   ];
 }
@@ -151,12 +160,13 @@ export function CalendarConnectDialog({
   platform,
   onConnected,
 }: CalendarConnectDialogProps) {
+  const t = useT();
   const option = useMemo(
     () =>
-      calendarProviderOptions(platform).find(
+      calendarProviderOptions(platform, t).find(
         (candidate) => candidate.id === provider,
       ) ?? null,
-    [platform, provider],
+    [platform, provider, t],
   );
 
   if (!option || !provider) return null;
@@ -212,6 +222,7 @@ function NativeCalendarConnect({
   onConnected: () => void | Promise<void>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
@@ -245,12 +256,14 @@ function NativeCalendarConnect({
       if (result.status === "ok" && granted) {
         setConnected(true);
         await onConnected();
-        setStatusText(`${label} connected.`);
+        setStatusText(
+          t("meetingNotes.calendarConnect.nativeConnectedToast", { label }),
+        );
         onClose();
       } else {
         await commands.openPermissionSettings("calendar");
         setStatusText(
-          "Calendar permission was not granted. Open Privacy & Security → Calendars.",
+          t("meetingNotes.calendarConnect.nativePermissionDenied"),
         );
       }
     } catch (err) {
@@ -263,15 +276,14 @@ function NativeCalendarConnect({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        ScreenPipe reads event titles, times, and attendees so meeting notes can
-        start at the right moment. It does not write to your calendar.
+        {t("meetingNotes.calendarConnect.nativeIntro")}
       </p>
       <div className="border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
         {platform.isMac
-          ? "For Google, Outlook, or Exchange via Apple Calendar, add the account in macOS Internet Accounts first."
+          ? t("meetingNotes.calendarConnect.nativeHintMac")
           : platform.isWindows
-            ? "For Google, Outlook, or Exchange via Windows Calendar, add the account in Windows Email & accounts first."
-            : "Use your operating system's calendar account settings to choose which calendars are available."}
+            ? t("meetingNotes.calendarConnect.nativeHintWindows")
+            : t("meetingNotes.calendarConnect.nativeHintOther")}
       </div>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -280,7 +292,9 @@ function NativeCalendarConnect({
           ) : (
             <Monitor className="h-3.5 w-3.5" />
           )}
-          {connected ? "connected" : "not connected"}
+          {connected
+            ? t("meetingNotes.calendarConnect.connected")
+            : t("meetingNotes.calendarConnect.notConnected")}
         </div>
         <Button onClick={connect} disabled={busy} className="rounded-none">
           {busy ? (
@@ -288,7 +302,7 @@ function NativeCalendarConnect({
           ) : (
             <CalendarDays className="mr-2 h-3.5 w-3.5" />
           )}
-          connect
+          {t("meetingNotes.calendarConnect.connectButton")}
         </Button>
       </div>
       {statusText && (
@@ -305,6 +319,7 @@ function GoogleCalendarConnect({
   onConnected: () => void | Promise<void>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [statusText, setStatusText] = useState<string | null>(null);
 
@@ -318,9 +333,9 @@ function GoogleCalendarConnect({
         onClose();
       } else if (result.status === "error") {
         const msg = String(result.error ?? "");
-        setStatusText(msg || "Google Calendar was not connected.");
+        setStatusText(msg || t("meetingNotes.calendarConnect.googleFailed"));
       } else {
-        setStatusText("Google Calendar was not connected.");
+        setStatusText(t("meetingNotes.calendarConnect.googleFailed"));
       }
     } catch (err) {
       setStatusText(String(err));
@@ -332,8 +347,7 @@ function GoogleCalendarConnect({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Connect your Google Calendar directly. ScreenPipe uses read-only access
-        for meeting detection and note metadata.
+        {t("meetingNotes.calendarConnect.googleIntro")}
       </p>
       <Button onClick={connect} disabled={busy} className="w-full rounded-none">
         {busy ? (
@@ -345,7 +359,7 @@ function GoogleCalendarConnect({
             className="mr-2 h-3.5 w-3.5"
           />
         )}
-        connect google calendar
+        {t("meetingNotes.calendarConnect.googleButton")}
       </Button>
       {statusText && (
         <p className="text-xs text-muted-foreground">{statusText}</p>
@@ -361,6 +375,7 @@ function IcsCalendarConnect({
   onConnected: () => void | Promise<void>;
   onClose: () => void;
 }) {
+  const t = useT();
   const [url, setUrl] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -374,7 +389,9 @@ function IcsCalendarConnect({
     try {
       const test = await commands.icsCalendarTestUrl(trimmed);
       if (test.status !== "ok") {
-        throw new Error(test.error ?? "could not fetch calendar feed");
+        throw new Error(
+          test.error ?? t("meetingNotes.calendarConnect.icsFetchFailed"),
+        );
       }
       const entriesResult = await commands.icsCalendarGetEntries();
       const entries =
@@ -394,7 +411,9 @@ function IcsCalendarConnect({
       ];
       const saved = await commands.icsCalendarSaveEntries(next);
       if (saved.status !== "ok") {
-        throw new Error(saved.error ?? "failed to save ICS feed");
+        throw new Error(
+          saved.error ?? t("meetingNotes.calendarConnect.icsSaveFailed"),
+        );
       }
       await onConnected();
       onClose();
@@ -408,8 +427,7 @@ function IcsCalendarConnect({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Paste a private or public ICS/webcal subscription URL. ScreenPipe polls
-        it read-only for upcoming meetings.
+        {t("meetingNotes.calendarConnect.icsIntro")}
       </p>
       <div className="space-y-2">
         <Input
@@ -418,13 +436,13 @@ function IcsCalendarConnect({
             setUrl(event.target.value);
             setStatusText(null);
           }}
-          placeholder="https:// or webcal:// URL"
+          placeholder={t("meetingNotes.calendarConnect.icsUrlPlaceholder")}
           className="rounded-none"
         />
         <Input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          placeholder="name, optional"
+          placeholder={t("meetingNotes.calendarConnect.icsNamePlaceholder")}
           className="rounded-none"
         />
       </div>
@@ -438,7 +456,7 @@ function IcsCalendarConnect({
         ) : (
           <Plus className="mr-2 h-3.5 w-3.5" />
         )}
-        add feed
+        {t("meetingNotes.calendarConnect.icsAddButton")}
       </Button>
       {statusText && (
         <p className="text-xs text-muted-foreground">{statusText}</p>

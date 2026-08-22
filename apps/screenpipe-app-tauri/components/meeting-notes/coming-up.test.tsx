@@ -9,6 +9,10 @@ vi.mock("@/lib/hooks/use-platform", () => ({
   usePlatform: () => ({ isMac: true, isWindows: false }),
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 import { ComingUp, type ComingUpStatus } from "./coming-up";
 
 function renderEmptyState(

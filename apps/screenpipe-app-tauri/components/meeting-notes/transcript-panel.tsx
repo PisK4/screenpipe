@@ -35,6 +35,7 @@ import type { MeetingRecord } from "@/lib/utils/meeting-format";
 import { ListeningSticks } from "./listening-sticks";
 import { MEETING_SHELL_CLASS } from "./meeting-workspace";
 import { splitForHighlight } from "./transcript-highlight";
+import { useT, type Translator } from "@/lib/i18n";
 import { recorderTranscriptionBacklogMessage } from "./transcript-recovery-copy";
 
 interface TranscriptPanelProps {
@@ -267,28 +268,28 @@ function formatClock(ms: number): string {
   return transcriptClockFormatter.format(ms);
 }
 
-function liveErrorSummary(message: string | null): string {
+function liveErrorKey(message: string | null): string {
   const lower = (message ?? "").toLowerCase();
   if (
     lower.includes("lookup address") ||
     lower.includes("nodename") ||
     lower.includes("dns")
   ) {
-    return "cloud connection failed";
+    return "meetingNotes.transcriptPanel.errorCloudConnection";
   }
   if (lower.includes("screenpipe cloud login")) {
-    return "cloud login required";
+    return "meetingNotes.transcriptPanel.errorCloudLogin";
   }
   if (lower.includes("daily") && lower.includes("limit")) {
-    return "daily limit reached";
+    return "meetingNotes.transcriptPanel.errorDailyLimit";
   }
   if (lower.includes("tls")) {
-    return "secure connection failed";
+    return "meetingNotes.transcriptPanel.errorSecureConnection";
   }
   if (lower.includes("websocket")) {
-    return "live stream unavailable";
+    return "meetingNotes.transcriptPanel.errorLiveStream";
   }
-  return "live transcription failed";
+  return "meetingNotes.transcriptPanel.errorLiveTranscription";
 }
 
 export function TranscriptPanel({
@@ -328,6 +329,7 @@ export function TranscriptPanel({
     null,
   );
   const { health } = useHealthCheck();
+  const t = useT();
 
   const handleResizeMove = useCallback((e: PointerEvent) => {
     const state = resizeStateRef.current;
@@ -771,17 +773,21 @@ export function TranscriptPanel({
   const emptyCopy = useMemo(() => {
     if (loading && !loaded) return null;
     if (liveError && chunks.length === 0 && visibleLiveBlocks.length === 0) {
-      return `${liveErrorSummary(liveError)}. Background recording is still running.`;
+      return t("meetingNotes.transcriptPanel.emptyLiveError", {
+        summary: t(liveErrorKey(liveError)),
+      });
     }
     if (chunks.length === 0 && visibleLiveBlocks.length === 0) {
-      if (!isLive) return "no transcript was captured for this meeting";
+      if (!isLive) return t("meetingNotes.transcriptPanel.emptySaved");
       return (
         captureState?.transcriptEmptyCopy ??
-        "no transcript yet — audio can take a minute to appear; keep the meeting open"
+        t("meetingNotes.transcriptPanel.emptyLive")
       );
     }
     if (filteredBlocks.length === 0 && query.trim()) {
-      return `no matches for "${query.trim()}"`;
+      return t("meetingNotes.transcriptPanel.emptySearch", {
+        query: query.trim(),
+      });
     }
     return null;
   }, [
@@ -794,6 +800,7 @@ export function TranscriptPanel({
     isLive,
     liveError,
     captureState,
+    t,
   ]);
   const compactEmptyState =
     Boolean(emptyCopy) && !loading && !hasTranscriptContent;
@@ -810,18 +817,27 @@ export function TranscriptPanel({
     isLive &&
     Boolean(liveError || (pendingTranscriptSegments > 0 && liveStatus?.active));
   const recoveryMessage = liveError
-    ? `${liveErrorSummary(liveError)}. Still recording; saved audio remains available for background transcription.`
-    : recorderTranscriptionBacklogMessage(pendingTranscriptSegments);
-  const transcriptState = showRecoveryBanner
-    ? "recovering"
+    ? t("meetingNotes.transcriptPanel.recoveryBanner", {
+        summary: t(liveErrorKey(liveError)),
+      })
+    : recorderTranscriptionBacklogMessage(t, pendingTranscriptSegments);
+  const transcriptStateKey = showRecoveryBanner
+    ? "meetingNotes.transcriptPanel.stateRecovering"
     : !isLive
-      ? "saved transcript"
+      ? "meetingNotes.transcriptPanel.stateSaved"
       : visibleLiveBlocks.length > 0 || liveStatus?.active
-        ? "live transcript"
-        : captureState?.shortLabel || "listening";
+        ? "meetingNotes.transcriptPanel.stateLive"
+        : captureState?.shortLabel ?? "meetingNotes.transcriptPanel.stateListening";
+  const transcriptState = t(transcriptStateKey);
   const transcriptStateDetail =
     displayBlocks.length > 0
-      ? `${displayBlocks.length} turn${displayBlocks.length === 1 ? "" : "s"}`
+      ? displayBlocks.length === 1
+        ? t("meetingNotes.transcriptPanel.turnsOne", {
+            count: displayBlocks.length,
+          })
+        : t("meetingNotes.transcriptPanel.turnsMany", {
+            count: displayBlocks.length,
+          })
       : null;
   // As a tab surface the transcript sits under the meeting title, chips and
   // tabs, so it must ride the same centered shell — otherwise every turn hugs
@@ -875,9 +891,9 @@ export function TranscriptPanel({
           <div
             role="separator"
             aria-orientation="horizontal"
-            aria-label="resize transcript panel"
+            aria-label={t("meetingNotes.transcriptPanel.resizeAria")}
             tabIndex={0}
-            title="drag to resize · double-click to reset"
+            title={t("meetingNotes.transcriptPanel.resizeTitle")}
             onPointerDown={handleResizeStart}
             onDoubleClick={handleResizeReset}
             onKeyDown={handleResizeKeyDown}
@@ -903,7 +919,7 @@ export function TranscriptPanel({
                     setSearchOpen(false);
                   }
                 }}
-                placeholder="search transcript..."
+                placeholder={t("meetingNotes.transcriptPanel.searchPlaceholder")}
                 className="min-w-0 flex-1 bg-transparent text-xs px-2 h-7 border border-input focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
               />
             ) : (
@@ -911,20 +927,22 @@ export function TranscriptPanel({
                 <span
                   className="inline-flex min-w-0 items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-foreground"
                   role="status"
-                  aria-label={`transcript status: ${transcriptState}`}
+                  aria-label={t("meetingNotes.transcriptPanel.statusAria", {
+                    state: transcriptState,
+                  })}
                   data-testid="transcript-stream-status"
                 >
                   <span
                     aria-hidden
                     className={cn(
                       "h-1.5 w-1.5 shrink-0 rounded-full",
-                      transcriptState === "recovering"
+                      showRecoveryBanner
                         ? "bg-amber-500"
                         : isLive
                           ? "bg-foreground"
                           : "bg-muted-foreground/45",
                       isLive &&
-                        transcriptState !== "recovering" &&
+                        !showRecoveryBanner &&
                         "animate-pulse motion-reduce:animate-none",
                     )}
                   />
@@ -940,7 +958,7 @@ export function TranscriptPanel({
             {query.trim() && (
               <span
                 className="shrink-0 text-[10px] tabular-nums text-muted-foreground"
-                title="matching segments"
+                title={t("meetingNotes.transcriptPanel.matchingSegmentsTitle")}
               >
                 {filteredBlocks.length}/{displayBlocks.length}
               </span>
@@ -962,9 +980,17 @@ export function TranscriptPanel({
                     "h-7 w-7 p-0",
                     searchOpen && "bg-accent text-accent-foreground",
                   )}
-                  title={searchOpen ? "hide search" : `search transcript (${isMac ? "⌘F" : "Ctrl+F"})`}
+                  title={
+                    searchOpen
+                      ? t("meetingNotes.transcriptPanel.hideSearchTitle")
+                      : t("meetingNotes.transcriptPanel.searchTitle", {
+                          shortcut: isMac ? "⌘F" : "Ctrl+F",
+                        })
+                  }
                   aria-label={
-                    searchOpen ? "hide transcript search" : "search transcript"
+                    searchOpen
+                      ? t("meetingNotes.transcriptPanel.hideSearchAria")
+                      : t("meetingNotes.transcriptPanel.searchAria")
                   }
                   aria-pressed={searchOpen}
                 >
@@ -980,8 +1006,8 @@ export function TranscriptPanel({
                   size="sm"
                   onClick={onClose}
                   className="h-7 w-7 p-0"
-                  title="close transcript"
-                  aria-label="close transcript"
+                  title={t("meetingNotes.transcriptPanel.closeTitle")}
+                  aria-label={t("meetingNotes.transcriptPanel.closeAria")}
                 >
                   <X className="h-3.5 w-3.5" />
                 </Button>
@@ -1012,7 +1038,7 @@ export function TranscriptPanel({
             {loading && !loaded && (
               <div className="flex items-center justify-center py-8 text-xs text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
-                loading transcript…
+                {t("meetingNotes.transcriptPanel.loading")}
               </div>
             )}
 
@@ -1064,8 +1090,8 @@ export function TranscriptPanel({
               size="sm"
               onClick={() => scrollToLatest()}
               className="absolute bottom-3 right-3 h-8 w-8 rounded-full border border-border bg-background/95 p-0 shadow-lg backdrop-blur hover:bg-accent"
-              title="follow live transcript"
-              aria-label="follow live transcript"
+              title={t("meetingNotes.transcriptPanel.followTitle")}
+              aria-label={t("meetingNotes.transcriptPanel.followAria")}
             >
               <ArrowDown className="h-3.5 w-3.5" />
               {hasUnseenLive && (
@@ -1094,10 +1120,11 @@ export const TranscriptRows = React.memo(function TranscriptRows({
   /** Horizontal shell so the turns line up with whatever renders above them. */
   className?: string;
 }) {
+  const t = useT();
   return (
     <ol
       className={cn("space-y-0.5 pb-10 pt-3", className ?? "px-4")}
-      aria-label="meeting transcript"
+      aria-label={t("meetingNotes.transcriptPanel.listAria")}
     >
       {blocks.map((block, index) => (
         <SpeakerParagraph
@@ -1127,6 +1154,7 @@ export const SpeakerParagraph = React.memo(function SpeakerParagraph({
   onSpeakerAssigned: () => void;
 }) {
   const [showPlayer, setShowPlayer] = useState(false);
+  const t = useT();
   const isSelf = block.speakerName.trim().toLowerCase() === "me";
   return (
     <li
@@ -1156,8 +1184,11 @@ export const SpeakerParagraph = React.memo(function SpeakerParagraph({
                 )}
                 title={
                   block.speakerId != null
-                    ? `speaker #${block.speakerId} — click to rename or reassign`
-                    : "click to assign a speaker"
+                    ? t(
+                        "meetingNotes.transcriptPanel.speakerTitleWithId",
+                        { id: block.speakerId },
+                      )
+                    : t("meetingNotes.transcriptPanel.speakerTitleAssign")
                 }
               >
                 <User className="h-3 w-3 text-muted-foreground/70 self-center" />
@@ -1210,8 +1241,8 @@ export const SpeakerParagraph = React.memo(function SpeakerParagraph({
         {!block.final && (
           <span
             className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-background shadow-sm ring-1 ring-border"
-            title="transcribing partial text"
-            aria-label="transcribing partial text"
+            title={t("meetingNotes.transcriptPanel.partialTitle")}
+            aria-label={t("meetingNotes.transcriptPanel.partialAria")}
           >
             <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-foreground motion-reduce:animate-none" />
           </span>
@@ -1227,8 +1258,16 @@ export const SpeakerParagraph = React.memo(function SpeakerParagraph({
                 ? "opacity-100"
                 : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
             )}
-            title={showPlayer ? "hide audio" : "play this segment's audio"}
-            aria-label={showPlayer ? "hide audio" : "play this segment's audio"}
+            title={
+              showPlayer
+                ? t("meetingNotes.transcriptPanel.hideAudioTitle")
+                : t("meetingNotes.transcriptPanel.playSegmentTitle")
+            }
+            aria-label={
+              showPlayer
+                ? t("meetingNotes.transcriptPanel.hideAudioTitle")
+                : t("meetingNotes.transcriptPanel.playSegmentTitle")
+            }
             aria-expanded={showPlayer}
           >
             {showPlayer ? (

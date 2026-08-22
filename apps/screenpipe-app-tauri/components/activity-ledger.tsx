@@ -66,6 +66,7 @@ import { showChatWithPrefill } from "@/lib/chat-utils";
 import { runDailySummaryWithPi } from "@/lib/daily-summary-pi";
 import { useSettings } from "@/lib/hooks/use-settings";
 import { useTimelineStore } from "@/lib/hooks/use-timeline-store";
+import { useT } from "@/lib/i18n";
 import { getAppServerBaseUrl } from "@/lib/notifications/app-server";
 import { cn } from "@/lib/utils";
 import type { AIPreset } from "@/lib/utils/tauri";
@@ -121,28 +122,27 @@ type ActivityLedgerArtifactsResponse = {
 function noActivityMessage(dataStatus: string): string {
   switch (dataStatus) {
     case "not_recording":
-      return "No recorded activity is available yet. Start recording, then try again.";
+      return "activity.noActivity.notRecording";
     case "no_capture_in_range":
-      return "No recorded activity was found in this range. Choose another range and try again.";
+      return "activity.noActivity.noCaptureInRange";
     case "empty_but_recording":
-      return "Recording is active, but this range does not have enough activity yet. Keep working for a moment, then try again.";
+      return "activity.noActivity.emptyButRecording";
     case "unknown":
-      return "Activity data is not ready yet. Check recording status, then try again.";
+      return "activity.noActivity.unknown";
     default:
-      return "There is not enough recorded activity in this range to generate a history yet.";
+      return "activity.noActivity.insufficient";
   }
 }
 
 export function presentActivityGenerationError(rawError: string): {
   kind: ActivityGenerationFailureKind;
-  message: string;
+  key: string;
 } {
   const normalized = rawError.trim().toLowerCase();
   if (normalized.includes("ai returned an empty daily summary")) {
     return {
       kind: "empty_ai_response",
-      message:
-        "Your AI provider finished without returning activities. Try again or choose a different AI preset.",
+      key: "activity.failure.emptyAiResponse",
     };
   }
   if (
@@ -152,35 +152,30 @@ export function presentActivityGenerationError(rawError: string): {
   ) {
     return {
       kind: "invalid_activity_format",
-      message:
-        "Your AI provider returned an activity format Screenpipe could not use. Try again or choose a different AI preset.",
+      key: "activity.failure.invalidFormat",
     };
   }
   if (normalized.includes("not enough trustworthy evidence")) {
     return {
       kind: "insufficient_evidence",
-      message:
-        "The AI response did not include enough usable activity evidence. Try again after more recording is available.",
+      key: "activity.failure.insufficientEvidence",
     };
   }
   if (normalized.includes("history is still resolving a recorded meeting")) {
     return {
       kind: "incomplete_meeting",
-      message:
-        "A recorded meeting was not fully resolved yet. Try again in a moment.",
+      key: "activity.failure.incompleteMeeting",
     };
   }
   if (normalized.includes("no ai model is configured")) {
     return {
       kind: "missing_model",
-      message:
-        "Choose an AI preset with a configured model, then try again.",
+      key: "activity.failure.missingModel",
     };
   }
   return {
     kind: "provider_request_failed",
-    message:
-      "The selected AI provider could not generate activities. Check its endpoint, API key, and model, then try again.",
+    key: "activity.failure.providerFailed",
   };
 }
 
@@ -214,6 +209,13 @@ const RANGE_COPY: Record<RangePreset, string> = {
   "24h": "Last 24 hours",
   "7d": "Last 7 days",
   custom: "Custom range",
+};
+
+const RANGE_LABEL_KEYS: Record<RangePreset, string> = {
+  today: "activity.range.today",
+  "24h": "activity.range.last24h",
+  "7d": "activity.range.last7d",
+  custom: "activity.range.custom",
 };
 
 function readStoredRangePreset(): RangePreset {
@@ -262,8 +264,11 @@ function endOfSelectedDay(value: Date, now: Date): Date {
   return end;
 }
 
-function customRangeLabel(range: DateRange | undefined): string {
-  if (!range?.from) return "Choose dates";
+function customRangeLabel(
+  range: DateRange | undefined,
+  chooseLabel: string,
+): string {
+  if (!range?.from) return chooseLabel;
   if (!range.to) return `${format(range.from, "MMM d, yyyy")} – …`;
   return `${format(range.from, "MMM d, yyyy")} – ${format(range.to, "MMM d, yyyy")}`;
 }
@@ -676,12 +681,15 @@ function localDayKey(value: string): string {
   )}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function formatDay(value: string): string {
+function formatDay(
+  value: string,
+  dayLabels: { today: string; yesterday: string },
+): string {
   const date = new Date(value);
   const today = startOfLocalDay(new Date()).getTime();
   const day = startOfLocalDay(date).getTime();
-  if (day === today) return "Today";
-  if (day === today - 86_400_000) return "Yesterday";
+  if (day === today) return dayLabels.today;
+  if (day === today - 86_400_000) return dayLabels.yesterday;
   return new Intl.DateTimeFormat(undefined, {
     weekday: "long",
     month: "short",
@@ -824,6 +832,7 @@ export function ActivityLedger({
     string | null
   >(null);
   const { settings } = useSettings();
+  const t = useT();
 
   const range = useMemo(
     () => rangeForPreset(preset, anchor, customStart, customEnd),
@@ -985,7 +994,7 @@ export function ActivityLedger({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [range]);
+  }, [range, t]);
 
   useEffect(() => {
     historyAbortRef.current?.abort();
@@ -1067,10 +1076,16 @@ export function ActivityLedger({
         }),
       ]);
       if (!summaryResponse.ok) {
-        throw new Error(`Activity request failed (${summaryResponse.status}).`);
+        throw new Error(
+          t("activity.errors.summaryFailed", { status: summaryResponse.status }),
+        );
       }
       if (!meetingsResponse.ok) {
-        throw new Error(`Meeting request failed (${meetingsResponse.status}).`);
+        throw new Error(
+          t("activity.errors.meetingsFailed", {
+            status: meetingsResponse.status,
+          }),
+        );
       }
       const [generationSummary, meetingRecords] = await Promise.all([
         summaryResponse.json() as Promise<ActivitySummaryResponse>,
@@ -1100,7 +1115,7 @@ export function ActivityLedger({
         );
         setHistoryCoverage(persisted.coverage);
         setHistoryError(
-          noActivityMessage(generationSummary?.data_status ?? "unknown"),
+          t(noActivityMessage(generationSummary?.data_status ?? "unknown")),
         );
         posthog.capture("activity_generation_completed", {
           range: preset,
@@ -1223,10 +1238,10 @@ export function ActivityLedger({
       const friendlyError = rawError
         .toLowerCase()
         .includes("hosted_ai_allowance_exceeded")
-        ? "This AI preset has no usage left. Choose a different AI preset, then try again."
+        ? t("activity.errors.allowanceExceeded")
         : quota.kind !== "none"
           ? quota.message
-          : failure.message;
+          : t(failure.key);
       // Keep local diagnostics useful without copying provider responses,
       // captured activity, range timestamps, credentials, or prompt text.
       console.error("[activity-generation] failed", {
@@ -1247,14 +1262,7 @@ export function ActivityLedger({
         setHistoryLoading(false);
       }
     }
-  }, [
-    preset,
-    range,
-    reviewPreset,
-    settings,
-    history,
-    historyCoverage,
-  ]);
+  }, [preset, range, reviewPreset, settings, history, historyCoverage, t]);
 
   const regenerateSelectedRange = useCallback((source: GenerationSource) => {
     const clickedRange = rangeForPreset(
@@ -1314,7 +1322,9 @@ export function ActivityLedger({
     posthog.capture("activity_skill_clicked");
     void showChatWithPrefill({
       context: compactEntryContext(entry),
-      displayLabel: `Make a skill from “${entry.title}”`,
+      displayLabel: t("activity.chatPrefill.makeSkill", {
+        title: entry.title,
+      }),
       prompt: `Turn the workflow I performed during this exact interval into a reusable skill.
 
 Re-query Screenpipe only inside the cited time range and use the cited frames and audio moments as anchors. Reconstruct the actual sequence of repeatable actions from accessibility, parsed, interaction, and audio evidence. Separate the durable procedure from customer-specific, project-specific, or one-off content; remove secrets and private values. Draft a focused SKILL.md with clear triggers, inputs, steps, and verification for my review. Do not install it yet.`,
@@ -1326,7 +1336,7 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
     posthog.capture("activity_chat_clicked");
     void showChatWithPrefill({
       context: compactEntryContext(entry),
-      displayLabel: `Ask about “${entry.title}”`,
+      displayLabel: t("activity.chatPrefill.ask", { title: entry.title }),
       prompt: "Tell me more about this activity.",
       source: "activity-history-chat",
     });
@@ -1394,16 +1404,16 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                 <SelectTrigger
                   className="h-9 w-[150px] rounded-none text-xs"
                   data-testid="activity-range"
-                  aria-label="Time range"
+                  aria-label={t("activity.aria.timeRange")}
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {(
-                    Object.entries(RANGE_COPY) as Array<[RangePreset, string]>
-                  ).map(([value, label]) => (
+                    Object.keys(RANGE_LABEL_KEYS) as RangePreset[]
+                  ).map((value) => (
                     <SelectItem key={value} value={value}>
-                      {label}
+                      {t(RANGE_LABEL_KEYS[value])}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1414,7 +1424,7 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
               >
                 <SelectTrigger
                   className="h-9 w-[190px] max-w-[36vw] text-xs"
-                  aria-label="AI preset"
+                  aria-label={t("activity.aria.aiPreset")}
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -1439,7 +1449,7 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                     ? recentActivityDisabled
                     : loading || historyLoading || !cacheReady || invalidRange
                 }
-                aria-label="Refresh history"
+                aria-label={t("activity.aria.refreshHistory")}
               >
                 <RefreshCw
                   className={cn(
@@ -1461,10 +1471,13 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                   <Button
                     variant="outline"
                     className="h-9 justify-start rounded-none border-border bg-background px-3 font-mono text-xs font-normal normal-case tracking-normal"
-                    aria-label="Choose custom date range"
+                    aria-label={t("activity.aria.chooseDateRange")}
                   >
                     <CalendarDays className="mr-2 h-3.5 w-3.5" />
-                    {customRangeLabel(customDateRange)}
+                    {customRangeLabel(
+                      customDateRange,
+                      t("activity.chooseDates"),
+                    )}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent
@@ -1509,14 +1522,17 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
         <div className="mx-auto max-w-4xl px-6 py-8">
           {invalidRange ? (
             <p className="text-sm text-muted-foreground">
-              Start time must be before end time.
+              {t("activity.errors.invalidRange")}
             </p>
           ) : history ? (
-            <section aria-label="Activity history">
+            <section aria-label={t("activity.historySection")}>
               {groupedEntries.map(([day, entries]) => (
                 <div key={day} className="mb-12 last:mb-0">
                   <h2 className="border-b border-foreground pb-3 font-sans text-xl font-medium">
-                    {formatDay(entries[0].start_at)}
+                    {formatDay(entries[0].start_at, {
+                      today: t("activity.day.today"),
+                      yesterday: t("activity.day.yesterday"),
+                    })}
                   </h2>
 
                   {entries.map((entry) => (
@@ -1540,7 +1556,9 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                           });
                         }}
                         className="font-mono text-xs text-muted-foreground transition-colors hover:text-foreground"
-                        aria-label={`Open ${entry.title} in timeline`}
+                        aria-label={t("activity.entry.openInTimelineAria", {
+                          title: entry.title,
+                        })}
                       >
                         {formatEntryTime(entry)}
                       </a>
@@ -1556,7 +1574,9 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                         <div className="mt-4 flex items-center gap-3">
                           <div
                             className="flex items-center gap-1.5"
-                            aria-label={`Source artifacts for ${entry.title}`}
+                            aria-label={t("activity.entry.artifactsAria", {
+                              title: entry.title,
+                            })}
                           >
                             {artifactsForHistoryEntry(
                               entry,
@@ -1564,18 +1584,25 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                             ).map((evidence) => {
                               const artifactName =
                                 evidence.kind === "meeting"
-                                  ? "Meeting"
+                                  ? t("activity.artifact.meeting")
                                   : siteDomain(evidence.browser_url) ||
                                     evidence.app_name ||
                                     (evidence.kind === "audio"
-                                      ? "Transcript"
-                                      : "Screen capture");
+                                      ? t("activity.artifact.transcript")
+                                      : t("activity.artifact.screenCapture"));
                               const destination =
                                 evidence.kind === "meeting" &&
                                 evidence.meeting_id
-                                  ? "Meetings"
-                                  : "Timeline";
-                              const accessibleLabel = `Open ${artifactName} at ${formatEvidenceTime(evidence.at)} in ${destination}`;
+                                  ? t("activity.destination.meetings")
+                                  : t("activity.destination.timeline");
+                              const accessibleLabel = t(
+                                "activity.artifact.openAtAria",
+                                {
+                                  name: artifactName,
+                                  time: formatEvidenceTime(evidence.at),
+                                  destination,
+                                },
+                              );
                               return (
                                 <a
                                   key={`${artifactKey(evidence)}-${evidence.at}-${evidence.frame_id ?? evidence.meeting_id ?? "timeline"}`}
@@ -1598,18 +1625,22 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                             type="button"
                             onClick={() => makeSkill(entry)}
                             className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-                            aria-label={`Make skill from ${entry.title}`}
+                            aria-label={t("activity.entry.makeSkillAria", {
+                              title: entry.title,
+                            })}
                           >
-                            Make skill
+                            {t("activity.entry.makeSkill")}
                           </button>
                           <span aria-hidden="true">·</span>
                           <button
                             type="button"
                             onClick={() => askAboutActivity(entry)}
                             className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-                            aria-label={`Chat about ${entry.title}`}
+                            aria-label={t("activity.entry.chatAria", {
+                              title: entry.title,
+                            })}
                           >
-                            Chat
+                            {t("activity.entry.chat")}
                           </button>
                         </div>
                       </div>
@@ -1637,30 +1668,34 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                   </Button>
                   <p className="mt-2 text-xs text-muted-foreground">
                     {recentActivityAvailable
-                      ? "Include activity recorded since your last update."
-                      : "More results can be generated every 10 minutes."}
+                      ? t("activity.recent.includeNew")
+                      : t("activity.recent.rateLimited")}
                   </p>
                 </div>
               ) : null}
             </section>
           ) : loading && !summary ? (
-            <ActivityLedgerSkeleton label="Reading your day…" />
+            <ActivityLedgerSkeleton label={t("activity.skeleton.readingDay")} />
           ) : error ? (
             <p className="text-sm text-muted-foreground">{error}</p>
           ) : !cacheReady ? (
-            <ActivityLedgerSkeleton label="Loading generated activities…" />
+            <ActivityLedgerSkeleton
+              label={t("activity.skeleton.loadingActivities")}
+            />
           ) : historyLoading && !history ? (
-            <ActivityLedgerSkeleton label="Understanding what you worked on…" />
+            <ActivityLedgerSkeleton
+              label={t("activity.skeleton.understanding")}
+            />
           ) : (
             <div className="flex min-h-[320px] items-center justify-center py-12 text-center">
               <div className="max-w-sm">
                 <h2 className="font-sans text-xl font-medium tracking-tight">
-                  Generate activities
+                  {t("activity.empty.title")}
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   <span role={historyError ? "alert" : undefined}>
                     {historyError ||
-                      "Turn this range into a private activity history when you’re ready."}
+                      t("activity.empty.hint")}
                   </span>
                 </p>
                 <Button
@@ -1668,7 +1703,9 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                   className="mt-5 h-10 px-5 uppercase tracking-wide"
                   onClick={() => regenerateSelectedRange("empty_state")}
                 >
-                  {historyError ? "Try again" : "Generate activities"}
+                  {historyError
+                    ? t("activity.empty.tryAgain")
+                    : t("activity.empty.title")}
                 </Button>
               </div>
             </div>

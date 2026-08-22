@@ -7,15 +7,21 @@
 // compiler enforces via `satisfies`. Brand name in user-visible copy is Cue.
 
 import { accountEn } from "./en-account";
+import { activityEn } from "./en-activity";
+import { brainEn } from "./en-brain";
 import { chatEn } from "./en-chat";
+import { connectionsEn } from "./en-connections";
 import { homeEn } from "./en-home";
 import { meetingNotesEn } from "./en-meeting-notes";
 import { notificationsEn } from "./en-notifications";
 import { onboardingEn } from "./en-onboarding";
+import { pipesStoreEn } from "./en-pipes-store";
 import { settingsMiscEn } from "./en-settings-misc";
 import { settingsNavEn } from "./en-settings-nav";
 import { shellEn } from "./en-shell";
 import { storageEn } from "./en-storage";
+import { timelineEn } from "./en-timeline";
+import { timelineSearchEn } from "./en-timeline-search";
 
 export const en = {
   common: {
@@ -31,6 +37,12 @@ export const en = {
   home: homeEn,
   onboarding: onboardingEn,
   meetingNotes: meetingNotesEn,
+  activity: activityEn,
+  timeline: timelineEn,
+  timelineSearch: timelineSearchEn,
+  brain: brainEn,
+  pipesStore: pipesStoreEn,
+  connections: connectionsEn,
   settingsNav: settingsNavEn,
   shell: shellEn,
   settings: {

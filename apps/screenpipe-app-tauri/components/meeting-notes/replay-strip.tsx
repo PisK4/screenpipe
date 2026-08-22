@@ -10,6 +10,7 @@ import { emit } from "@tauri-apps/api/event";
 import { getApiBaseUrl, appendAuthToken } from "@/lib/api";
 import { useTimelineStore } from "@/lib/hooks/use-timeline-store";
 import { SpeakerAssignPopover } from "@/components/speaker-assign-popover";
+import { useT } from "@/lib/i18n";
 import {
   fetchFrameSamples,
   fetchMeetingAudio,
@@ -295,7 +296,12 @@ export function ReplayStrip({ meetingId, segments, timeRange }: ReplayStripProps
 
   if (sampleSorted.length === 0) return null;
 
-  const speakerLabel = activeChunk?.speakerName || (activeChunk?.isInput ? "me" : "speaker");
+  const t = useT();
+  const speakerLabel =
+    activeChunk?.speakerName ||
+    (activeChunk?.isInput
+      ? t("meetingNotes.transcriptPanel.speakerMe")
+      : t("meetingNotes.transcriptPanel.speakerUnknown"));
   // Only a real (positive) audio_chunk_id can be reassigned via
   // /speakers/reassign — audioFilePath is merely for the optional playback
   // preview inside the popover and can legitimately be empty (e.g. a
@@ -309,14 +315,14 @@ export function ReplayStrip({ meetingId, segments, timeRange }: ReplayStripProps
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground flex items-center gap-2">
           <Rewind className="h-3 w-3" />
-          replay the moment
+          {t("meetingNotes.replayStrip.title")}
         </h3>
         <button
           onClick={openInTimeline}
           className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
-          title="open this moment in the full timeline"
+          title={t("meetingNotes.replayStrip.openInTimelineTitle")}
         >
-          open in timeline
+          {t("meetingNotes.replayStrip.openInTimeline")}
           <ExternalLink className="h-3 w-3" />
         </button>
       </div>
@@ -336,7 +342,7 @@ export function ReplayStrip({ meetingId, segments, timeRange }: ReplayStripProps
             />
           ) : (
             <span className="text-[11px] text-muted-foreground p-6">
-              no screen images available during this meeting
+              {t("meetingNotes.replayStrip.noScreenImages")}
             </span>
           )}
         </div>
@@ -365,7 +371,7 @@ export function ReplayStrip({ meetingId, segments, timeRange }: ReplayStripProps
               >
                 <button
                   className="text-[11px] text-muted-foreground hover:text-foreground underline decoration-dotted underline-offset-2 mr-1.5 transition-colors"
-                  title="click to rename or merge this speaker"
+                  title={t("meetingNotes.replayStrip.renameSpeakerTitle")}
                 >
                   {speakerLabel}
                 </button>
@@ -379,10 +385,10 @@ export function ReplayStrip({ meetingId, segments, timeRange }: ReplayStripProps
             )}
             <span className="text-sm text-foreground/90 line-clamp-3">
               {chunksLoading
-                ? "loading transcript…"
+                ? t("meetingNotes.replayStrip.loadingTranscript")
                 : activeChunk
                 ? activeChunk.transcription.replace(/\s+/g, " ").trim()
-                : "no transcript at this moment"}
+                : t("meetingNotes.replayStrip.noTranscriptAtMoment")}
             </span>
           </div>
         </div>
@@ -448,8 +454,11 @@ export function ReplayStrip({ meetingId, segments, timeRange }: ReplayStripProps
           <span>{formatClock(new Date(rangeStartMs).toISOString())}</span>
           <span>
             {chunksLoading
-              ? "loading transcript…"
-              : `${enrichedChunks.length} segments · ${renderableFrames.length} frames · drag to scrub`}
+              ? t("meetingNotes.replayStrip.loadingTranscript")
+              : t("meetingNotes.replayStrip.statsLine", {
+                  segments: enrichedChunks.length,
+                  frames: renderableFrames.length,
+                })}
           </span>
           <span>{formatClock(new Date(rangeEndMs).toISOString())}</span>
         </div>

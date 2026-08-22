@@ -41,6 +41,10 @@ vi.mock("@/lib/utils/meeting-context", () => ({
   fetchMeetingAudio: mocks.fetchMeetingAudio,
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 import { ReplayStrip } from "./replay-strip";
 
 const meetingStart = "2026-06-12T10:00:00.000Z";

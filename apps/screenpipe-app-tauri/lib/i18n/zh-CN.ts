@@ -8,15 +8,21 @@
 
 import type { Dictionary } from "./en";
 import { accountZh } from "./zh-account";
+import { activityZh } from "./zh-activity";
+import { brainZh } from "./zh-brain";
 import { chatZh } from "./zh-chat";
+import { connectionsZh } from "./zh-connections";
 import { homeZh } from "./zh-home";
 import { meetingNotesZh } from "./zh-meeting-notes";
 import { notificationsZh } from "./zh-notifications";
 import { onboardingZh } from "./zh-onboarding";
+import { pipesStoreZh } from "./zh-pipes-store";
 import { settingsMiscZh } from "./zh-settings-misc";
 import { settingsNavZh } from "./zh-settings-nav";
 import { shellZh } from "./zh-shell";
 import { storageZh } from "./zh-storage";
+import { timelineSearchZh } from "./zh-timeline-search";
+import { timelineZh } from "./zh-timeline";
 
 export const zhCN = {
   common: {
@@ -32,6 +38,12 @@ export const zhCN = {
   home: homeZh,
   onboarding: onboardingZh,
   meetingNotes: meetingNotesZh,
+  activity: activityZh,
+  timeline: timelineZh,
+  timelineSearch: timelineSearchZh,
+  brain: brainZh,
+  pipesStore: pipesStoreZh,
+  connections: connectionsZh,
   settingsNav: settingsNavZh,
   shell: shellZh,
   settings: {

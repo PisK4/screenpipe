@@ -7,6 +7,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { Play, Trash2 } from "lucide-react";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 import { MeetingShareMenu, type MeetingMenuGroup } from "./meeting-share-menu";
 
 // The meeting view carried three copy affordances: the tab-rule `copy`

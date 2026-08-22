@@ -7,6 +7,7 @@
 import React from "react";
 import { Mail, ShieldCheck } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,15 +31,16 @@ export function PipeStoreSubmissionDialog({
   onOpenChange: (open: boolean) => void;
   defaultPipe?: string;
 }) {
+  const t = useT();
   const contactHref = buildPipeStoreSubmissionMailto({ pipeName: defaultPipe });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>submit your scheduled task</DialogTitle>
+          <DialogTitle>{t("pipesStore.submission.title")}</DialogTitle>
           <DialogDescription>
-            Store publishing is curated
+            {t("pipesStore.submission.desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -46,24 +48,22 @@ export function PipeStoreSubmissionDialog({
           <div className="border border-border bg-muted/30 p-4 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Mail className="h-4 w-4" />
-              email {PIPE_STORE_SUBMISSION_EMAIL}
+              {t("pipesStore.submission.emailLabel", { email: PIPE_STORE_SUBMISSION_EMAIL })}
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              We review every scheduled task before it appears in the Store. Send a
-              repository or pipe.md link and a short description of what it
-              does.
+              {t("pipesStore.submission.body")}
             </p>
           </div>
 
           {defaultPipe ? (
             <div className="text-xs text-muted-foreground">
-              selected scheduled task: <span className="font-medium text-foreground">{defaultPipe}</span>
+              {t("pipesStore.submission.selected")} <span className="font-medium text-foreground">{defaultPipe}</span>
             </div>
           ) : null}
 
           <div className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
             <ShieldCheck className="h-4 w-4 mt-0.5 flex-shrink-0 text-foreground" />
-            <p>Never include API keys, credentials, or private data.</p>
+            <p>{t("pipesStore.submission.safety")}</p>
           </div>
         </div>
 
@@ -74,16 +74,16 @@ export function PipeStoreSubmissionDialog({
             onClick={() => onOpenChange(false)}
             className="text-xs"
           >
-            NOT NOW
+            {t("pipesStore.submission.notNow")}
           </Button>
           <Button
             size="sm"
             className="text-xs"
-            aria-label={`Email ${PIPE_STORE_SUBMISSION_EMAIL} about a Screenpipe Store submission`}
+            aria-label={t("pipesStore.submission.emailAria", { email: PIPE_STORE_SUBMISSION_EMAIL })}
             onClick={() => void openUrl(contactHref)}
           >
             <Mail className="h-3.5 w-3.5 mr-1.5" />
-            EMAIL LOUIS
+            {t("pipesStore.submission.emailButton")}
           </Button>
         </DialogFooter>
       </DialogContent>

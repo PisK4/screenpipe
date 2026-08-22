@@ -11,6 +11,9 @@ import type { ConnectedShareArtifact } from "@/lib/connected-share";
 const mocks = vi.hoisted(() => ({ localFetch: vi.fn(), capture: vi.fn() }));
 vi.mock("@/lib/api", () => ({ localFetch: mocks.localFetch }));
 vi.mock("posthog-js", () => ({ default: { capture: mocks.capture } }));
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
 
 const artifact: ConnectedShareArtifact = {
   surface: "meeting",
@@ -36,7 +39,7 @@ function Harness({ input = artifact }: { input?: ConnectedShareArtifact }) {
         onClick={() => {
           void send().then((r) =>
             (document.getElementById("out") as HTMLElement).textContent =
-              r.ok ? r.detail : `error:${r.error}`,
+              r.ok ? `sent to ${r.destinationLabel}` : `error:${r.error}`,
           );
         }}
       />
@@ -162,7 +165,7 @@ describe("meeting one-tap send", () => {
     screen.getByTestId("go").click();
 
     await waitFor(() =>
-      expect(screen.getByTestId("out")).toHaveTextContent("Nothing to send"),
+      expect(screen.getByTestId("out")).toHaveTextContent("error:null"),
     );
     expect(
       mocks.localFetch.mock.calls.some(

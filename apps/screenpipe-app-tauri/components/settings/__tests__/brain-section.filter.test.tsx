@@ -22,6 +22,15 @@ vi.mock("posthog-js", () => ({
   default: { capture: analyticsMocks.capture },
 }));
 
+// BrainSection calls useT(), which reads the locale from the settings store.
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({
+    settings: {},
+    updateSettings: vi.fn(),
+    isSettingsLoaded: true,
+  }),
+}));
+
 // ---------------------------------------------------------------------------
 // Mocks — keep the component pure: fake API, no tauri, plain-text markdown.
 // ---------------------------------------------------------------------------

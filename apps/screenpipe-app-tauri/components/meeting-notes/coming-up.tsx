@@ -14,6 +14,7 @@ import {
 } from "@/lib/utils/calendar";
 import { formatClock } from "@/lib/utils/meeting-format";
 import { usePlatform } from "@/lib/hooks/use-platform";
+import { useT, type Translator } from "@/lib/i18n";
 import { nativeCalendarLabel } from "./calendar-connect-dialog";
 
 export type ComingUpStatus =
@@ -55,7 +56,7 @@ function bucketByDay(events: CalendarEvent[]): DayBucket[] {
     .map(([key, es]) => ({ key, date: new Date(es[0].start), events: es }));
 }
 
-function relativeDayLabel(date: Date): string | null {
+function relativeDayLabel(date: Date, t: Translator): string | null {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const candidate = new Date(date);
@@ -63,9 +64,9 @@ function relativeDayLabel(date: Date): string | null {
   const diffDays = Math.round(
     (today.getTime() - candidate.getTime()) / (24 * 60 * 60 * 1000),
   );
-  if (diffDays === 0) return "today";
-  if (diffDays === -1) return "tomorrow";
-  if (diffDays === 1) return "yesterday";
+  if (diffDays === 0) return t("meetingNotes.comingUp.relToday");
+  if (diffDays === -1) return t("meetingNotes.comingUp.relTomorrow");
+  if (diffDays === 1) return t("meetingNotes.comingUp.relYesterday");
   return null;
 }
 
@@ -84,9 +85,12 @@ export function ComingUp({
     isMac: platform.isMac,
     isWindows: platform.isWindows,
   };
+  const t = useT();
   return (
     <section className="mb-12">
-      <h2 className="text-2xl font-medium tracking-tight mb-4">Coming up</h2>
+      <h2 className="text-2xl font-medium tracking-tight mb-4">
+        {t("meetingNotes.comingUp.title")}
+      </h2>
       <div className="border border-border rounded-md bg-muted/10 px-6 py-5">
         {events.length === 0 ? (
           <ComingUpEmptyState
@@ -115,44 +119,41 @@ export function ComingUp({
   );
 }
 
-function platformNativeCalendarLabel({
-  isMac,
-  isWindows,
-}: {
-  isMac: boolean;
-  isWindows: boolean;
-}): string {
-  return nativeCalendarLabel({ isMac, isWindows });
-}
-
-function formatList(labels: string[]): string {
+function formatList(labels: string[], t: Translator): string {
   if (labels.length <= 1) return labels[0] ?? "";
-  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
-  return `${labels.slice(0, -1).join(", ")}, and ${
-    labels[labels.length - 1]
-  }`;
+  if (labels.length === 2)
+    return t("meetingNotes.comingUp.listTwo", { a: labels[0], b: labels[1] });
+  return t("meetingNotes.comingUp.listMany", {
+    list: labels.slice(0, -1).join("、"),
+    last: labels[labels.length - 1],
+  });
 }
 
 function sourceLabel(
   source: CalendarSource,
   platform: { isMac: boolean; isWindows: boolean },
+  t: Translator,
 ): string {
   switch (source) {
     case "native":
-      return platformNativeCalendarLabel(platform);
+      return nativeCalendarLabel(platform, t);
     case "google":
-      return "Google Calendar";
+      return t("meetingNotes.calendarConnect.googleLabel");
     case "ics":
-      return "ICS";
+      return t("meetingNotes.calendarConnect.icsLabel");
   }
 }
 
 function formatSources(
   sources: CalendarSource[],
   platform: { isMac: boolean; isWindows: boolean },
+  t: Translator,
 ): string {
   if (sources.length === 0) return "";
-  return formatList(sources.map((source) => sourceLabel(source, platform)));
+  return formatList(
+    sources.map((source) => sourceLabel(source, platform, t)),
+    t,
+  );
 }
 
 function ComingUpEmptyState({
@@ -166,19 +167,22 @@ function ComingUpEmptyState({
   onOpenCalendarConnections: () => void;
   platform: { isMac: boolean; isWindows: boolean };
 }) {
-  const connectedLabel = formatSources(connectedSources, platform);
+  const t = useT();
+  const connectedLabel = formatSources(connectedSources, platform, t);
   const loading = status === "loading";
   const needsAttention = status === "error";
   const title = loading
-    ? "checking calendars"
+    ? t("meetingNotes.comingUp.emptyTitleLoading")
     : needsAttention
-      ? "calendar needs attention"
-      : "no upcoming meetings";
+      ? t("meetingNotes.comingUp.emptyTitleError")
+      : t("meetingNotes.comingUp.emptyTitleEmpty");
   const body = needsAttention
-    ? "Review your calendar connections."
+    ? t("meetingNotes.comingUp.emptyBodyError")
     : connectedLabel
-      ? `${connectedLabel} connected. Nothing in the next 8h.`
-      : "Nothing in the next 8h.";
+      ? t("meetingNotes.comingUp.emptyBodyConnected", {
+          sources: connectedLabel,
+        })
+      : t("meetingNotes.comingUp.emptyBody");
 
   return (
     <div className="min-h-[116px] flex items-center justify-between gap-5">
@@ -205,7 +209,7 @@ function ComingUpEmptyState({
         className="gap-2 normal-case tracking-normal border-border bg-background text-foreground hover:bg-muted hover:text-foreground active:bg-muted disabled:opacity-100 disabled:bg-muted/40 disabled:text-muted-foreground disabled:border-border shrink-0"
       >
         <Settings2 className="h-3.5 w-3.5" />
-        calendars
+        {t("meetingNotes.comingUp.settingsButton")}
       </Button>
     </div>
   );
@@ -222,6 +226,7 @@ function DayBlock({
   onStart: (event: CalendarEvent) => void | Promise<void>;
   meetingActive: boolean;
 }) {
+  const t = useT();
   const day = String(date.getDate()).padStart(2, "0");
   const month = date
     .toLocaleString(undefined, { month: "short" })
@@ -229,7 +234,7 @@ function DayBlock({
   const dow = date
     .toLocaleString(undefined, { weekday: "short" })
     .toLowerCase();
-  const rel = relativeDayLabel(date);
+  const rel = relativeDayLabel(date, t);
 
   return (
     <div className="grid grid-cols-[64px_minmax(0,1fr)] gap-5">
@@ -274,6 +279,7 @@ function ComingUpRow({
     const ms = Date.parse(event.start) - Date.now();
     return ms <= 5 * 60 * 1000 && ms >= -60 * 1000;
   })();
+  const t = useT();
 
   return (
     <li>
@@ -286,8 +292,8 @@ function ComingUpRow({
         )}
         title={
           disabled
-            ? "a meeting is already recording"
-            : "start a meeting seeded from this event"
+            ? t("meetingNotes.comingUp.rowTitleDisabled")
+            : t("meetingNotes.comingUp.rowTitleStart")
         }
       >
         <div
@@ -302,11 +308,13 @@ function ComingUpRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-sm font-medium text-foreground truncate">
-              {event.title || "untitled event"}
+              {event.title || t("meetingNotes.comingUp.untitledEvent")}
             </span>
             {isImminent && (
               <span className="shrink-0 text-[9px] uppercase tracking-[0.15em] text-foreground border border-foreground px-1 py-px">
-                {startsIn === "now" ? "now" : "soon"}
+                {startsIn === "now"
+                  ? t("meetingNotes.comingUp.badgeNow")
+                  : t("meetingNotes.comingUp.badgeSoon")}
               </span>
             )}
           </div>
@@ -320,7 +328,10 @@ function ComingUpRow({
               <>
                 <span className="text-muted-foreground/60">·</span>
                 <span>
-                  {attendeeCount} {attendeeCount === 1 ? "person" : "people"}
+                  {attendeeCount}{" "}
+                  {attendeeCount === 1
+                    ? t("meetingNotes.comingUp.personOne")
+                    : t("meetingNotes.comingUp.personMany")}
                 </span>
               </>
             )}

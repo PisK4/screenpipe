@@ -25,6 +25,7 @@ import {
   TextQuote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useT, type Translator } from "@/lib/i18n";
 import {
   filterSlashCommands,
   findSlashState,
@@ -331,7 +332,7 @@ interface SelectionSnapshot {
 type ToolbarAction = {
   id: keyof Omit<SelectionSnapshot, "from" | "to">;
   icon: React.ComponentType<{ className?: string }>;
-  title: string;
+  titleKey: string;
   run: (editor: Editor) => void;
   group: "mark" | "block";
 };
@@ -340,64 +341,68 @@ const TOOLBAR_ACTIONS: ToolbarAction[] = [
   {
     id: "bold",
     icon: Bold,
-    title: "bold",
+    titleKey: "meetingNotes.editor.formatBold",
     group: "mark",
     run: (e) => e.chain().focus().toggleBold().run(),
   },
   {
     id: "italic",
     icon: Italic,
-    title: "italic",
+    titleKey: "meetingNotes.editor.formatItalic",
     group: "mark",
     run: (e) => e.chain().focus().toggleItalic().run(),
   },
   {
     id: "strike",
     icon: Strikethrough,
-    title: "strikethrough",
+    titleKey: "meetingNotes.editor.formatStrike",
     group: "mark",
     run: (e) => e.chain().focus().toggleStrike().run(),
   },
   {
     id: "code",
     icon: Code,
-    title: "inline code",
+    titleKey: "meetingNotes.editor.formatCode",
     group: "mark",
     run: (e) => e.chain().focus().toggleCode().run(),
   },
   {
     id: "h1",
     icon: Heading1,
-    title: "heading 1",
+    titleKey: "meetingNotes.editor.formatH1",
     group: "block",
     run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run(),
   },
   {
     id: "h2",
     icon: Heading2,
-    title: "heading 2",
+    titleKey: "meetingNotes.editor.formatH2",
     group: "block",
     run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run(),
   },
   {
     id: "bullet",
     icon: List,
-    title: "bullet list",
+    titleKey: "meetingNotes.editor.formatBullet",
     group: "block",
     run: (e) => e.chain().focus().toggleBulletList().run(),
   },
   {
     id: "quote",
     icon: TextQuote,
-    title: "quote",
+    titleKey: "meetingNotes.editor.formatQuote",
     group: "block",
     run: (e) => e.chain().focus().toggleBlockquote().run(),
   },
 ];
 
 export function FormatToolbar({ editor }: { editor: Editor | null }) {
+  const t = useT();
   const focused = useEditorFocused(editor);
   const mouseDown = useEditorMouseDown(editor);
+
+  const titleOf = (action: ToolbarAction): string =>
+    (t as Translator)(action.titleKey);
 
   const snapshot = useEditorState({
     editor,
@@ -501,8 +506,8 @@ export function FormatToolbar({ editor }: { editor: Editor | null }) {
             )}
             <button
               type="button"
-              title={action.title}
-              aria-label={action.title}
+              title={titleOf(action)}
+              aria-label={titleOf(action)}
               aria-pressed={isActive}
               className={cn(
                 "flex h-8 w-8 items-center justify-center transition-colors",

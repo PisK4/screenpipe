@@ -60,6 +60,8 @@ import { PiExtensionsCard } from "./pi-extensions-card";
 import { WhatsAppPanel } from "./whatsapp-panel";
 import posthog from "posthog-js";
 import { areExternalAgentSkillsInstalled } from "@/lib/external-agent-skills";
+import { useT, type Translator } from "@/lib/i18n";
+import { connectionsEn } from "@/lib/i18n/en-connections";
 // Shared MCP matrix (build/install/uninstall per tool) — same module the
 // onboarding connect-all uses, so connect and disconnect can never drift.
 import {
@@ -84,15 +86,28 @@ interface GitHubAsset { name: string; browser_download_url: string; }
 interface GitHubRelease { tag_name: string; assets: GitHubAsset[]; }
 interface McpVersionInfo { available: string | null; installed: string | null; }
 
-function formatRelativeTime(ts: number): string {
+function formatRelativeTime(ts: number, t: Translator): string {
   const secs = Math.max(0, Math.floor((Date.now() - ts) / 1000));
-  if (secs < 5) return "just now";
-  if (secs < 60) return `${secs}s ago`;
+  if (secs < 5) return t("connections.time.justNow");
+  if (secs < 60) return t("connections.time.secondsAgo", { n: secs });
   const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 60) return t("connections.time.minutesAgo", { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  if (hours < 24) return t("connections.time.hoursAgo", { n: hours });
+  return t("connections.time.daysAgo", { n: Math.floor(hours / 24) });
+}
+
+// True when the connections dictionary defines `key` — used to decide between
+// a translated catalog/category label and the raw backend value (unknown
+// categories and API-provided ids have no entry and must not render as a key).
+function hasConnectionsKey(key: string): boolean {
+  let node: unknown = connectionsEn;
+  for (const part of key.split(".")) {
+    if (!node || typeof node !== "object") return false;
+    node = (node as Record<string, unknown>)[part];
+    if (node === undefined) return false;
+  }
+  return typeof node === "string";
 }
 
 /** One budget for the whole release walk, not one per page. */
@@ -806,6 +821,8 @@ function ListRow({ tile, selected, onClick, onTryInChat }: {
   onClick: () => void;
   onTryInChat?: () => void;
 }) {
+  const t = useT();
+  const tryInChatLabel = t("connections.section.tryInChat");
   // Use div instead of button to avoid nested-button DOM violations
   // (the "Try in Chat" icon is itself a button).
   return (
@@ -828,7 +845,11 @@ function ListRow({ tile, selected, onClick, onTryInChat }: {
       <div className="flex flex-1 min-w-0 flex-col gap-1.5">
         <p className="text-sm font-semibold leading-tight text-foreground">{tile.name}</p>
         {tile.description && (
-          <p className="text-xs leading-snug text-muted-foreground truncate">{tile.description}</p>
+          <p className="text-xs leading-snug text-muted-foreground truncate">
+            {hasConnectionsKey(`connections.catalog.${tile.id}`)
+              ? t(`connections.catalog.${tile.id}`)
+              : tile.description}
+          </p>
         )}
       </div>
       <div className="relative h-7 w-7 shrink-0">
@@ -844,7 +865,7 @@ function ListRow({ tile, selected, onClick, onTryInChat }: {
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    aria-label="Try in Chat"
+                    aria-label={tryInChatLabel}
                     onClick={(e) => {
                       e.stopPropagation();
                       onTryInChat?.();
@@ -854,7 +875,7 @@ function ListRow({ tile, selected, onClick, onTryInChat }: {
                     <MessageSquare className="h-4 w-4 text-foreground" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Try in Chat</TooltipContent>
+                <TooltipContent side="top">{tryInChatLabel}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </>
@@ -879,9 +900,10 @@ function McpSpotlight({
   selected: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   const summary = totalCount === 0
-    ? "No servers yet"
-    : `${enabledCount}/${totalCount} enabled`;
+    ? t("connections.spotlight.noServers")
+    : t("connections.spotlight.serversEnabled", { enabled: enabledCount, total: totalCount });
 
   return (
     <div
@@ -902,7 +924,7 @@ function McpSpotlight({
           />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium text-foreground">MCP servers</h3>
+              <h3 className="text-sm font-medium text-foreground">{t("connections.spotlight.mcpTitle")}</h3>
               {enabledCount > 0 && (
                 <span className="h-2 w-2 rounded-full bg-foreground" />
               )}
@@ -918,7 +940,7 @@ function McpSpotlight({
           className="h-8 gap-1.5 text-xs normal-case font-sans tracking-normal"
         >
           <Plus className="h-3.5 w-3.5" />
-          {totalCount === 0 ? "Add" : "Manage"}
+          {totalCount === 0 ? t("connections.spotlight.addServer") : t("connections.common.manage")}
         </Button>
       </div>
     </div>
@@ -935,8 +957,9 @@ function SkillsSpotlight({
   selected: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   const summary =
-    count === 0 ? "No skills yet" : `${count} skill${count === 1 ? "" : "s"} imported`;
+    count === 0 ? t("connections.spotlight.noSkills") : t("connections.spotlight.skillsImported", { count });
 
   return (
     <div
@@ -957,7 +980,7 @@ function SkillsSpotlight({
           />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium text-foreground">Skills</h3>
+              <h3 className="text-sm font-medium text-foreground">{t("connections.spotlight.skillsTitle")}</h3>
               {count > 0 && <span className="h-2 w-2 rounded-full bg-foreground" />}
             </div>
             <p className="text-xs text-muted-foreground">{summary}</p>
@@ -971,7 +994,7 @@ function SkillsSpotlight({
           className="h-8 gap-1.5 text-xs normal-case font-sans tracking-normal"
         >
           <Plus className="h-3.5 w-3.5" />
-          {count === 0 ? "Connect skills" : "Manage"}
+          {count === 0 ? t("connections.spotlight.connectSkills") : t("connections.common.manage")}
         </Button>
       </div>
     </div>
@@ -987,7 +1010,8 @@ function PiExtensionsSpotlight({
   selected: boolean;
   onClick: () => void;
 }) {
-  const summary = `5 work with every agent · ${count} Pi package${count === 1 ? "" : "s"}`;
+  const t = useT();
+  const summary = t("connections.spotlight.piSummary", { count });
 
   return (
     <div
@@ -1008,7 +1032,7 @@ function PiExtensionsSpotlight({
           />
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium text-foreground">Agent extensions</h3>
+              <h3 className="text-sm font-medium text-foreground">{t("connections.spotlight.piTitle")}</h3>
               <span className="h-2 w-2 rounded-full bg-foreground" />
             </div>
             <p className="text-xs text-muted-foreground">{summary}</p>
@@ -1022,7 +1046,7 @@ function PiExtensionsSpotlight({
           className="h-8 gap-1.5 text-xs normal-case font-sans tracking-normal"
         >
           <Plus className="h-3.5 w-3.5" />
-          Manage
+          {t("connections.common.manage")}
         </Button>
       </div>
     </div>
@@ -1040,6 +1064,7 @@ function PiExtensionsSpotlight({
 // offending file is one click away. Persistent until retry: settings is a
 // management surface, errors here are conditions, not toasts.
 function PanelConfigError({ err }: { err: FriendlyToolError }) {
+  const t = useT();
   const revealPath = async (path: string) => {
     try {
       if (platform() === "macos") await Command.create("open", ["-R", path]).execute();
@@ -1062,7 +1087,7 @@ function PanelConfigError({ err }: { err: FriendlyToolError }) {
           onClick={() => revealPath(err.path!)}
           className="underline text-foreground/80 hover:text-foreground transition-colors shrink-0"
         >
-          open file
+          {t("connections.panelConfigError.openFile")}
         </button>
       )}
     </div>
@@ -1070,6 +1095,7 @@ function PanelConfigError({ err }: { err: FriendlyToolError }) {
 }
 
 function ClaudePanel({ onConnected, onDisconnected }: { onConnected?: () => void; onDisconnected?: () => void }) {
+  const t = useT();
   const [state, setState] = useState<"idle" | "connecting" | "connected">("idle");
   const [connectError, setConnectError] = useState<FriendlyToolError | null>(null);
   const [claudeAppInstalled, setClaudeAppInstalled] = useState<boolean | null>(null);
@@ -1125,8 +1151,8 @@ function ClaudePanel({ onConnected, onDisconnected }: { onConnected?: () => void
       // Warn instead of leaving the user with a silently-broken setup.
       if (mcp.command === "npx") {
         await message(
-          "connected, but screenpipe couldn't find its bundled runtime, so it wrote a config that needs Node.js installed.\n\nif Claude can't start screenpipe, install Node (https://nodejs.org) or reinstall the screenpipe app, then reconnect.",
-          { title: "claude mcp setup", kind: "warning" }
+          t("connections.claude.dialogBody"),
+          { title: t("connections.claude.dialogTitle"), kind: "warning" }
         );
       }
     } catch (error) {
@@ -1163,32 +1189,32 @@ function ClaudePanel({ onConnected, onDisconnected }: { onConnected?: () => void
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Install the screenpipe MCP plus API and CLI skills for Claude in one click.
+        {t("connections.claude.desc")}
       </p>
       <div className="flex flex-wrap gap-2">
         {state === "connected" ? (
           <Button onClick={handleDisconnect} variant="outline" size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            <LogOut className="h-3 w-3" />disconnect
+            <LogOut className="h-3 w-3" />{t("connections.common.disconnect")}
           </Button>
         ) : (
           <Button onClick={handleConnect} disabled={state === "connecting"} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            {state === "connecting" ? (<><Loader2 className="h-3 w-3 animate-spin" />connecting...</>) : connectError ? (<><RotateCw className="h-3 w-3" />retry</>) : (<><Download className="h-3 w-3" />connect</>)}
+            {state === "connecting" ? (<><Loader2 className="h-3 w-3 animate-spin" />{t("connections.common.connecting")}</>) : connectError ? (<><RotateCw className="h-3 w-3" />{t("connections.common.retry")}</>) : (<><Download className="h-3 w-3" />{t("connections.common.connect")}</>)}
           </Button>
         )}
         {claudeAppInstalled === false ? (
           <Button variant="outline" onClick={() => openUrl("https://claude.ai/download")} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            <ExternalLink className="h-3 w-3" />get claude desktop
+            <ExternalLink className="h-3 w-3" />{t("connections.claude.getDesktop")}
           </Button>
         ) : (
           <Button variant="outline" onClick={openClaude} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            <ExternalLink className="h-3 w-3" />open claude
+            <ExternalLink className="h-3 w-3" />{t("connections.claude.open")}
           </Button>
         )}
       </div>
       {connectError && <PanelConfigError err={connectError} />}
       {state === "connected" && (
         <p className="text-xs text-muted-foreground">
-          <strong>connected!</strong> MCP + both skills installed. Restart Claude and ask: &quot;what did I do in the last 5 minutes?&quot;
+          <strong>{t("connections.claude.connected")}</strong> {t("connections.claude.connectedDetail")}
         </p>
       )}
     </div>
@@ -1196,6 +1222,7 @@ function ClaudePanel({ onConnected, onDisconnected }: { onConnected?: () => void
 }
 
 function CursorPanel({ onConnected, onDisconnected }: { onConnected?: () => void; onDisconnected?: () => void }) {
+  const t = useT();
   const [state, setState] = useState<"idle" | "installing" | "installed">("idle");
   const [connectError, setConnectError] = useState<FriendlyToolError | null>(null);
   const [cursorAppInstalled, setCursorAppInstalled] = useState<boolean | null>(null);
@@ -1255,30 +1282,30 @@ function CursorPanel({ onConnected, onDisconnected }: { onConnected?: () => void
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">Give Cursor access to your screen &amp; audio history via MCP.</p>
+      <p className="text-xs text-muted-foreground">{t("connections.cursor.desc")}</p>
       <div className="flex flex-wrap gap-2">
         {state === "installed" ? (
           <Button onClick={handleDisconnect} variant="outline" size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            <LogOut className="h-3 w-3" />disconnect
+            <LogOut className="h-3 w-3" />{t("connections.common.disconnect")}
           </Button>
         ) : (
           <Button onClick={handleConnect} disabled={state === "installing"} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            {state === "installing" ? (<><Loader2 className="h-3 w-3 animate-spin" />installing...</>) : connectError ? (<><RotateCw className="h-3 w-3" />retry</>) : (<><Download className="h-3 w-3" />connect</>)}
+            {state === "installing" ? (<><Loader2 className="h-3 w-3 animate-spin" />{t("connections.common.installing")}</>) : connectError ? (<><RotateCw className="h-3 w-3" />{t("connections.common.retry")}</>) : (<><Download className="h-3 w-3" />{t("connections.common.connect")}</>)}
           </Button>
         )}
         {cursorAppInstalled === false ? (
           <Button variant="outline" onClick={() => openUrl("https://cursor.com/download")} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            <ExternalLink className="h-3 w-3" />get cursor
+            <ExternalLink className="h-3 w-3" />{t("connections.cursor.get")}
           </Button>
         ) : (
           <Button variant="outline" onClick={openCursor} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            <ExternalLink className="h-3 w-3" />open cursor
+            <ExternalLink className="h-3 w-3" />{t("connections.cursor.open")}
           </Button>
         )}
       </div>
       {connectError && <PanelConfigError err={connectError} />}
       <details className="text-xs text-muted-foreground">
-        <summary className="cursor-pointer">manual config</summary>
+        <summary className="cursor-pointer">{t("connections.cursor.manualConfig")}</summary>
         <pre className="mt-2 bg-muted border border-border rounded-lg p-3 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap">{`add to ~/.cursor/mcp.json:\n\n${JSON.stringify({ mcpServers: { screenpipe: { command: "npx", args: ["-y", "screenpipe-mcp@latest"] } } }, null, 2)}`}</pre>
       </details>
     </div>
@@ -1286,6 +1313,7 @@ function CursorPanel({ onConnected, onDisconnected }: { onConnected?: () => void
 }
 
 function CodexPanel({ onConnected, onDisconnected }: { onConnected?: () => void; onDisconnected?: () => void }) {
+  const t = useT();
   const [state, setState] = useState<"idle" | "installing" | "installed">("idle");
   const [connectError, setConnectError] = useState<FriendlyToolError | null>(null);
   useEffect(() => {
@@ -1334,29 +1362,29 @@ function CodexPanel({ onConnected, onDisconnected }: { onConnected?: () => void;
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">Install the screenpipe MCP plus API and CLI skills for Codex in one click.</p>
+      <p className="text-xs text-muted-foreground">{t("connections.codex.desc")}</p>
       <div className="flex flex-wrap gap-2">
         {state === "installed" ? (
           <Button onClick={handleDisconnect} variant="outline" size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            <LogOut className="h-3 w-3" />disconnect
+            <LogOut className="h-3 w-3" />{t("connections.common.disconnect")}
           </Button>
         ) : (
           <Button onClick={handleConnect} disabled={state === "installing"} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            {state === "installing" ? (<><Loader2 className="h-3 w-3 animate-spin" />connecting...</>) : connectError ? (<><RotateCw className="h-3 w-3" />retry</>) : (<><Download className="h-3 w-3" />connect</>)}
+            {state === "installing" ? (<><Loader2 className="h-3 w-3 animate-spin" />{t("connections.common.connecting")}</>) : connectError ? (<><RotateCw className="h-3 w-3" />{t("connections.common.retry")}</>) : (<><Download className="h-3 w-3" />{t("connections.common.connect")}</>)}
           </Button>
         )}
         <Button variant="outline" onClick={openCodex} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-          <ExternalLink className="h-3 w-3" />open codex
+          <ExternalLink className="h-3 w-3" />{t("connections.codex.open")}
         </Button>
       </div>
       {connectError && <PanelConfigError err={connectError} />}
       {state === "installed" && (
         <p className="text-xs text-muted-foreground">
-          <strong>connected!</strong> MCP + both skills installed. Open a new Codex session and ask: &quot;what did I do in the last 5 minutes?&quot;
+          <strong>{t("connections.codex.connected")}</strong> {t("connections.codex.connectedDetail")}
         </p>
       )}
       <details className="text-xs text-muted-foreground">
-        <summary className="cursor-pointer">manual config</summary>
+        <summary className="cursor-pointer">{t("connections.codex.manualConfig")}</summary>
         <pre className="mt-2 bg-muted border border-border rounded-lg p-3 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap">{manualConfig}</pre>
       </details>
       <MemorySyncSubsection
@@ -1369,6 +1397,7 @@ function CodexPanel({ onConnected, onDisconnected }: { onConnected?: () => void;
 }
 
 function GrokPanel({ onConnected, onDisconnected }: { onConnected?: () => void; onDisconnected?: () => void }) {
+  const t = useT();
   const [state, setState] = useState<"idle" | "installing" | "installed">("idle");
   const [connectError, setConnectError] = useState<FriendlyToolError | null>(null);
   useEffect(() => { isGrokMcpInstalled().then(ok => { if (ok) { setState("installed"); onConnected?.(); } }); }, []);
@@ -1400,29 +1429,29 @@ function GrokPanel({ onConnected, onDisconnected }: { onConnected?: () => void; 
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">Give Grok CLI access to your screen &amp; audio history via MCP.</p>
+      <p className="text-xs text-muted-foreground">{t("connections.grok.desc")}</p>
       <div className="flex flex-wrap gap-2">
         {state === "installed" ? (
           <Button onClick={handleDisconnect} variant="outline" size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            <LogOut className="h-3 w-3" />disconnect
+            <LogOut className="h-3 w-3" />{t("connections.common.disconnect")}
           </Button>
         ) : (
           <Button onClick={handleConnect} disabled={state === "installing"} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            {state === "installing" ? (<><Loader2 className="h-3 w-3 animate-spin" />connecting...</>) : connectError ? (<><RotateCw className="h-3 w-3" />retry</>) : (<><Download className="h-3 w-3" />connect</>)}
+            {state === "installing" ? (<><Loader2 className="h-3 w-3 animate-spin" />{t("connections.common.connecting")}</>) : connectError ? (<><RotateCw className="h-3 w-3" />{t("connections.common.retry")}</>) : (<><Download className="h-3 w-3" />{t("connections.common.connect")}</>)}
           </Button>
         )}
         <Button variant="outline" onClick={() => openUrl("https://github.com/superagent-ai/grok-cli")} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-          <ExternalLink className="h-3 w-3" />grok cli
+          <ExternalLink className="h-3 w-3" />{t("connections.grok.cliButton")}
         </Button>
       </div>
       {connectError && <PanelConfigError err={connectError} />}
       {state === "installed" && (
         <p className="text-xs text-muted-foreground">
-          <strong>connected!</strong> start a new <code>grok</code> session and ask: &quot;what did I do in the last 5 minutes?&quot;
+          <strong>{t("connections.grok.connected")}</strong> {t("connections.grok.connectedDetail")}
         </p>
       )}
       <details className="text-xs text-muted-foreground">
-        <summary className="cursor-pointer">manual config</summary>
+        <summary className="cursor-pointer">{t("connections.grok.manualConfig")}</summary>
         <pre className="mt-2 bg-muted border border-border rounded-lg p-3 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap">{manualConfig}</pre>
       </details>
     </div>
@@ -1430,6 +1459,7 @@ function GrokPanel({ onConnected, onDisconnected }: { onConnected?: () => void; 
 }
 
 function ClaudeCodePanel() {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const cmd = "claude mcp add screenpipe -- npx -y screenpipe-mcp@latest";
   const handleCopy = useCallback(async () => {
@@ -1442,7 +1472,7 @@ function ClaudeCodePanel() {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">Give Claude Code access to your screen &amp; audio history. Run in your terminal:</p>
+      <p className="text-xs text-muted-foreground">{t("connections.claudeCode.desc")}</p>
       <div className="relative group">
         <pre className="bg-muted border border-border rounded-lg p-3 pr-10 text-xs font-mono text-foreground overflow-x-auto">{cmd}</pre>
         <Button variant="ghost" size="sm" onClick={handleCopy} className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1463,19 +1493,17 @@ function ClaudeCodePanel() {
 // obsidian) so the snake_case SyncOutcome parsing stays in exactly one place.
 // Rust serializes the SyncOutcome enum with `rename_all = "snake_case"`, so
 // the variant keys are lowercase (`wrote` / `unchanged` / `skipped`).
-function describeSyncOutcome(result: any): string {
+function describeSyncOutcome(result: any, t: Translator): string {
   if (result?.wrote) {
-    const n = result.wrote.entries;
-    return `wrote ${n} ${n === 1 ? "memory" : "memories"}`;
+    return t("connections.syncOutcome.wrote", { n: result.wrote.entries });
   }
   if (result?.unchanged) {
-    const n = result.unchanged.entries;
-    return `up to date · ${n} ${n === 1 ? "memory" : "memories"}`;
+    return t("connections.syncOutcome.upToDate", { n: result.unchanged.entries });
   }
   if (result?.skipped) {
-    return `skipped · ${result.skipped.reason}`;
+    return t("connections.syncOutcome.skipped", { reason: result.skipped.reason });
   }
-  return "synced";
+  return t("connections.syncOutcome.synced");
 }
 
 // Shared subsection used by ClaudeCodePanel + CodexPanel. Surfaces the
@@ -1496,6 +1524,7 @@ function describeSyncOutcome(result: any): string {
 // its own input state and supplies the credential payload at connect time.
 function useMemorySyncDestination(integrationId: string) {
   const { toast } = useToast();
+  const t = useT();
   const [connected, setConnected] = useState<boolean | null>(null);
   const [status, setStatus] = useState<"idle" | "connecting" | "syncing">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -1508,27 +1537,27 @@ function useMemorySyncDestination(integrationId: string) {
     try {
       const res = await localFetch("/memories/sync-external", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "sync failed");
+      if (!res.ok) throw new Error(data?.error || t("connections.errors.syncFailed"));
 
       // The endpoint returns a list of per-destination outcomes — pick the one
       // for this integration and render it. Other tiles refresh independently.
       const me = (data?.results || []).find((r: any) => r.destination_id === integrationId);
       if (me?.outcome?.ok) {
-        const resultText = describeSyncOutcome(me.outcome.result);
+        const resultText = describeSyncOutcome(me.outcome.result, t);
         setLastResult(resultText);
         setLastResultAt(Date.now());
-        toast({ title: "memory sync", description: resultText });
+        toast({ title: t("connections.memorySync.beta"), description: resultText });
       } else if (me) {
-        throw new Error(me?.outcome?.error || "sync failed");
+        throw new Error(me?.outcome?.error || t("connections.errors.syncFailed"));
       }
     } catch (e: any) {
-      const msg = e?.message || "sync failed";
+      const msg = e?.message || t("connections.errors.syncFailed");
       setError(msg);
-      toast({ title: "memory sync failed", description: msg, variant: "destructive" });
+      toast({ title: t("connections.errors.syncFailed"), description: msg, variant: "destructive" });
     } finally {
       setStatus("idle");
     }
-  }, [integrationId, toast]);
+  }, [integrationId, toast, t]);
 
   // Validate the credentials, persist them, then sync immediately so the file
   // populates before the next scheduler tick. `test` round-trips through the
@@ -1544,7 +1573,7 @@ function useMemorySyncDestination(integrationId: string) {
         body: JSON.stringify({ credentials }),
       });
       const testData = await testRes.json();
-      if (!testRes.ok || testData.error) throw new Error(testData.error || "test failed");
+      if (!testRes.ok || testData.error) throw new Error(testData.error || t("connections.errors.testFailed"));
 
       const saveRes = await localFetch(`/connections/${integrationId}`, {
         method: "PUT",
@@ -1552,32 +1581,32 @@ function useMemorySyncDestination(integrationId: string) {
         body: JSON.stringify({ credentials }),
       });
       const saveData = await saveRes.json();
-      if (!saveRes.ok || saveData.error) throw new Error(saveData.error || "save failed");
+      if (!saveRes.ok || saveData.error) throw new Error(saveData.error || t("connections.errors.saveFailed"));
 
       setConnected(true);
       notifyConnectionsUpdated();
       posthog.capture("connection_saved", { integration: integrationId });
       await triggerSyncNow();
     } catch (e: any) {
-      setError(e?.message || "connection failed");
+      setError(e?.message || t("connections.errors.connectFailed"));
     } finally {
       setStatus("idle");
     }
-  }, [integrationId, triggerSyncNow]);
+  }, [integrationId, triggerSyncNow, t]);
 
   const disconnect = useCallback(async () => {
     setError(null);
     try {
       const res = await localFetch(`/connections/${integrationId}`, { method: "DELETE" });
-      if (!res.ok && res.status !== 404) throw new Error("disconnect failed");
+      if (!res.ok && res.status !== 404) throw new Error(t("connections.errors.disconnectFailed"));
       setConnected(false);
       setLastResult(null);
       setLastResultAt(null);
       notifyConnectionsUpdated();
     } catch (e: any) {
-      setError(e?.message || "disconnect failed");
+      setError(e?.message || t("connections.errors.disconnectFailed"));
     }
-  }, [integrationId]);
+  }, [integrationId, t]);
 
   return { connected, setConnected, status, error, setError, lastResult, lastResultAt, triggerSyncNow, connect, disconnect };
 }
@@ -1591,6 +1620,7 @@ function MemorySyncSubsection({
   defaultPath: string;
   targetFilename: string;
 }) {
+  const t = useT();
   const [homePath, setHomePath] = useState(defaultPath);
   const {
     connected, setConnected, status, error,
@@ -1623,10 +1653,9 @@ function MemorySyncSubsection({
   return (
     <div className="border-t border-border pt-3 mt-3 space-y-2">
       <div className="space-y-0.5">
-        <p className="text-xs font-medium text-foreground">memory sync (beta)</p>
+        <p className="text-xs font-medium text-foreground">{t("connections.memorySync.beta")}</p>
         <p className="text-xs text-muted-foreground">
-          writes your screenpipe memories into {targetFilename} so {assistantName} sees them
-          in every new session. updates automatically every 5 minutes.
+          {t("connections.memorySync.claudeDesc", { target: targetFilename, assistant: assistantName })}
         </p>
       </div>
 
@@ -1634,29 +1663,29 @@ function MemorySyncSubsection({
         <>
           <div className="p-2 bg-muted border border-border rounded-lg space-y-1">
             <div className="space-y-0.5">
-              <p className="text-xs text-muted-foreground">file</p>
+              <p className="text-xs text-muted-foreground">{t("connections.memorySync.file")}</p>
               <p className="text-xs text-foreground font-mono break-all">{persistedPath}/{targetFilename}</p>
             </div>
             {lastResult && (
               <div className="pt-1 border-t border-border space-y-0.5">
-                <p className="text-xs text-muted-foreground">last sync{lastResultAt && ` · ${formatRelativeTime(lastResultAt)}`}</p>
+                <p className="text-xs text-muted-foreground">{t("connections.memorySync.lastSync")}{lastResultAt && ` · ${formatRelativeTime(lastResultAt, t)}`}</p>
                 <p className="text-xs text-foreground break-all">{lastResult}</p>
               </div>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={triggerSyncNow} disabled={status === "syncing"} size="sm" variant="outline" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-              {status === "syncing" ? (<><Loader2 className="h-3 w-3 animate-spin" />syncing...</>) : (<><Send className="h-3 w-3" />sync now</>)}
+              {status === "syncing" ? (<><Loader2 className="h-3 w-3 animate-spin" />{t("connections.memorySync.syncing")}</>) : (<><Send className="h-3 w-3" />{t("connections.memorySync.syncNow")}</>)}
             </Button>
             <Button onClick={disconnect} size="sm" variant="ghost" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-              <LogOut className="h-3 w-3" />stop syncing
+              <LogOut className="h-3 w-3" />{t("connections.memorySync.stopSyncing")}
             </Button>
           </div>
         </>
       ) : (
         <>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">home directory (optional)</Label>
+            <Label className="text-xs text-muted-foreground">{t("connections.memorySync.homeDirOptional")}</Label>
             <Input
               value={homePath}
               onChange={(e) => setHomePath(e.target.value)}
@@ -1666,7 +1695,7 @@ function MemorySyncSubsection({
             />
           </div>
           <Button onClick={() => connect({ home_path: persistedPath })} disabled={status === "connecting"} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            {status === "connecting" ? (<><Loader2 className="h-3 w-3 animate-spin" />enabling...</>) : (<><Download className="h-3 w-3" />enable memory sync</>)}
+            {status === "connecting" ? (<><Loader2 className="h-3 w-3 animate-spin" />{t("connections.memorySync.enabling")}</>) : (<><Download className="h-3 w-3" />{t("connections.memorySync.enable")}</>)}
           </Button>
         </>
       )}
@@ -1700,6 +1729,7 @@ function sanitizeVaultFolder(folder: string): string {
 }
 
 function ObsidianMemorySyncSubsection() {
+  const t = useT();
   const [vaultPath, setVaultPath] = useState("");
   const [folder, setFolder] = useState(OBSIDIAN_DEFAULT_FOLDER);
   const {
@@ -1747,10 +1777,10 @@ function ObsidianMemorySyncSubsection() {
 
   const handleEnable = useCallback(() => {
     const vault = vaultPath.trim();
-    if (!vault) { setError("pick a vault folder first"); return; }
+    if (!vault) { setError(t("connections.memorySync.pickVaultFirst")); return; }
     // Backend re-sanitizes the folder authoritatively; send the raw value.
     return connect({ vault_path: vault, memories_folder: folder.trim() || OBSIDIAN_DEFAULT_FOLDER });
-  }, [vaultPath, folder, connect, setError]);
+  }, [vaultPath, folder, connect, setError, t]);
 
   if (connected === null) {
     return null; // initial fetch in flight — avoid flicker
@@ -1759,10 +1789,9 @@ function ObsidianMemorySyncSubsection() {
   return (
     <div className="border-t border-border pt-3 mt-1 space-y-2">
       <div className="space-y-0.5">
-        <p className="text-xs font-medium text-foreground">memory sync (beta)</p>
+        <p className="text-xs font-medium text-foreground">{t("connections.memorySync.beta")}</p>
         <p className="text-xs text-muted-foreground">
-          writes your screenpipe memories into a note in this vault so they show up
-          in your graph and search. updates automatically every 5 minutes.
+          {t("connections.memorySync.obsidianDesc")}
         </p>
       </div>
 
@@ -1770,29 +1799,29 @@ function ObsidianMemorySyncSubsection() {
         <>
           <div className="p-2 bg-muted border border-border rounded-lg space-y-1">
             <div className="space-y-0.5">
-              <p className="text-xs text-muted-foreground">note</p>
+              <p className="text-xs text-muted-foreground">{t("connections.memorySync.note")}</p>
               <p className="text-xs text-foreground font-mono break-all">{notePath}</p>
             </div>
             {lastResult && (
               <div className="pt-1 border-t border-border space-y-0.5">
-                <p className="text-xs text-muted-foreground">last sync{lastResultAt && ` · ${formatRelativeTime(lastResultAt)}`}</p>
+                <p className="text-xs text-muted-foreground">{t("connections.memorySync.lastSync")}{lastResultAt && ` · ${formatRelativeTime(lastResultAt, t)}`}</p>
                 <p className="text-xs text-foreground break-all">{lastResult}</p>
               </div>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button onClick={triggerSyncNow} disabled={status === "syncing"} size="sm" variant="outline" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-              {status === "syncing" ? (<><Loader2 className="h-3 w-3 animate-spin" />syncing...</>) : (<><Send className="h-3 w-3" />sync now</>)}
+              {status === "syncing" ? (<><Loader2 className="h-3 w-3 animate-spin" />{t("connections.memorySync.syncing")}</>) : (<><Send className="h-3 w-3" />{t("connections.memorySync.syncNow")}</>)}
             </Button>
             <Button onClick={disconnect} size="sm" variant="ghost" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-              <LogOut className="h-3 w-3" />stop syncing
+              <LogOut className="h-3 w-3" />{t("connections.memorySync.stopSyncing")}
             </Button>
           </div>
         </>
       ) : (
         <>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">vault folder</Label>
+            <Label className="text-xs text-muted-foreground">{t("connections.memorySync.vaultFolder")}</Label>
             <div className="relative">
               <Input
                 value={vaultPath}
@@ -1803,10 +1832,10 @@ function ObsidianMemorySyncSubsection() {
               />
               <button
                 type="button"
-                title="browse for vault folder"
+                title={t("connections.memorySync.browse")}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 onClick={async () => {
-                  const selected = await openDialog({ directory: true, multiple: false, title: "Select Obsidian Vault Folder" });
+                  const selected = await openDialog({ directory: true, multiple: false, title: t("connections.memorySync.dialogTitle") });
                   if (typeof selected === "string") setVaultPath(selected);
                 }}
               >
@@ -1815,7 +1844,7 @@ function ObsidianMemorySyncSubsection() {
             </div>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">folder inside vault (optional)</Label>
+            <Label className="text-xs text-muted-foreground">{t("connections.memorySync.folderInsideVaultOptional")}</Label>
             <Input
               value={folder}
               onChange={(e) => setFolder(e.target.value)}
@@ -1825,7 +1854,7 @@ function ObsidianMemorySyncSubsection() {
             />
           </div>
           <Button onClick={handleEnable} disabled={status === "connecting" || !vaultPath.trim()} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            {status === "connecting" ? (<><Loader2 className="h-3 w-3 animate-spin" />enabling...</>) : (<><Download className="h-3 w-3" />enable memory sync</>)}
+            {status === "connecting" ? (<><Loader2 className="h-3 w-3 animate-spin" />{t("connections.memorySync.enabling")}</>) : (<><Download className="h-3 w-3" />{t("connections.memorySync.enable")}</>)}
           </Button>
         </>
       )}
@@ -1836,6 +1865,7 @@ function ObsidianMemorySyncSubsection() {
 }
 
 function AnythingLLMPanel() {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const config = JSON.stringify({
     mcpServers: {
@@ -1856,13 +1886,16 @@ function AnythingLLMPanel() {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Give AnythingLLM access to your screen &amp; audio history via MCP.
+        {t("connections.anythingllm.desc")}
       </p>
       <p className="text-xs text-muted-foreground">
-        1. In AnythingLLM, go to <strong>Agent Skills</strong> &gt; <strong>MCP Servers</strong>
+        {t("connections.anythingllm.goTo")}{" "}
+        <strong>{t("connections.anythingllm.agentSkills")}</strong> &gt;{" "}
+        <strong>{t("connections.anythingllm.mcpServers")}</strong>
       </p>
       <p className="text-xs text-muted-foreground">
-        2. Add this config to your <code className="bg-muted px-1 rounded">anythingllm_mcp_servers.json</code>:
+        {t("connections.anythingllm.addTo")}{" "}
+        <code className="bg-muted px-1 rounded">anythingllm_mcp_servers.json</code>:
       </p>
       <div className="relative group">
         <pre className="bg-muted border border-border rounded-lg p-3 pr-10 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap">{config}</pre>
@@ -1871,13 +1904,16 @@ function AnythingLLMPanel() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        3. Click <strong>Refresh</strong> in Agent Skills to load the server.
+        {t("connections.anythingllm.refreshPrefix")}{" "}
+        <strong>{t("connections.anythingllm.refresh")}</strong>{" "}
+        {t("connections.anythingllm.refreshSuffix")}
       </p>
     </div>
   );
 }
 
 function MstyPanel() {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const config = JSON.stringify({
     command: "npx",
@@ -1894,13 +1930,19 @@ function MstyPanel() {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Give Msty access to your screen &amp; audio history via MCP.
+        {t("connections.msty.desc")}
       </p>
       <p className="text-xs text-muted-foreground">
-        1. Open Msty and go to <strong>Settings</strong> &gt; <strong>Toolbox</strong>
+        {t("connections.msty.openTo")}{" "}
+        <strong>{t("connections.msty.settings")}</strong> &gt;{" "}
+        <strong>{t("connections.msty.toolbox")}</strong>
       </p>
       <p className="text-xs text-muted-foreground">
-        2. Click <strong>Add New Tool</strong>, select <strong>STDIO / JSON</strong>, and paste this config:
+        {t("connections.msty.clickAdd")}{" "}
+        <strong>{t("connections.msty.addNewTool")}</strong>
+        {t("connections.msty.selectStdio")}{" "}
+        <strong>{t("connections.msty.stdioJson")}</strong>
+        {t("connections.msty.pasteConfig")}
       </p>
       <div className="relative group">
         <pre className="bg-muted border border-border rounded-lg p-3 pr-10 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap">{config}</pre>
@@ -1909,16 +1951,20 @@ function MstyPanel() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        3. Give the tool a name (e.g. <strong>screenpipe</strong>) and click <strong>Add</strong>
+        {t("connections.msty.nameItPrefix")}{" "}
+        <strong>screenpipe</strong>
+        {t("connections.msty.andClick")}{" "}
+        <strong>{t("connections.msty.addButton")}</strong>
       </p>
       <Button variant="outline" onClick={() => openUrl("https://msty.app")} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-        <ExternalLink className="h-3 w-3" />open msty
+        <ExternalLink className="h-3 w-3" />{t("connections.msty.open")}
       </Button>
     </div>
   );
 }
 
 function WarpPanel() {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   // Warp's MCP schema is per-server: no wrapping `mcpServers` object,
   // just one `{ name: { command, args, ... } }` block pasted in the UI.
@@ -1940,13 +1986,22 @@ function WarpPanel() {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Give Warp&apos;s Agent Mode access to your screen &amp; audio history via MCP.
+        {t("connections.warp.desc")}
       </p>
       <p className="text-xs text-muted-foreground">
-        1. In Warp, open <strong>Settings</strong> &gt; <strong>AI</strong> &gt; <strong>Manage MCP servers</strong> &gt; <strong>+ Add</strong> (or run <code className="bg-muted px-1 rounded">Open MCP Servers</code> from the Command Palette)
+        {t("connections.warp.open")}{" "}
+        <strong>{t("connections.warp.settings")}</strong> &gt;{" "}
+        <strong>{t("connections.warp.ai")}</strong> &gt;{" "}
+        <strong>{t("connections.warp.manageServers")}</strong> &gt;{" "}
+        <strong>{t("connections.warp.plusAdd")}</strong>{" "}
+        {t("connections.warp.orRun")}{" "}
+        <code className="bg-muted px-1 rounded">{t("connections.warp.cmdName")}</code>{" "}
+        {t("connections.warp.fromPalette")}
       </p>
       <p className="text-xs text-muted-foreground">
-        2. Choose <strong>CLI Server (Command)</strong> and paste this config:
+        {t("connections.warp.choose")}{" "}
+        <strong>{t("connections.warp.cliServer")}</strong>{" "}
+        {t("connections.warp.pasteConfig")}
       </p>
       <div className="relative group">
         <pre className="bg-muted border border-border rounded-lg p-3 pr-10 text-xs font-mono text-foreground overflow-x-auto whitespace-pre-wrap">{config}</pre>
@@ -1955,16 +2010,22 @@ function WarpPanel() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        3. Click <strong>Save</strong>. The server should show <strong>Running</strong>. Then ask Warp&apos;s agent: <em>&quot;what did I do in the last 5 minutes?&quot;</em>
+        {t("connections.warp.clickSave")}{" "}
+        <strong>{t("connections.warp.save")}</strong>
+        {t("connections.warp.showsRunning")}{" "}
+        <strong>{t("connections.warp.running")}</strong>
+        {t("connections.warp.thenAsk")}{" "}
+        <em>{t("connections.warp.askQuote")}</em>
       </p>
       <Button variant="outline" onClick={() => openUrl("https://www.warp.dev")} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-        <ExternalLink className="h-3 w-3" />open warp
+        <ExternalLink className="h-3 w-3" />{t("connections.warp.openButton")}
       </Button>
     </div>
   );
 }
 
 function OllamaPanel() {
+  const t = useT();
   const [status, setStatus] = useState<"idle" | "checking" | "connected" | "error">("idle");
   const [models, setModels] = useState<string[]>([]);
 
@@ -1986,31 +2047,32 @@ function OllamaPanel() {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Use Ollama as a local AI provider for screenpipe.
+        {t("connections.ollama.desc")}
       </p>
       <Button onClick={handleCheck} disabled={status === "checking"} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-        {status === "checking" ? (<><Loader2 className="h-3 w-3 animate-spin" />checking...</>) : "check connection"}
+        {status === "checking" ? (<><Loader2 className="h-3 w-3 animate-spin" />{t("connections.ollama.checking")}</>) : t("connections.ollama.checkConnection")}
       </Button>
       {status === "connected" && (
         <div className="p-3 bg-muted border border-border rounded-lg space-y-1">
-          <p className="text-xs font-medium text-foreground">ollama detected</p>
+          <p className="text-xs font-medium text-foreground">{t("connections.ollama.detected")}</p>
           {models.length > 0 ? (
             <ul className="text-xs text-muted-foreground list-disc list-inside">
               {models.map(m => <li key={m}>{m}</li>)}
             </ul>
           ) : (
-            <p className="text-xs text-muted-foreground">no models found. run &quot;ollama pull &lt;model&gt;&quot; to get started.</p>
+            <p className="text-xs text-muted-foreground">{t("connections.ollama.noModels")}</p>
           )}
         </div>
       )}
       {status === "error" && (
-        <p className="text-xs text-destructive">ollama not detected. make sure it&apos;s running on localhost:11434.</p>
+        <p className="text-xs text-destructive">{t("connections.ollama.notDetected")}</p>
       )}
     </div>
   );
 }
 
 function LMStudioPanel() {
+  const t = useT();
   const [status, setStatus] = useState<"idle" | "checking" | "connected" | "error">("idle");
   const [models, setModels] = useState<string[]>([]);
   const deeplink = "lmstudio://add_mcp?name=screenpipe&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInNjcmVlbnBpcGUtbWNwIl19";
@@ -2033,30 +2095,30 @@ function LMStudioPanel() {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Connect LM Studio to screenpipe&apos;s screen &amp; audio data, or use it as a local AI provider.
+        {t("connections.lmstudio.desc")}
       </p>
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => openUrl(deeplink)} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-          <Download className="h-3 w-3" /> add screenpipe MCP to LM Studio
+          <Download className="h-3 w-3" /> {t("connections.lmstudio.addMcp")}
         </Button>
         <Button onClick={handleCheck} variant="outline" disabled={status === "checking"} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-          {status === "checking" ? (<><Loader2 className="h-3 w-3 animate-spin" />checking...</>) : "check connection"}
+          {status === "checking" ? (<><Loader2 className="h-3 w-3 animate-spin" />{t("connections.lmstudio.checking")}</>) : t("connections.lmstudio.checkConnection")}
         </Button>
       </div>
       {status === "connected" && (
         <div className="p-3 bg-muted border border-border rounded-lg space-y-1">
-          <p className="text-xs font-medium text-foreground">lm studio detected</p>
+          <p className="text-xs font-medium text-foreground">{t("connections.lmstudio.detected")}</p>
           {models.length > 0 ? (
             <ul className="text-xs text-muted-foreground list-disc list-inside">
               {models.map(m => <li key={m}>{m}</li>)}
             </ul>
           ) : (
-            <p className="text-xs text-muted-foreground">no models loaded. load a model in lm studio to get started.</p>
+            <p className="text-xs text-muted-foreground">{t("connections.lmstudio.noModels")}</p>
           )}
         </div>
       )}
       {status === "error" && (
-        <p className="text-xs text-destructive">lm studio not detected. make sure it&apos;s running on localhost:1234.</p>
+        <p className="text-xs text-destructive">{t("connections.lmstudio.notDetected")}</p>
       )}
     </div>
   );
@@ -2077,6 +2139,7 @@ function ChatGptPanel() {
   >("idle");
   const { settings, updateSettings } = useSettings();
   const { toast } = useToast();
+  const t = useT();
 
   useEffect(() => {
     const check = async () => {
@@ -2117,11 +2180,11 @@ function ChatGptPanel() {
         );
       } else {
         setStatus("idle");
-        const msg = String((res as any).error || "unknown error");
+        const msg = String((res as any).error || t("connections.errors.unknownError"));
         toast({
-          title: "ChatGPT sign-in failed",
+          title: t("connections.chatgpt.toastTitle"),
           description: msg.includes("timed out") || msg.includes("not logged in")
-            ? "Sign-in timed out or was cancelled. Please try again."
+            ? t("connections.chatgpt.toastTimeout")
             : msg.slice(0, 120),
           variant: "destructive",
         });
@@ -2129,8 +2192,8 @@ function ChatGptPanel() {
     } catch {
       setStatus("idle");
       toast({
-        title: "ChatGPT sign-in failed",
-        description: "An unexpected error occurred. Please try again.",
+        title: t("connections.chatgpt.toastTitle"),
+        description: t("connections.chatgpt.toastUnexpected"),
         variant: "destructive",
       });
     }
@@ -2145,15 +2208,16 @@ function ChatGptPanel() {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Use your ChatGPT Plus/Pro subscription as an AI provider. No API key needed.
+        {t("connections.chatgpt.desc")}
       </p>
 
       {status === "expired" && (
         <div className="flex items-start gap-2 rounded-md border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-400">
           <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
           <span>
-            Your ChatGPT session has expired. Click{" "}
-            <strong>reconnect</strong> to sign in again.
+            {t("connections.chatgpt.expiredPrefix")}{" "}
+            <strong>{t("connections.chatgpt.expiredAction")}</strong>{" "}
+            {t("connections.chatgpt.expiredSuffix")}
           </span>
         </div>
       )}
@@ -2166,7 +2230,7 @@ function ChatGptPanel() {
             className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal"
           >
             <Loader2 className="h-3 w-3 animate-spin" />
-            {status === "checking" ? "checking session..." : "connecting..."}
+            {status === "checking" ? t("connections.chatgpt.checkingSession") : t("connections.chatgpt.connecting")}
           </Button>
         )}
 
@@ -2178,7 +2242,7 @@ function ChatGptPanel() {
             className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal"
           >
             <LogOut className="h-3 w-3" />
-            disconnect
+            {t("connections.common.disconnect")}
           </Button>
         )}
 
@@ -2189,7 +2253,7 @@ function ChatGptPanel() {
             className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal"
           >
             <LogIn className="h-3 w-3" />
-            {status === "expired" ? "reconnect" : "connect with ChatGPT"}
+            {status === "expired" ? t("connections.chatgpt.reconnect") : t("connections.chatgpt.connectWith")}
           </Button>
         )}
       </div>
@@ -2214,11 +2278,11 @@ interface OAuthAccount {
 // integration's `oauth_scope_variants()`.
 const OAUTH_SCOPE_VARIANTS: Record<
   string,
-  { id: string; label: string; description: string }[]
+  { id: string; labelKey: string; descriptionKey: string }[]
 > = {
   slack: [
-    { id: "send", label: "Send only", description: "Post messages as you. Screenpipe can't read your Slack." },
-    { id: "read_write", label: "Send + read", description: "Also search & read your messages, DMs and channels." },
+    { id: "send", labelKey: "connections.slackScopes.sendOnly", descriptionKey: "connections.slackScopes.sendOnlyDesc" },
+    { id: "read_write", labelKey: "connections.slackScopes.sendRead", descriptionKey: "connections.slackScopes.sendReadDesc" },
   ],
 };
 
@@ -2258,6 +2322,7 @@ function OAuthPanel({
   onConnected?: () => void;
   onDisconnected?: () => void;
 }) {
+  const t = useT();
   const [status, setStatus] = useState<"idle" | "loading">("idle");
   const [accounts, setAccounts] = useState<OAuthAccount[]>([]);
   const [disconnecting, setDisconnecting] = useState<string | null>(null);
@@ -2399,7 +2464,7 @@ function OAuthPanel({
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        Connect your {integrationName} account. AI can act on your behalf once connected.
+        {t("connections.oauth.intro", { name: integrationName })}
       </p>
       {connected && (
         <div className="space-y-2">
@@ -2409,7 +2474,7 @@ function OAuthPanel({
             return (
               <div key={key} className="flex items-center justify-between gap-2 rounded-md border border-border bg-muted/40 px-2.5 py-2 text-xs">
                 <span className="text-muted-foreground truncate">
-                  {account.displayName || account.instance || "default account"}
+                  {account.displayName || account.instance || t("connections.oauth.defaultAccount")}
                 </span>
                 <Button
                   onClick={() => handleDisconnect(account.instance)}
@@ -2427,7 +2492,7 @@ function OAuthPanel({
       )}
       {isSubdomainProvider && (
         <div className="space-y-1">
-          <label className="text-[11px] text-muted-foreground">Zendesk subdomain</label>
+          <label className="text-[11px] text-muted-foreground">{t("connections.oauth.subdomainLabel")}</label>
           <div className="flex items-center gap-1">
             <Input
               value={subdomain}
@@ -2442,7 +2507,7 @@ function OAuthPanel({
       )}
       {scopeVariants && status !== "loading" && (
         <div className="space-y-1.5">
-          <p className="text-[11px] text-muted-foreground">Access level</p>
+          <p className="text-[11px] text-muted-foreground">{t("connections.oauth.accessLevel")}</p>
           {scopeVariants.map((v) => (
             <label key={v.id} className="flex items-start gap-2 text-xs cursor-pointer">
               <input
@@ -2453,8 +2518,8 @@ function OAuthPanel({
                 className="mt-0.5 accent-foreground"
               />
               <span>
-                <span className="font-medium">{v.label}</span>
-                <span className="block text-[11px] text-muted-foreground">{v.description}</span>
+                <span className="font-medium">{t(v.labelKey)}</span>
+                <span className="block text-[11px] text-muted-foreground">{t(v.descriptionKey)}</span>
               </span>
             </label>
           ))}
@@ -2464,19 +2529,19 @@ function OAuthPanel({
         {status === "loading" ? (
           <div className="flex gap-2 items-center">
             <Button disabled size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal whitespace-nowrap">
-              <Loader2 className="h-3 w-3 animate-spin" />connecting...
+              <Loader2 className="h-3 w-3 animate-spin" />{t("connections.common.connecting")}
             </Button>
             <Button onClick={handleCancel} variant="outline" size="sm" className="h-7 text-xs normal-case font-sans tracking-normal">
-              cancel
+              {t("connections.common.cancel")}
             </Button>
           </div>
         ) : (
           <Button onClick={handleConnect} disabled={connectDisabled} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal whitespace-nowrap">
             {connected && supportsOAuthInstances
-              ? (<><Plus className="h-3 w-3" />add another account</>)
+              ? (<><Plus className="h-3 w-3" />{t("connections.oauth.addAnother")}</>)
               : connected
-                ? (<><LogIn className="h-3 w-3" />reconnect {integrationName}</>)
-              : (<><LogIn className="h-3 w-3" />connect with {integrationName}</>)}
+                ? (<><LogIn className="h-3 w-3" />{t("connections.oauth.reconnect", { name: integrationName })}</>)
+              : (<><LogIn className="h-3 w-3" />{t("connections.oauth.connectWith", { name: integrationName })}</>)}
           </Button>
         )}
       </div>
@@ -2546,6 +2611,7 @@ export function ConnectionCredentialForm({
   instanceName?: string;
   onDisconnect?: () => void;
 }) {
+  const t = useT();
   const sessionKey = `disconnected:${integrationId}${instanceName ? `:${instanceName}` : ""}`;
   const safeInitialCredentials = () => visibleConnectionCredentials(fields, initialCredentials);
   const [creds, setCreds] = useState<Record<string, string>>(safeInitialCredentials);
@@ -2654,9 +2720,9 @@ export function ConnectionCredentialForm({
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="top" align="start" alignOffset={8} sideOffset={8} className="text-xs max-w-[220px] space-y-1">
-                    <p>Learn how to find your {field.label.toLowerCase()} for this integration.</p>
+                    <p>{t("connections.form.findTooltip", { label: field.label.toLowerCase() })}</p>
                     <button onClick={() => openUrl(field.help_url)} className="underline hover:text-primary cursor-pointer">
-                      Open guide →
+                      {t("connections.form.openGuide")}
                     </button>
                   </TooltipContent>
                 </Tooltip>
@@ -2688,14 +2754,14 @@ export function ConnectionCredentialForm({
       <div className="flex gap-2">
         {!isSaved && (
           <Button onClick={handleConnect} disabled={missingRequiredField || status === "connecting"} variant={status === "error" ? "outline" : "default"} size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            {status === "connecting" ? (<><Loader2 className="h-3 w-3 animate-spin" />connecting...</>)
-             : status === "error" ? (<>retry</>)
-             : (<><Check className="h-3 w-3" />connect</>)}
+            {status === "connecting" ? (<><Loader2 className="h-3 w-3 animate-spin" />{t("connections.common.connecting")}</>)
+             : status === "error" ? (<>{t("connections.common.retry")}</>)
+             : (<><Check className="h-3 w-3" />{t("connections.common.connect")}</>)}
           </Button>
         )}
         {isSaved && (
           <Button onClick={handleDisconnect} variant="ghost" size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal text-destructive">
-            <X className="h-3 w-3" />disconnect
+            <X className="h-3 w-3" />{t("connections.common.disconnect")}
           </Button>
         )}
       </div>
@@ -2750,6 +2816,7 @@ const vaultSlug = (p: string): string =>
   vaultFolderName(p).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "vault";
 
 function ObsidianPanel({ onConnected, onDisconnected }: { onConnected?: () => void; onDisconnected?: () => void }) {
+  const t = useT();
   const sessionKey = "disconnected:obsidian";
   const [discovered, setDiscovered] = useState<Array<{ id: string; name: string; path: string }>>([]);
   const [connected, setConnected] = useState<ConnectedVault[]>([]);
@@ -2870,7 +2937,7 @@ function ObsidianPanel({ onConnected, onDisconnected }: { onConnected?: () => vo
     <div className="space-y-4">
       {connected.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs text-muted-foreground">connected {connected.length === 1 ? "vault" : "vaults"}</p>
+          <p className="text-xs text-muted-foreground">{connected.length === 1 ? t("connections.obsidian.connectedVault") : t("connections.obsidian.connectedVaults")}</p>
           <div className="space-y-1">
             {connected.map(v => (
               <div
@@ -2884,7 +2951,7 @@ function ObsidianPanel({ onConnected, onDisconnected }: { onConnected?: () => vo
                 <button
                   type="button"
                   onClick={() => handleDisconnect(v)}
-                  title="disconnect vault"
+                  title={t("connections.obsidian.disconnectVault")}
                   className="text-muted-foreground hover:text-destructive shrink-0"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -2897,7 +2964,7 @@ function ObsidianPanel({ onConnected, onDisconnected }: { onConnected?: () => vo
 
       {suggestions.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs text-muted-foreground">{connected.length > 0 ? "add another vault" : "detected vaults"}</p>
+          <p className="text-xs text-muted-foreground">{connected.length > 0 ? t("connections.obsidian.addAnother") : t("connections.obsidian.detected")}</p>
           <div className="space-y-1">
             {suggestions.map(v => (
               <button
@@ -2919,7 +2986,7 @@ function ObsidianPanel({ onConnected, onDisconnected }: { onConnected?: () => vo
 
       <div className="space-y-1.5">
         <p className="text-xs text-muted-foreground">
-          {connected.length > 0 || suggestions.length > 0 ? "or enter a vault path manually" : "select your vault folder"}
+          {connected.length > 0 || suggestions.length > 0 ? t("connections.obsidian.orManual") : t("connections.obsidian.selectFolder")}
         </p>
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -2932,10 +2999,10 @@ function ObsidianPanel({ onConnected, onDisconnected }: { onConnected?: () => vo
             />
             <button
               type="button"
-              title="browse for vault folder"
+              title={t("connections.obsidian.browse")}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               onClick={async () => {
-                const selected = await openDialog({ directory: true, multiple: false, title: "Select Obsidian Vault Folder" });
+                const selected = await openDialog({ directory: true, multiple: false, title: t("connections.obsidian.dialogTitle") });
                 if (typeof selected === "string") setManualPath(selected);
               }}
             >
@@ -2949,7 +3016,7 @@ function ObsidianPanel({ onConnected, onDisconnected }: { onConnected?: () => vo
             className="gap-1.5 h-8 text-xs normal-case font-sans tracking-normal shrink-0"
           >
             {busyPath && busyPath === manualPath.trim() ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-            add vault
+            {t("connections.obsidian.addVault")}
           </Button>
         </div>
       </div>
@@ -2978,6 +3045,7 @@ interface InstanceData {
  * poll until the sealed token is decrypted + stored server-side.
  */
 function BeePairPanel({ onConnected }: { onConnected: () => void }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const cancelledRef = useRef(false);
@@ -2996,19 +3064,19 @@ function BeePairPanel({ onConnected }: { onConnected: () => void }) {
       const res = await localFetch("/connections/bee/pair/start", { method: "POST" });
       const body = await res.json();
       if (!res.ok) {
-        setStatusMsg(body?.error ?? `Couldn't start pairing (HTTP ${res.status})`);
+        setStatusMsg(body?.error ?? t("connections.bee.startFailed", { status: res.status }));
         setBusy(false);
         return;
       }
       const requestId = body.request_id as string;
       await openUrl(body.pairing_url as string);
-      setStatusMsg("approve the connection in your browser, then come back…");
+      setStatusMsg(t("connections.bee.approveInBrowser"));
 
       const deadline = Date.now() + 5 * 60 * 1000;
       const poll = async () => {
         if (cancelledRef.current) return;
         if (Date.now() > deadline) {
-          setStatusMsg("pairing timed out — try again");
+          setStatusMsg(t("connections.bee.timedOut"));
           setBusy(false);
           return;
         }
@@ -3026,7 +3094,7 @@ function BeePairPanel({ onConnected }: { onConnected: () => void }) {
             return;
           }
           if (pb?.status === "expired" || pb?.status === "unknown") {
-            setStatusMsg("pairing expired — try again");
+            setStatusMsg(t("connections.bee.expired"));
             setBusy(false);
             return;
           }
@@ -3037,7 +3105,7 @@ function BeePairPanel({ onConnected }: { onConnected: () => void }) {
       };
       setTimeout(poll, 2000);
     } catch (e) {
-      setStatusMsg(`pairing failed: ${e instanceof Error ? e.message : String(e)}`);
+      setStatusMsg(t("connections.bee.failed", { msg: e instanceof Error ? e.message : String(e) }));
       setBusy(false);
     }
   };
@@ -3053,12 +3121,12 @@ function BeePairPanel({ onConnected }: { onConnected: () => void }) {
         {busy ? (
           <>
             <Loader2 className="h-3 w-3 animate-spin" />
-            waiting for approval…
+            {t("connections.bee.waitingForApproval")}
           </>
         ) : (
           <>
             <LogIn className="h-3 w-3" />
-            connect with Bee
+            {t("connections.bee.connectWith")}
           </>
         )}
       </Button>
@@ -3071,6 +3139,7 @@ export function ApiIntegrationPanel({ integration, onRefresh }: {
   integration: IntegrationInfo;
   onRefresh: () => void;
 }) {
+  const t = useT();
   const [instances, setInstances] = useState<InstanceData[]>([]);
   const [instancesLoaded, setInstancesLoaded] = useState(false);
   const [addingInstance, setAddingInstance] = useState(false);
@@ -3157,7 +3226,7 @@ export function ApiIntegrationPanel({ integration, onRefresh }: {
     <div className="space-y-4">
       {/* Default instance */}
       <div>
-        <p className="text-xs text-muted-foreground mb-2">default</p>
+        <p className="text-xs text-muted-foreground mb-2">{t("connections.apiPanel.default")}</p>
         <ConnectionCredentialForm
           integrationId={integration.id}
           fields={integration.fields}
@@ -3194,22 +3263,22 @@ export function ApiIntegrationPanel({ integration, onRefresh }: {
             <Input
               value={newInstanceName}
               onChange={(e) => setNewInstanceName(e.target.value)}
-              placeholder="instance name (e.g. work, personal)"
+              placeholder={t("connections.apiPanel.instancePlaceholder")}
               className="h-7 text-xs flex-1"
               spellCheck={false}
               onKeyDown={(e) => { if (e.key === "Enter") handleAddInstance(); }}
               autoFocus
             />
             <Button onClick={handleAddInstance} size="sm" className="h-7 text-xs" disabled={!newInstanceName.trim()}>
-              add
+              {t("connections.apiPanel.add")}
             </Button>
             <Button onClick={() => { setAddingInstance(false); setNewInstanceName(""); }} variant="ghost" size="sm" className="h-7 text-xs">
-              cancel
+              {t("connections.apiPanel.cancel")}
             </Button>
           </div>
         ) : (
           <Button onClick={() => setAddingInstance(true)} variant="outline" size="sm" className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal">
-            + add instance
+            {t("connections.apiPanel.addInstance")}
           </Button>
         )}
       </div>
@@ -3243,19 +3312,21 @@ export const MCP_OAUTH_PROVIDERS: {
   id: string;
   name: string;
   url: string;
-  description: React.ReactNode;
+  // i18n key under the `connections.providers` namespace; resolved at render
+  // time so the module itself stays free of translated copy.
+  descKey: string;
 }[] = [
-  { id: "linear", name: "Linear", url: "https://mcp.linear.app/mcp", description: <>Connect Linear so your AI can search and manage your issues, projects, and cycles. Sign-in uses Linear&apos;s OAuth — no API key, and screenpipe never sees your password.</> },
-  { id: "stripe", name: "Stripe", url: "https://mcp.stripe.com", description: <>Connect Stripe so your AI can query your customers, payments, invoices, and subscriptions. Sign-in uses Stripe&apos;s OAuth — no API key, and screenpipe never sees your password.</> },
-  { id: "sentry", name: "Sentry", url: "https://mcp.sentry.dev/mcp", description: <>Connect Sentry so your AI can search your issues, events, and releases. Sign-in uses Sentry&apos;s OAuth — no API key, and screenpipe never sees your password.</> },
-  { id: "intercom", name: "Intercom", url: "https://mcp.intercom.com/mcp", description: <>Connect Intercom so your AI can search your conversations, contacts, and help content. Sign-in uses Intercom&apos;s OAuth — no API key, and screenpipe never sees your password.</> },
-  { id: "asana", name: "Asana", url: "https://mcp.asana.com/mcp", description: <>Connect Asana so your AI can search and manage your tasks, projects, and portfolios. Sign-in uses Asana&apos;s OAuth — no API key, and screenpipe never sees your password.</> },
-  { id: "monday", name: "monday.com", url: "https://mcp.monday.com/mcp", description: <>Connect monday.com so your AI can work with your boards, items, and updates. Sign-in uses monday&apos;s OAuth — no API key, and screenpipe never sees your password.</> },
-  { id: "clickup", name: "ClickUp", url: "https://mcp.clickup.com/mcp", description: <>Connect ClickUp so your AI can search and manage your tasks, docs, and spaces. Sign-in uses ClickUp&apos;s OAuth — no API key, and screenpipe never sees your password.</> },
-  { id: "airtable", name: "Airtable", url: "https://mcp.airtable.com/mcp", description: <>Connect Airtable so your AI can read and update your bases, tables, and records. Sign-in uses Airtable&apos;s OAuth — no API key, and screenpipe never sees your password.</> },
-  { id: "confluence", name: "Confluence", url: "https://mcp.atlassian.com/v1/mcp", description: <>Connect Atlassian so your AI can search and edit your Confluence pages (and Jira issues). Sign-in uses Atlassian&apos;s OAuth — no API key, and screenpipe never sees your password.</> },
-  { id: "jira", name: "Jira", url: "https://mcp.atlassian.com/v1/mcp", description: <>Connect Atlassian so your AI can search and manage your Jira issues (and Confluence pages). Sign-in uses Atlassian&apos;s OAuth — no API key, and screenpipe never sees your password.</> },
-  { id: "notion", name: "Notion", url: "https://mcp.notion.com/mcp", description: <>Connect Notion so your AI can search, read, and write your pages and databases. Sign-in uses Notion&apos;s OAuth — no API key, and screenpipe never sees your password.</> },
+  { id: "linear", name: "Linear", url: "https://mcp.linear.app/mcp", descKey: "connections.providers.linear" },
+  { id: "stripe", name: "Stripe", url: "https://mcp.stripe.com", descKey: "connections.providers.stripe" },
+  { id: "sentry", name: "Sentry", url: "https://mcp.sentry.dev/mcp", descKey: "connections.providers.sentry" },
+  { id: "intercom", name: "Intercom", url: "https://mcp.intercom.com/mcp", descKey: "connections.providers.intercom" },
+  { id: "asana", name: "Asana", url: "https://mcp.asana.com/mcp", descKey: "connections.providers.asana" },
+  { id: "monday", name: "monday.com", url: "https://mcp.monday.com/mcp", descKey: "connections.providers.monday" },
+  { id: "clickup", name: "ClickUp", url: "https://mcp.clickup.com/mcp", descKey: "connections.providers.clickup" },
+  { id: "airtable", name: "Airtable", url: "https://mcp.airtable.com/mcp", descKey: "connections.providers.airtable" },
+  { id: "confluence", name: "Confluence", url: "https://mcp.atlassian.com/v1/mcp", descKey: "connections.providers.confluence" },
+  { id: "jira", name: "Jira", url: "https://mcp.atlassian.com/v1/mcp", descKey: "connections.providers.jira" },
+  { id: "notion", name: "Notion", url: "https://mcp.notion.com/mcp", descKey: "connections.providers.notion" },
 ];
 
 export function isMcpOAuthProviderTileConnected(
@@ -3287,10 +3358,11 @@ function OAuthMcpPanel({
 }: {
   name: string;
   mcpUrl: string;
-  description: React.ReactNode;
+  description: string;
   onConnected?: () => void;
   onDisconnected?: () => void;
 }) {
+  const t = useT();
   const [serverId, setServerId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -3372,12 +3444,12 @@ function OAuthMcpPanel({
       );
       const body = await res.json();
       if (!res.ok) {
-        setStatusMsg(body?.error ?? `Sign-in failed (HTTP ${res.status})`);
+        setStatusMsg(body?.error ?? t("connections.mcpOauth.signInFailed", { status: res.status }));
         return;
       }
       await openUrl(body.data.auth_url);
       setWaiting(true);
-      setStatusMsg("Finish sign-in in the browser…");
+      setStatusMsg(t("connections.mcpOauth.finishInBrowser"));
       const started = Date.now();
       const poll = async () => {
         if (cancelledRef.current) return;
@@ -3404,9 +3476,7 @@ function OAuthMcpPanel({
           timerRef.current = setTimeout(poll, 2000);
         } else {
           setWaiting(false);
-          setStatusMsg(
-            "Sign-in was not completed — if your browser blocks http://localhost (e.g. Safari HTTPS-Only mode), click \"Open screenpipe\" on the confirmation page"
-          );
+          setStatusMsg(t("connections.mcpOauth.timeout"));
         }
       };
       timerRef.current = setTimeout(poll, 2000);
@@ -3423,7 +3493,7 @@ function OAuthMcpPanel({
     clearTimer();
     setWaiting(false);
     setBusy(false);
-    setStatusMsg("Sign-in cancelled");
+    setStatusMsg(t("connections.mcpOauth.cancelled"));
   };
 
   const handleDisconnect = async () => {
@@ -3451,7 +3521,7 @@ function OAuthMcpPanel({
       {connected ? (
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-xs text-foreground">
-            <Check className="h-3.5 w-3.5" /> Connected
+            <Check className="h-3.5 w-3.5" /> {t("connections.common.connected")}
           </span>
           <Button
             onClick={handleDisconnect}
@@ -3465,14 +3535,14 @@ function OAuthMcpPanel({
             ) : (
               <LogOut className="h-3 w-3" />
             )}
-            Disconnect
+            {t("connections.mcpOauth.disconnect")}
           </Button>
         </div>
       ) : waiting ? (
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin" />{" "}
-            {statusMsg ?? "Waiting for sign-in…"}
+            {statusMsg ?? t("connections.mcpOauth.waiting")}
           </span>
           <Button
             onClick={handleCancel}
@@ -3480,7 +3550,7 @@ function OAuthMcpPanel({
             size="sm"
             className="gap-1.5 h-7 text-xs normal-case font-sans tracking-normal ml-auto"
           >
-            <X className="h-3 w-3" /> Cancel
+            <X className="h-3 w-3" /> {t("connections.mcpOauth.cancel")}
           </Button>
         </div>
       ) : (
@@ -3495,7 +3565,7 @@ function OAuthMcpPanel({
           ) : (
             <LogIn className="h-3 w-3" />
           )}
-          Connect {name}
+          {t("connections.mcpOauth.connect", { name })}
         </Button>
       )}
       {statusMsg && !waiting && !connected && (
@@ -3531,6 +3601,7 @@ function ApiKeyMcpPanel({
   onConnected?: () => void;
   onDisconnected?: () => void;
 }) {
+  const t = useT();
   const [serverId, setServerId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [apiKey, setApiKey] = useState("");
@@ -3573,7 +3644,7 @@ function ApiKeyMcpPanel({
       });
       if (!probe.ok) {
         const pb = await probe.json().catch(() => ({}));
-        setStatusMsg(pb?.error ?? `${name} rejected the key (HTTP ${probe.status})`);
+        setStatusMsg(pb?.error ?? t("connections.mcpOauth.rejected", { name, status: probe.status }));
         return;
       }
       const targetId = serverId ?? mcpRandomId();
@@ -3587,7 +3658,7 @@ function ApiKeyMcpPanel({
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        setStatusMsg(body?.error ?? `Save failed (HTTP ${res.status})`);
+        setStatusMsg(body?.error ?? t("connections.mcpOauth.saveFailed", { status: res.status }));
         return;
       }
       setServerId(targetId);
@@ -3628,7 +3699,7 @@ function ApiKeyMcpPanel({
       {connected ? (
         <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-xs text-foreground">
-            <Check className="h-3.5 w-3.5" /> Connected
+            <Check className="h-3.5 w-3.5" /> {t("connections.common.connected")}
           </span>
           <Button
             onClick={handleDisconnect}
@@ -3642,7 +3713,7 @@ function ApiKeyMcpPanel({
             ) : (
               <LogOut className="h-3 w-3" />
             )}
-            Disconnect
+            {t("connections.mcpOauth.disconnect")}
           </Button>
         </div>
       ) : (
@@ -3663,7 +3734,7 @@ function ApiKeyMcpPanel({
                 type="button"
                 onClick={() => setShowKey((v) => !v)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label={showKey ? "Hide key" : "Show key"}
+                aria-label={showKey ? t("connections.mcpOauth.showKey") : t("connections.mcpOauth.hideKey")}
               >
                 {showKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
               </button>
@@ -3679,7 +3750,7 @@ function ApiKeyMcpPanel({
               ) : (
                 <LogIn className="h-3 w-3" />
               )}
-              Connect
+              {t("connections.mcpOauth.connectButton")}
             </Button>
           </div>
           <button
@@ -3717,6 +3788,7 @@ export function ConnectionsSection({
   focusRequestId = 0,
   onFocusRequestConsumed,
 }: ConnectionsSectionProps = {}) {
+  const t = useT();
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(ALL_CONNECTION_CATEGORIES);
 
@@ -4133,16 +4205,16 @@ export function ConnectionsSection({
           <OAuthMcpPanel
             name={mcpProvider.name}
             mcpUrl={mcpProvider.url}
-            description={mcpProvider.description}
+            description={t(mcpProvider.descKey)}
             onConnected={() => setMcpProviderConnected(m => ({ ...m, [mcpProvider.id]: true }))}
             onDisconnected={() => setMcpProviderConnected(m => ({ ...m, [mcpProvider.id]: false }))}
           />
           {hasManual && existing && (
             <details open={existing.connected && !mcpProviderConnected[mcpProvider.id]}>
               <summary className="text-[11px] text-muted-foreground cursor-pointer select-none hover:text-foreground">
-                advanced: {existing.connected
-                  ? "manage your existing connection"
-                  : "connect with an API key instead"}
+                {existing.connected
+                  ? t("connections.mcpOauth.advancedManage")
+                  : t("connections.mcpOauth.advancedApiKey")}
               </summary>
               <div className="pt-2">
                 {existing.is_oauth ? (
@@ -4203,7 +4275,7 @@ export function ConnectionsSection({
           {googleDocsConnected && (
             <details>
               <summary className="text-[11px] text-muted-foreground cursor-pointer select-none hover:text-foreground">
-                advanced: manage the legacy google docs connection
+                {t("connections.mcpOauth.legacyGoogleDocs")}
               </summary>
               <div className="pt-2">
                 <GoogleDocsCard />
@@ -4225,7 +4297,7 @@ export function ConnectionsSection({
           {selectedIntegration?.is_oauth && selectedIntegration.connected && (
             <details>
               <summary className="text-[11px] text-muted-foreground cursor-pointer select-none hover:text-foreground">
-                advanced: manage the legacy zoom connection
+                {t("connections.mcpOauth.legacyZoom")}
               </summary>
               <div className="pt-2">
                 <OAuthPanel
@@ -4250,24 +4322,24 @@ export function ConnectionsSection({
       case "krisp": return <OAuthMcpPanel
         name="Krisp"
         mcpUrl={KRISP_MCP_URL}
-        description={<>Connect Krisp so your AI can search your meeting transcripts, notes, and action items. Sign-in is handled by Krisp&apos;s OAuth, so screenpipe never sees your password.</>}
+        description={t("connections.providers.krisp")}
         onConnected={() => setKrispConnected(true)}
         onDisconnected={() => setKrispConnected(false)}
       />;
       case "plaud": return <OAuthMcpPanel
         name="Plaud"
         mcpUrl={PLAUD_MCP_URL}
-        description={<>Connect Plaud so your AI can search your Plaud recordings, transcripts, summaries, and notes. Sign-in is handled by Plaud&apos;s OAuth, so screenpipe never sees your password.</>}
+        description={t("connections.providers.plaud")}
         onConnected={() => setPlaudConnected(true)}
         onDisconnected={() => setPlaudConnected(false)}
       />;
       case "excalidraw": return <ApiKeyMcpPanel
         name="Excalidraw"
         mcpUrl={EXCALIDRAW_MCP_URL}
-        description={<>Connect Excalidraw+ so your AI can search, read, and edit the whiteboard scenes in your workspace. Excalidraw doesn&apos;t offer OAuth here, so paste an API key from your Excalidraw+ workspace settings instead. The key is stored securely on this device and only ever sent to Excalidraw.</>}
-        keyPlaceholder="Excalidraw+ API key"
+        description={t("connections.providers.excalidraw")}
+        keyPlaceholder={t("connections.excalidraw.apiKeyPlaceholder")}
         createKeyUrl="https://plus.excalidraw.com/docs/mcp/getting-started"
-        createKeyLabel="How to create an API key"
+        createKeyLabel={t("connections.excalidraw.createKeyHowTo")}
         onConnected={() => setExcalidrawConnected(true)}
         onDisconnected={() => setExcalidrawConnected(false)}
       />;
@@ -4304,7 +4376,7 @@ export function ConnectionsSection({
                 {selectedIntegration.fields.length > 0 && (
                   <details>
                     <summary className="text-[11px] text-muted-foreground cursor-pointer select-none hover:text-foreground">
-                      advanced: connect with a token instead
+                      {t("connections.mcpOauth.advancedToken")}
                     </summary>
                     <div className="pt-2">
                       <ApiIntegrationPanel
@@ -4332,7 +4404,7 @@ export function ConnectionsSection({
                 />
                 <details>
                   <summary className="text-[11px] text-muted-foreground cursor-pointer select-none hover:text-foreground">
-                    advanced: connect with a token instead
+                    {t("connections.mcpOauth.advancedToken")}
                   </summary>
                   <div className="pt-2">
                     <ApiIntegrationPanel
@@ -4356,14 +4428,14 @@ export function ConnectionsSection({
           return (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
-              loading connection...
+              {t("connections.section.loadingConnection")}
             </div>
           );
         }
         return (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
-              couldn&apos;t load connection metadata. the local screenpipe server may be starting up.
+              {t("connections.section.loadFailed")}
             </p>
             <Button
               size="sm"
@@ -4372,7 +4444,7 @@ export function ConnectionsSection({
               onClick={() => { notifyConnectionsUpdated(); fetchIntegrations(); }}
             >
               <Loader2 className="h-3 w-3" />
-              retry
+              {t("connections.common.retry")}
             </Button>
           </div>
         );
@@ -4385,14 +4457,14 @@ export function ConnectionsSection({
     <div className="space-y-5">
       {/* Header: title + inline search */}
       <div className="flex items-center gap-3">
-        <p className="flex-1 text-sm text-muted-foreground">Connect to the apps you use every day</p>
+        <p className="flex-1 text-sm text-muted-foreground">{t("connections.section.header")}</p>
         <div className="relative w-52 shrink-0">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             {...searchInputBehaviorProps}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search..."
+            placeholder={t("connections.section.searchPlaceholder")}
             className="pl-8 h-8 text-xs"
           />
         </div>
@@ -4432,7 +4504,7 @@ export function ConnectionsSection({
       {/* Suggested — device-aware high-activation connections, default view only. */}
       {!search.trim() && suggested.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-xs font-medium text-muted-foreground">Suggested for this device</h3>
+          <h3 className="text-xs font-medium text-muted-foreground">{t("connections.section.suggested")}</h3>
           <div className="grid grid-cols-2 gap-2">
             {suggested.map((tile) => (
               <ListRow
@@ -4484,7 +4556,11 @@ export function ConnectionsSection({
           {groupedTiles?.map(([category, tiles]) => (
             <div key={category} className="space-y-3">
               <div className="border-b border-border pb-2">
-                <h3 className="text-sm font-semibold text-foreground">{category}</h3>
+                <h3 className="text-sm font-semibold text-foreground">
+                  {hasConnectionsKey(`connections.category.${category}`)
+                    ? t(`connections.category.${category}`)
+                    : category}
+                </h3>
               </div>
               <div className="grid grid-cols-2 gap-1">
                 {tiles.map((tile) => (
@@ -4534,22 +4610,22 @@ export function ConnectionsSection({
                     )}
                     {["gmail", "zoom", "google-drive", "google-docs", "google-sheets"].includes(selectedTile.id) && (
                       <span className="px-2 py-0.5 text-[10px] font-mono border border-border text-muted-foreground inline-flex items-center">
-                        via composio
+                        {t("connections.section.viaComposio")}
                       </span>
                     )}
                   </div>
                   {selectedTile.connected && (
-                    <span className="text-xs text-foreground">connected</span>
+                    <span className="text-xs text-foreground">{t("connections.section.connectedStatus")}</span>
                   )}
                 </div>
                 <DialogClose asChild>
                   <button
                     type="button"
-                    aria-label="close"
+                    aria-label={t("connections.section.close")}
                     className="ml-auto text-muted-foreground transition-colors hover:text-foreground"
                   >
                     <X className="h-4 w-4" />
-                    <span className="sr-only">close</span>
+                    <span className="sr-only">{t("connections.section.close")}</span>
                   </button>
                 </DialogClose>
               </DialogHeader>

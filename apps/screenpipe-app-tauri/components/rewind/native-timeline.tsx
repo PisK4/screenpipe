@@ -37,6 +37,7 @@ import { TimelineDailySummary } from "@/components/rewind/timeline/daily-summary
 import { showChatWithPrefill } from "@/lib/chat-utils";
 import { useTimelineStore } from "@/lib/hooks/use-timeline-store";
 import { toast } from "@/components/ui/use-toast";
+import { useT } from "@/lib/i18n";
 
 export interface NativeTimelineSelectionContext {
   start: string;
@@ -153,6 +154,7 @@ export function NativeTimelineBridge({
     date: Date;
     id: number;
   } | null>(null);
+  const t = useT();
 
   useEffect(() => {
     const currentWindowLabel = getCurrentWindow().label;
@@ -213,7 +215,7 @@ export function NativeTimelineBridge({
         "timeline-export-video-selection",
         (event) => {
           const selection = event.payload;
-          toast({ title: "exporting selected timeline…" });
+          toast({ title: t("timeline.timelineExport.exporting") });
           void localFetch("/export", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -234,8 +236,8 @@ export function NativeTimelineBridge({
               const outputPath = String(result.output_path || "");
               if (outputPath) await revealItemInDir(outputPath);
               toast({
-                title: "timeline video exported",
-                description: outputPath || "Saved in screenpipe exports.",
+                title: t("timeline.timelineExport.exported"),
+                description: outputPath || t("timeline.timelineExport.exportedFallback"),
               });
               posthog.capture("timeline_selection_exported", {
                 selection_duration_ms:
@@ -251,9 +253,9 @@ export function NativeTimelineBridge({
               );
               toast({
                 variant: "destructive",
-                title: "timeline export failed",
+                title: t("timeline.timelineExport.failed"),
                 description:
-                  error instanceof Error ? error.message : "Try again.",
+                  error instanceof Error ? error.message : t("timeline.timelineExport.tryAgain"),
               });
             });
         },
@@ -264,7 +266,7 @@ export function NativeTimelineBridge({
         void subscription.then((unlisten) => unlisten());
       }
     };
-  }, [onDismissActivityReturn, onReturnToActivity]);
+  }, [onDismissActivityReturn, onReturnToActivity, t]);
 
   if (!dailySummaryRequest) return null;
 

@@ -21,6 +21,10 @@ vi.mock("@/components/rewind/media", () => ({
   MediaComponent: () => null,
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 import {
   isSpeakerContinuation,
   SpeakerParagraph,

@@ -27,6 +27,7 @@ Labels: wayfinder:map
 - [T8 · 审批交互与状态机实现](tickets/08-审批交互.md): 五值状态机照搬、转移收窄为四条；过期维持 T4 统一 48h（对《04》§3 轻提示免过期的有意偏离，理由在票面）；结算挂 T3 心跳节拍不建独立定时器；状态写入唯一入口是 src-tauri Tauri command；「有人动才重置」随重写砍掉而消解；快捷键不在本轮定义。
 - [T7 · 模型供给与回退](tickets/07-模型供给.md): 两级回退——设置页新增 intent 槽（preset 选择器），空则回退发起时刻 chat 正用的 preset（充当 primary）；intent 槽默认内置 Ollama qwen3.5:9b，BYOK 引导不进第一版；失败记 tracing 加设置页可见状态，工作台不打扰，心跳下轮自然重试。
 - [T6 · 意图卡片 UI 原型](tickets/06-UI原型.md): 原型资产 `assets/t6-workbench-proto.html` 定稿。中性视觉对齐现有 tab（`#121212` 底、白底主按钮）；方案列表含推荐预选、选中显后果、末行「自己写一个新方案」；新手接入卡文案落到 `skills.rs` 的 MCP 注册真实机制上。
+- [T9 · 现成功能可升级性盘点](tickets/09-现成功能盘点.md): 盘点结论——fork 无可直接升级为意图卡片的现成功能；Suggestions 最接近但产物形态/供给层/宿主语义/输出结构四处结构性不同，只作参考件（直调写法、UTF-8 截断纪律、模板回退），维持 T3/T4 新建决议。
 
 ## Not yet specified
 
@@ -34,7 +35,7 @@ Labels: wayfinder:map
 - 测试与验收策略（browser-mock loop、src-tauri 显式测试路径）：等实现形态清晰。
 - （T2 建议存档）Daily Summary 持久化有独立价值，若做另立小票；memories 类型扩展 ADR 与 semantic_items 对应裁决在「不建记忆基底」定调后对本 feature 不再必要。
 
-本图八张票已全部 Resolved（2026-08-22）。Destination 达成：每个决策可回溯到票据，剩余 gap 都在上面的清单或 Out of scope。
+本图九张票已全部 Resolved（2026-08-22）。Destination 达成：每个决策可回溯到票据，剩余 gap 都在上面的清单或 Out of scope。
 
 ## Out of scope
 

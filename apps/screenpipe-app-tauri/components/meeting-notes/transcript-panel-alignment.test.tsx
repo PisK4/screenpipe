@@ -14,6 +14,10 @@ vi.mock("@/components/rewind/media", () => ({
   MediaComponent: () => null,
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 import { MEETING_SHELL_CLASS } from "./meeting-workspace";
 import { TranscriptRows, type SpeakerBlock } from "./transcript-panel";
 

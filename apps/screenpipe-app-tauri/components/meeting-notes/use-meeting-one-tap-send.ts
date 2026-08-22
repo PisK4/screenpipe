@@ -85,9 +85,9 @@ export function useMeetingOneTapSend(artifact: ConnectedShareArtifact) {
   }, [label, rememberedDestination]);
 
   const send = useCallback(async (): Promise<
-    { ok: true; detail: string } | { ok: false; error: string }
+    { ok: true; destinationLabel: string } | { ok: false; error: string | null }
   > => {
-    if (!remembered || sending) return { ok: false, error: "not ready" };
+    if (!remembered || sending) return { ok: false, error: null };
     setSending(true);
     posthog.capture("meeting_one_tap_send_clicked", {
       destination: remembered.destination,
@@ -101,7 +101,7 @@ export function useMeetingOneTapSend(artifact: ConnectedShareArtifact) {
       const sections = artifact.sections.filter((section) =>
         section.body.trim(),
       );
-      if (sections.length === 0) throw new Error("Nothing to send yet.");
+      if (sections.length === 0) throw new Error("empty");
       const body = renderConnectedShareArtifact(
         artifact,
         sections.map((section) => section.id),
@@ -126,7 +126,7 @@ export function useMeetingOneTapSend(artifact: ConnectedShareArtifact) {
       });
       // Deliberately not re-writing the remembered destination: this send did
       // not choose anything, so it has nothing new to teach the preference.
-      return { ok: true, detail: `sent to ${remembered.label}` };
+      return { ok: true, destinationLabel: remembered.label };
     } catch (error) {
       posthog.capture("meeting_one_tap_send_failed", {
         destination: remembered.destination,
@@ -134,7 +134,10 @@ export function useMeetingOneTapSend(artifact: ConnectedShareArtifact) {
       });
       return {
         ok: false,
-        error: error instanceof Error ? error.message : "Couldn't send this.",
+        error:
+          error instanceof Error && error.message !== "empty"
+            ? error.message
+            : null,
       };
     } finally {
       setSending(false);

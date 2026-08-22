@@ -57,6 +57,8 @@ import {
 import { cn } from "@/lib/utils";
 import { pickPipePreset } from "@/lib/utils/pick-pipe-preset";
 import { useSettings } from "@/lib/hooks/use-settings";
+import { useT, localeOf, translate } from "@/lib/i18n";
+import type { AppLocale } from "@/lib/utils/locale";
 import { useToast } from "@/components/ui/use-toast";
 import { MemoizedReactMarkdown } from "@/components/markdown";
 import remarkGfm from "remark-gfm";
@@ -137,19 +139,16 @@ interface LocalPipe {
 // --- Helpers ---
 
 // Categories are derived dynamically from pipe metadata — no hardcoded taxonomy.
-const SORT_OPTIONS = [
-  { value: "popular", label: "Popular" },
-  { value: "newest", label: "Newest" },
-];
+const SORT_OPTIONS = ["popular", "newest"] as const;
 
-const PERMISSION_LABELS: { key: string; label: string; icon: React.ReactNode }[] = [
-  { key: "ocr", label: "Screen text (OCR)", icon: <Eye className="h-3.5 w-3.5" /> },
-  { key: "audio", label: "Audio transcripts", icon: <Mic className="h-3.5 w-3.5" /> },
-  { key: "input", label: "Keyboard input", icon: <Keyboard className="h-3.5 w-3.5" /> },
-  { key: "raw_sql", label: "Raw SQL", icon: <Database className="h-3.5 w-3.5" /> },
-  { key: "frames", label: "Screenshots", icon: <Image className="h-3.5 w-3.5" /> },
-  { key: "connections", label: "Connections", icon: <Plug className="h-3.5 w-3.5" /> },
-  { key: "accessibility", label: "Accessibility", icon: <Accessibility className="h-3.5 w-3.5" /> },
+const PERMISSION_LABELS: { key: string; labelKey: string; icon: React.ReactNode }[] = [
+  { key: "ocr", labelKey: "pipesStore.permLabels.screenText", icon: <Eye className="h-3.5 w-3.5" /> },
+  { key: "audio", labelKey: "pipesStore.permLabels.audioTranscripts", icon: <Mic className="h-3.5 w-3.5" /> },
+  { key: "input", labelKey: "pipesStore.permLabels.keyboardInput", icon: <Keyboard className="h-3.5 w-3.5" /> },
+  { key: "raw_sql", labelKey: "pipesStore.permLabels.rawSql", icon: <Database className="h-3.5 w-3.5" /> },
+  { key: "frames", labelKey: "pipesStore.permLabels.screenshots", icon: <Image className="h-3.5 w-3.5" /> },
+  { key: "connections", labelKey: "pipesStore.permLabels.connections", icon: <Plug className="h-3.5 w-3.5" /> },
+  { key: "accessibility", labelKey: "pipesStore.permLabels.accessibility", icon: <Accessibility className="h-3.5 w-3.5" /> },
 ];
 
 function getPermissionStatus(perms: PipePermissions | undefined, key: string): "allowed" | "denied" | "unset" {
@@ -181,39 +180,25 @@ export function getPipeInstallRisk(pipe: { permissions?: PipePermissions; author
   return "safe";
 }
 
-function getPipeInstallDescription(pipe: { permissions?: PipePermissions; author_verified?: boolean | null }): string {
-  const risk = getPipeInstallRisk(pipe);
-  const unrestricted = isUnrestricted(pipe.permissions);
-  if (risk === "high") {
-    return "Unverified publisher. Can access all your screen data.";
-  }
-  if (unrestricted) {
-    return "Verified publisher. Can access all your screen data.";
-  }
-  if (!pipe.author_verified) {
-    return "Unverified publisher. Review the requested access before installing.";
-  }
-  return "Review the requested access before installing.";
-}
-
-function getAllowedAccessLabels(perms?: PipePermissions): string[] {
+function getAllowedAccessLabels(locale: AppLocale, perms?: PipePermissions): string[] {
+  const label = (key: string) => translate(locale, `pipesStore.access.${key}`);
   if (isUnrestricted(perms)) {
     return [
-      "screen text",
-      "audio",
-      "keyboard input",
-      "screenshots",
-      "accessibility",
-      "raw queries",
-      "connections",
+      label("screenText"),
+      label("audio"),
+      label("keyboardInput"),
+      label("screenshots"),
+      label("accessibility"),
+      label("rawQueries"),
+      label("connections"),
     ];
   }
 
-  const labelsByKey: Record<string, string> = {
-    ocr: "screen text",
+  const keyByKey: Record<string, string> = {
+    ocr: "screenText",
     audio: "audio",
-    input: "keyboard input",
-    raw_sql: "raw queries",
+    input: "keyboardInput",
+    raw_sql: "rawQueries",
     frames: "screenshots",
     connections: "connections",
     accessibility: "accessibility",
@@ -221,23 +206,29 @@ function getAllowedAccessLabels(perms?: PipePermissions): string[] {
 
   return PERMISSION_LABELS.flatMap((perm) => {
     const status = getPermissionStatus(perms, perm.key);
-    return status === "allowed" ? [labelsByKey[perm.key] || perm.label.toLowerCase()] : [];
+    return status === "allowed" ? [label(keyByKey[perm.key] || perm.key)] : [];
   });
 }
 
-function getPipeAccessSummary(perms?: PipePermissions): string {
-  const labels = getAllowedAccessLabels(perms);
+function joinAccessList(labels: string[], locale: AppLocale): { rest: string; last: string } {
+  const last = labels[labels.length - 1];
+  const rest = labels.slice(0, -1);
+  const sep = locale === "zh-CN" ? "、" : ", ";
+  return { rest: rest.join(sep), last };
+}
+
+function getPipeAccessSummary(locale: AppLocale, perms?: PipePermissions): string {
+  const labels = getAllowedAccessLabels(locale, perms);
   if (labels.length === 0) {
-    return "No explicit access was declared.";
+    return translate(locale, "pipesStore.risk.noExplicit");
   }
 
   if (labels.length === 1) {
-    return `This scheduled task requests access to ${labels[0]}.`;
+    return translate(locale, "pipesStore.risk.accessOne", { items: labels[0] });
   }
 
-  const last = labels[labels.length - 1];
-  const rest = labels.slice(0, -1);
-  return `This scheduled task requests access to ${rest.join(", ")}, and ${last}.`;
+  const { rest, last } = joinAccessList(labels, locale);
+  return translate(locale, "pipesStore.risk.accessMany", { rest, last });
 }
 
 function getReadmeFromPipeMd(raw: string): string {
@@ -255,9 +246,11 @@ function navigateHomeAndPrefill(data: ChatPrefillData): void {
   window.location.href = url.toString();
 }
 
-function buildForkPipeDisplayLabel(pipeTitle: string): string {
+function buildForkPipeDisplayLabel(locale: AppLocale, pipeTitle: string): string {
   const title = pipeTitle.trim();
-  return title ? `Fork scheduled task: ${title}` : "Fork scheduled task";
+  return title
+    ? translate(locale, "pipesStore.fork.label", { title })
+    : translate(locale, "pipesStore.fork.labelNoTitle");
 }
 
 function formatCount(n: number): string {
@@ -265,17 +258,19 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-function relativeDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "unknown";
+function relativeDate(locale: AppLocale, dateStr: string | null | undefined): string {
+  if (!dateStr) return translate(locale, "pipesStore.rel.unknown");
   const time = new Date(dateStr).getTime();
-  if (isNaN(time)) return "unknown";
+  if (isNaN(time)) return translate(locale, "pipesStore.rel.unknown");
   const diff = Date.now() - time;
   const days = Math.floor(diff / 86400000);
-  if (days < 1) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 30) return `${days}d ago`;
-  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
-  return `${Math.floor(days / 365)}y ago`;
+  if (days < 1) return translate(locale, "pipesStore.rel.today");
+  if (days === 1) return translate(locale, "pipesStore.rel.yesterday");
+  if (days < 30)
+    return translate(locale, "pipesStore.rel.daysAgo", { days });
+  if (days < 365)
+    return translate(locale, "pipesStore.rel.monthsAgo", { months: Math.floor(days / 30) });
+  return translate(locale, "pipesStore.rel.yearsAgo", { years: Math.floor(days / 365) });
 }
 
 /**
@@ -293,7 +288,7 @@ function normalizePipe(raw: any): any {
 
   return {
     ...raw,
-    title: raw.title || raw.slug || "untitled scheduled task",
+    title: raw.title || raw.slug || "",
     author: publisher.name,
     author_id: raw.author_id || null,
     author_verified: publisher.verified,
@@ -330,6 +325,7 @@ function getPipeStoreList(data: unknown): any[] {
 }
 
 export function PipeStoreView() {
+  const t = useT();
   // Track installed pipe count to auto-switch to Discover for new users
   const [installedCount, setInstalledCount] = useState<number | null>(null);
 
@@ -371,16 +367,16 @@ export function PipeStoreView() {
   }, [installedCount]);
 
   const tabs = [
-    { key: "my-pipes" as const, label: "My tasks" },
-    { key: "discover" as const, label: "Discover" },
+    { key: "my-pipes" as const, label: t("pipesStore.tabs.myTasks") },
+    { key: "discover" as const, label: t("pipesStore.tabs.discover") },
   ];
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         {activeTab === "discover"
-          ? "browse, install, and review community scheduled tasks"
-          : "Run tasks on a schedule, after meetings, or when events happen."}
+          ? t("pipesStore.taglines.discover")
+          : t("pipesStore.taglines.myPipes")}
       </p>
 
       {/* Tab bar */}
@@ -420,6 +416,8 @@ export function PipeStoreView() {
 // --- Discover View ---
 
 function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
+  const t = useT();
+  const locale = localeOf(useSettings().settings?.locale);
   const { settings } = useSettings();
   const { toast } = useToast();
   const openFeedback = useFeedbackStore((s) => s.openFeedback);
@@ -617,7 +615,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
     } catch (err) {
       console.error("failed to fetch pipe detail:", err);
       toast({
-        title: "failed to load scheduled task details",
+        title: t("pipesStore.toasts.detailLoadFailed"),
         variant: "destructive",
       });
       setShowDetail(false);
@@ -675,10 +673,10 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
         return next;
       });
       apiCache.invalidate("pipes/installed");
-      toast({ title: `"${pipeName}" updated` });
+      toast({ title: t("pipesStore.toasts.updated", { name: pipeName }) });
     } catch (err: any) {
       toast({
-        title: "failed to update scheduled task",
+        title: t("pipesStore.toasts.updateFailed"),
         description: err.message,
         variant: "destructive",
       });
@@ -742,8 +740,8 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
       }
 
       toast({
-        title: `"${pipeName}" installed`,
-        description: "open My tasks to configure and run it",
+        title: t("pipesStore.toasts.installed", { name: pipeName }),
+        description: t("pipesStore.toasts.installedDesc"),
       });
       // Invalidate cache and update installed names
       apiCache.invalidate("pipes/installed");
@@ -758,7 +756,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
       onInstalled?.();
     } catch (err: any) {
       toast({
-        title: "failed to install scheduled task",
+        title: t("pipesStore.toasts.installFailed"),
         description: (
           <span>
             {err.message}{" "}
@@ -767,7 +765,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
               className="underline underline-offset-2 text-inherit opacity-80 hover:opacity-100"
               onClick={() => openFeedback(`Scheduled task install failed (${slug}): ${err.message}`)}
             >
-              report issue
+              {t("pipesStore.toasts.reportIssue")}
             </button>
           </span>
         ),
@@ -797,12 +795,12 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || `HTTP ${res.status}`);
       }
-      toast({ title: "review submitted" });
+      toast({ title: t("pipesStore.toasts.reviewSubmitted") });
       openDetail(selectedPipe.slug);
       setReviewExpanded(false);
     } catch (err: any) {
       toast({
-        title: "failed to submit review",
+        title: t("pipesStore.toasts.reviewFailed"),
         description: err.message,
         variant: "destructive",
       });
@@ -824,14 +822,14 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
       posthog.capture("pipe_unpublished_from_store", { slug });
-      toast({ title: `"${slug}" unpublished from store` });
+      toast({ title: t("pipesStore.toasts.unpublished", { slug }) });
       setShowDetail(false);
       setSelectedPipe(null);
       apiCache.invalidatePrefix("pipes/store");
       fetchPipes();
     } catch (err: any) {
       toast({
-        title: "failed to unpublish scheduled task",
+        title: t("pipesStore.toasts.unpublishFailed"),
         description: err.message,
         variant: "destructive",
       });
@@ -852,7 +850,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
   const installGateDialog = (
     <Dialog open={!!pendingInstall} onOpenChange={(open) => !open && closeInstallGate()}>
       <DialogContent className="max-w-lg pt-8">
-        <DialogTitle className="sr-only">review scheduled task access</DialogTitle>
+        <DialogTitle className="sr-only">{t("pipesStore.gate.title")}</DialogTitle>
 
         {pendingInstall ? (
           <InstallRiskSummary
@@ -866,7 +864,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="ghost" onClick={closeInstallGate}>
-            not now
+            {t("pipesStore.gate.notNow")}
           </Button>
           <Button
             data-testid="pipe-risk-install-confirm"
@@ -879,10 +877,10 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
               {pendingInstall && installing === pendingInstall.slug ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                  installing...
+                  {t("pipesStore.gate.installing")}
                 </>
               ) : (
-                "install scheduled task"
+                t("pipesStore.gate.install")
               )}
             </Button>
           </DialogFooter>
@@ -902,7 +900,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          back to discover
+          {t("pipesStore.detail.backToDiscover")}
         </button>
 
         {detailLoading ? (
@@ -938,15 +936,15 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
           <button
             onClick={dismissWelcome}
             className="absolute top-2 right-2 text-muted-foreground hover:text-foreground text-sm px-1.5"
-            aria-label="dismiss"
+            aria-label={t("pipesStore.dismissAria")}
           >
             ✕
           </button>
           <p className="text-sm font-medium text-foreground">
-            scheduled tasks are AI automations that run on your screen data
+            {t("pipesStore.welcome.title")}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
-            they can summarize your day, track your time, build a digital memory, sync notes to obsidian, auto-update your CRM, and more. install one below to get started — click GET, then enable it in My tasks.
+            {t("pipesStore.welcome.body")}
           </p>
         </div>
       )}
@@ -957,7 +955,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="search community tasks..."
+              placeholder={t("pipesStore.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-9"
@@ -969,8 +967,8 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
             </SelectTrigger>
             <SelectContent>
               {SORT_OPTIONS.map((s) => (
-                <SelectItem key={s.value} value={s.value}>
-                  {s.label}
+                <SelectItem key={s} value={s}>
+                  {t(`pipesStore.sort.${s}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -982,7 +980,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
             onClick={() => setPublishOpen(true)}
           >
             <Upload className="mr-1.5 h-4 w-4" />
-            PUBLISH
+            {t("pipesStore.publish")}
           </Button>
         </div>
 
@@ -1028,8 +1026,8 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <AlertTriangle className="mx-auto mb-3 h-5 w-5" />
-            <p className="text-sm text-foreground">couldn&apos;t load scheduled tasks</p>
-            <p className="mt-1.5 text-xs">the task catalog is temporarily unavailable</p>
+            <p className="text-sm text-foreground">{t("pipesStore.errors.loadTitle")}</p>
+            <p className="mt-1.5 text-xs">{t("pipesStore.errors.loadDesc")}</p>
             <Button
               variant="outline"
               size="sm"
@@ -1039,16 +1037,16 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
                 void fetchPipes();
               }}
             >
-              TRY AGAIN
+              {t("pipesStore.errors.tryAgain")}
             </Button>
           </CardContent>
         </Card>
       ) : pipes.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
-            <p className="text-sm">No scheduled tasks found</p>
+            <p className="text-sm">{t("pipesStore.empty.title")}</p>
             {debouncedQuery && (
-              <p className="text-xs mt-1.5">try a different search term</p>
+              <p className="text-xs mt-1.5">{t("pipesStore.empty.hint")}</p>
             )}
           </CardContent>
         </Card>
@@ -1080,7 +1078,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
       <Dialog open={!!updateConfirm} onOpenChange={(open) => !open && setUpdateConfirm(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>update {updateConfirm?.pipeName}?</DialogTitle>
+            <DialogTitle>{t("pipesStore.updateConfirm.title", { name: updateConfirm?.pipeName ?? "" })}</DialogTitle>
             <DialogDescription>
               <span className="inline-flex items-center gap-2 mt-2">
                 <Badge variant="outline">v{updateConfirm?.installedVersion}</Badge>
@@ -1092,14 +1090,12 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
           <div className="flex items-start gap-2 p-3 rounded-none bg-muted border border-border">
             <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
             <p className="text-sm text-muted-foreground">
-              you have local edits to this scheduled task. updating overwrites your prompt changes.
-              a backup is saved as <code className="text-xs">pipe.md.bak</code>, and your
-              schedule, model, and enabled state are preserved.
+              {t("pipesStore.updateConfirm.warning")}
             </p>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="ghost" onClick={() => setUpdateConfirm(null)}>
-              skip
+              {t("pipesStore.updateConfirm.skip")}
             </Button>
             <Button
               onClick={() => {
@@ -1109,7 +1105,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
                 }
               }}
             >
-              update &amp; discard my edits
+              {t("pipesStore.updateConfirm.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1136,6 +1132,7 @@ function PipeCard({
   installing: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   const publisher = getPipePublisherIdentity({
     id: pipe.author_id,
     name: pipe.author,
@@ -1176,12 +1173,12 @@ function PipeCard({
           ) : hasUpdate ? (
             <>
               <ArrowUpCircle className="h-3 w-3 mr-1" />
-              UPDATE
+              {t("pipesStore.card.update")}
             </>
           ) : isInstalled ? (
-            "INSTALLED"
+            t("pipesStore.card.installed")
           ) : (
-            "GET"
+            t("pipesStore.card.get")
           )}
         </Button>
       </div>
@@ -1215,13 +1212,14 @@ function PublisherIdentity({
   className?: string;
   compact?: boolean;
 }) {
+  const t = useT();
   const avatarClass = compact ? "h-4 w-4" : "h-5 w-5";
 
   return (
     <div
       data-testid="pipe-publisher-identity"
-      aria-label={publisher.isScreenpipeTeam ? "official Screenpipe publisher" : undefined}
-      title={compact && publisher.isScreenpipeTeam ? "built by screenpipe team" : undefined}
+      aria-label={publisher.isScreenpipeTeam ? t("pipesStore.publisher.officialAria") : undefined}
+      title={compact && publisher.isScreenpipeTeam ? t("pipesStore.publisher.teamTitle") : undefined}
       className={cn(
         "flex min-w-0 items-center",
         compact ? "gap-1.5" : "gap-2",
@@ -1256,14 +1254,14 @@ function PublisherIdentity({
           <span className="font-medium">{publisher.name}</span>
         ) : (
           <>
-            {publisher.isScreenpipeTeam ? "built by " : "by "}
+            {publisher.isScreenpipeTeam ? t("pipesStore.publisher.builtBy") : t("pipesStore.publisher.by")}
             <span className="font-medium text-foreground">{publisher.name}</span>
           </>
         )}
       </span>
       {publisher.verified && !publisher.isScreenpipeTeam && (
         <BadgeCheck
-          aria-label="verified publisher"
+          aria-label={t("pipesStore.publisher.verified")}
           className={cn(
             "flex-shrink-0 text-foreground",
             compact ? "h-3 w-3" : "h-3.5 w-3.5",
@@ -1300,6 +1298,8 @@ function PipeDetailPanel({
   unpublishing?: boolean;
   onRefresh?: () => void;
 }) {
+  const t = useT();
+  const locale = localeOf(useSettings().settings?.locale);
   const unrestricted = isUnrestricted(pipe.permissions);
   const isOwner = !!(currentUserId && pipe.author_id && currentUserId === pipe.author_id);
   const publisher = getPipePublisherIdentity({
@@ -1329,7 +1329,7 @@ function PipeDetailPanel({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">{pipe.title || pipe.slug || "untitled scheduled task"}</h2>
+              <h2 className="text-xl font-semibold tracking-tight">{pipe.title || pipe.slug || t("pipesStore.detail.untitled")}</h2>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <PublisherIdentity publisher={publisher} />
                 {pipe.version ? (
@@ -1350,10 +1350,10 @@ function PipeDetailPanel({
               <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Download className="h-3.5 w-3.5" />
-                  {formatCount(pipe.install_count ?? 0)} installs
+                  {t("pipesStore.detail.installsCount", { count: formatCount(pipe.install_count ?? 0) })}
                 </span>
                 <span className="text-xs">
-                  updated {relativeDate(pipe.updated_at)}
+                  {t("pipesStore.detail.updatedAgo", { time: relativeDate(locale, pipe.updated_at) })}
                 </span>
               </div>
             </div>
@@ -1381,13 +1381,13 @@ if the original or customized pipe creates a user-facing output file, make sure 
 
 if the pipe's final user-facing file lives outside the pipe's own \`./output/\` directory (e.g. it writes to a shared location, the user's Documents folder, or an Obsidian vault), the pipe prompt should call the \`register_artifact\` tool with the file's absolute path and a human-readable title after writing the file. this registers it in the Artifacts library without requiring it to be under \`./output/\`. do NOT use \`register_artifact\` for internal scratch files, caches, or intermediate state — only for finished deliverables.`,
                     prompt: `i want to fork the "${pipe.title}" pipe and adapt it to my needs. here is the original pipe.md:\n\n${pipeSource}`,
-                    displayLabel: buildForkPipeDisplayLabel(pipe.title),
+                    displayLabel: buildForkPipeDisplayLabel(locale, pipe.title),
                     autoSend: true,
                   });
                 }}
               >
                 <GitFork className="h-4 w-4 mr-1.5" />
-                FORK
+                {t("pipesStore.fork.button")}
               </Button>
               {isOwner && (
                 <Button
@@ -1397,7 +1397,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
                   onClick={() => void openUrl(updateContactHref)}
                 >
                   <ExternalLink className="h-4 w-4 mr-1.5" />
-                  REQUEST UPDATE
+                  {t("pipesStore.detail.requestUpdate")}
                 </Button>
               )}
               {isOwner && onUnpublish && (
@@ -1411,10 +1411,10 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
                   {unpublishing ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                      UNPUBLISHING...
+                      {t("pipesStore.detail.unpublishing")}
                     </>
                   ) : (
-                    "UNPUBLISH"
+                    t("pipesStore.detail.unpublish")
                   )}
                 </Button>
               )}
@@ -1433,19 +1433,19 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
                 {installing === pipe.slug ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
-                    {hasUpdate ? "UPDATING..." : "INSTALLING..."}
+                    {hasUpdate ? t("pipesStore.detail.updating") : t("pipesStore.detail.installing")}
                   </>
                 ) : hasUpdate ? (
                   <>
                     <ArrowUpCircle className="h-4 w-4 mr-1.5" />
-                    UPDATE
+                    {t("pipesStore.card.update")}
                   </>
                 ) : isInstalled ? (
-                  "INSTALLED"
+                  t("pipesStore.card.installed")
                 ) : (
                   <>
                     <Download className="h-4 w-4 mr-1.5" />
-                    GET
+                    {t("pipesStore.card.get")}
                   </>
                 )}
               </Button>
@@ -1457,7 +1457,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
       {/* README section */}
       <div className="space-y-3">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-          README
+          {t("pipesStore.detail.readmeHeading")}
         </h4>
         <div className="border border-border rounded-none p-6">
           {readmeContent ? (
@@ -1480,7 +1480,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
               {readmeContent}
             </MemoizedReactMarkdown>
           ) : (
-            <p className="text-sm text-muted-foreground">no description available</p>
+            <p className="text-sm text-muted-foreground">{t("pipesStore.detail.noDescription")}</p>
           )}
         </div>
       </div>
@@ -1488,7 +1488,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
       {/* Permissions */}
       <div className="space-y-3">
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-          Permissions
+          {t("pipesStore.detail.permissionsHeading")}
         </h4>
         <div className="border border-border rounded-none p-5 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -1508,7 +1508,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
                   )}
                   <span className="flex items-center gap-1.5 text-muted-foreground text-xs">
                     {perm.icon}
-                    {perm.label}
+                    {t(perm.labelKey)}
                   </span>
                 </div>
               );
@@ -1517,14 +1517,14 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
           {pipe.permissions?.time_range && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground pt-2 border-t border-border">
               <Clock className="h-3.5 w-3.5" />
-              time range: {pipe.permissions?.time_range}
+              {t("pipesStore.detail.timeRange", { range: pipe.permissions?.time_range ?? "" })}
             </div>
           )}
           {pipe.permissions?.day_restrictions &&
             pipe.permissions.day_restrictions.length > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Clock className="h-3.5 w-3.5" />
-                days: {pipe.permissions?.day_restrictions?.join(", ")}
+                {t("pipesStore.detail.days", { days: pipe.permissions?.day_restrictions?.join(", ") ?? "" })}
               </div>
             )}
         </div>
@@ -1534,15 +1534,14 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
           <div className="border border-foreground bg-muted/50 rounded-none p-4 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <AlertTriangle className="h-4 w-4" />
-              unrestricted data access
+              {t("pipesStore.warn.unrestricted")}
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              this scheduled task has no data access restrictions. it can access all your
-              screen text, audio, keyboard input, and raw database queries.
+              {t("pipesStore.warn.unrestrictedBody")}
             </p>
             {!pipe.author_verified && (
               <p className="text-xs text-muted-foreground leading-relaxed">
-                this publisher is not verified. use the source section below if you want to inspect the scheduled task before installing.
+                {t("pipesStore.warn.unverifiedBody")}
               </p>
             )}
           </div>
@@ -1560,7 +1559,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
           ) : (
             <ChevronRight className="h-3.5 w-3.5" />
           )}
-          Source (pipe.md)
+          {t("pipesStore.detail.sourceHeading")}
         </button>
         {sourceExpanded && pipe.source ? (
           <div className="border border-border rounded-none overflow-hidden">
@@ -1583,6 +1582,7 @@ export function PermissionsReview({
   permissions?: PipePermissions;
   authorVerified: boolean;
 }) {
+  const t = useT();
   const unrestricted = isUnrestricted(permissions);
 
   return (
@@ -1590,7 +1590,7 @@ export function PermissionsReview({
       <div className="border border-border rounded-none p-4 space-y-2">
         <div className="flex items-center gap-1.5 text-sm font-medium">
           <Shield className="h-4 w-4" />
-          data access
+          {t("pipesStore.pr.dataAccess")}
         </div>
         <div className="grid grid-cols-2 gap-1.5">
           {PERMISSION_LABELS.map((perm) => {
@@ -1609,7 +1609,7 @@ export function PermissionsReview({
                 )}
                 <span className="flex items-center gap-1 text-muted-foreground">
                   {perm.icon}
-                  {perm.label}
+                  {t(perm.labelKey)}
                 </span>
               </div>
             );
@@ -1621,7 +1621,7 @@ export function PermissionsReview({
         <div className="border border-foreground bg-muted/50 rounded-none p-4">
           <div className="flex items-center gap-2 text-xs font-medium text-foreground">
             <AlertTriangle className="h-3.5 w-3.5" />
-            unrestricted data access — this scheduled task can read all your data
+            {t("pipesStore.pr.unrestrictedAll")}
           </div>
         </div>
       )}
@@ -1642,12 +1642,14 @@ export function InstallRiskSummary({
   permissions?: PipePermissions;
   onReviewSource?: () => void;
 }) {
+  const t = useT();
+  const locale = localeOf(useSettings().settings?.locale);
   const risk = getPipeInstallRisk({
     permissions,
     author_verified: authorVerified,
   });
   const unrestricted = isUnrestricted(permissions);
-  const accessLabels = unrestricted ? [] : getAllowedAccessLabels(permissions);
+  const accessLabels = unrestricted ? [] : getAllowedAccessLabels(locale, permissions);
 
   return (
     <div className="space-y-4">
@@ -1659,19 +1661,19 @@ export function InstallRiskSummary({
             ) : (
               <Shield className="h-4 w-4" />
             )}
-            {unrestricted ? "Can access all your screen data" : "Requested access"}
+            {unrestricted ? t("pipesStore.risk.canAccessAll") : t("pipesStore.risk.requestedAccess")}
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
             {unrestricted
-              ? "screen text, audio, keyboard input, screenshots, and raw queries."
-              : getPipeAccessSummary(permissions)}{" "}
+              ? t("pipesStore.risk.unrestrictedList")
+              : getPipeAccessSummary(locale, permissions)}{" "}
             {onReviewSource ? (
               <button
                 data-testid="pipe-risk-review-source"
                 onClick={onReviewSource}
                 className="underline underline-offset-2 hover:text-foreground transition-colors"
               >
-                review source
+                {t("pipesStore.risk.reviewSource")}
               </button>
             ) : null}
           </p>

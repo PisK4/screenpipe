@@ -39,6 +39,7 @@ import { usePipes, type TemplatePipe } from "@/lib/hooks/use-pipes";
 
 import posthog from "posthog-js";
 import { toast } from "@/components/ui/use-toast";
+import { useT } from "@/lib/i18n";
 import { useTimelineFilters } from "@/components/rewind/hooks/use-timeline-filters";
 import { useScrollZoom } from "@/components/rewind/hooks/use-scroll-zoom";
 import { useDateNavigation } from "@/components/rewind/hooks/use-date-navigation";
@@ -98,6 +99,7 @@ const easeOutCubic = (x: number): number => {
 
 export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 	const { isMac } = usePlatform();
+	const t = useT();
 	const { settings } = useSettings();
 	const { health } = useHealthCheck();
 	const [currentIndex, setCurrentIndex] = useState(0);
@@ -602,8 +604,8 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 			if (Number.isNaN(parsed) || parsed < 1) {
 				setPendingNavigation(null);
 				toast({
-					title: "invalid frame ID",
-					description: `"${raw}" is not a valid frame ID. expected a positive integer.`,
+					title: t("timeline.frameToast.invalidFrameId"),
+					description: t("timeline.frameToast.invalidFrameIdDescription", { raw }),
 					variant: "destructive",
 				});
 				return;
@@ -615,21 +617,21 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 				if (data?.timestamp) {
 					setPendingNavigation(null);
 					await navigateToTimestamp(data.timestamp);
-					toast({ title: "jumped to frame", description: `opened frame ${frameId}` });
+					toast({ title: t("timeline.frameToast.jumpedToFrame"), description: t("timeline.frameToast.openedFrame", { frameId }) });
 					return;
 				}
 				setPendingNavigation(null);
 				toast({
-					title: "frame not found",
-					description: `could not navigate to frame ${frameId} — it may not exist or server is not ready`,
+					title: t("timeline.frameToast.frameNotFound"),
+					description: t("timeline.frameToast.frameNotFoundDescription", { frameId }),
 					variant: "destructive",
 				});
 			} catch (error) {
 				console.error("Failed to navigate to frame:", error);
 				setPendingNavigation(null);
 				toast({
-					title: "navigation failed",
-					description: error instanceof Error ? error.message : "could not resolve frame to timestamp",
+					title: t("timeline.frameToast.navigationFailed"),
+					description: error instanceof Error ? error.message : t("timeline.frameToast.navigationFailedDescription"),
 					variant: "destructive",
 				});
 			}
@@ -833,9 +835,9 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 		});
 
 		if (pipe) {
-			toast({ title: `${pipe.icon} ${pipe.title}`, description: "running scheduled task with selection context" });
+			toast({ title: `${pipe.icon} ${pipe.title}`, description: t("timeline.pipeToast.runningWithSelection") });
 		}
-	}, [selectionRange, frames]);
+	}, [selectionRange, frames, t]);
 
 	// Wrapper that opens search in separate window (fullscreen) or inline modal (embedded)
 	const openSearch = useCallback((v: boolean) => {
@@ -1089,11 +1091,10 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 						<MonitorOff className="w-8 h-8 text-muted-foreground" />
 					</div>
 					<h3 className="text-lg font-mono font-semibold uppercase tracking-wide mb-2">
-						Timeline Disabled
+						{t("timeline.disabled.title")}
 					</h3>
 					<p className="text-sm font-mono text-muted-foreground leading-relaxed">
-						The timeline is turned off in settings. Re-enable it under
-						Display settings to browse your recorded history.
+						{t("timeline.disabled.description")}
 					</p>
 				</div>
 			</div>
@@ -1223,10 +1224,10 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 									</div>
 
 									<h3 className="text-xl font-semibold text-foreground mb-3">
-										Screen recording is off
+										{t("timeline.empty.recordingOffTitle")}
 									</h3>
 									<p className="text-muted-foreground mb-6 leading-relaxed">
-										Enable screen recording in settings to start capturing your timeline.
+										{t("timeline.empty.recordingOffDescription")}
 									</p>
 
 									<button
@@ -1234,7 +1235,7 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 										className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
 									>
 										<Settings className="w-4 h-4" />
-										Open settings
+										{t("timeline.empty.openSettings")}
 									</button>
 								</div>
 							) : (
@@ -1254,10 +1255,10 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 									</div>
 
 									<h3 className="text-xl font-semibold text-foreground mb-3">
-										Building Your Memory
+										{t("timeline.empty.buildingTitle")}
 									</h3>
 									<p className="text-muted-foreground mb-6 leading-relaxed">
-										Screenpipe is recording your screen activity. Your timeline will appear here as frames are captured.
+										{t("timeline.empty.buildingDescription")}
 									</p>
 
 									{/* Friendly suggestion */}
@@ -1266,11 +1267,11 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 											<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
 											<span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
 										</span>
-										Recording in progress
+										{t("timeline.empty.recordingInProgress")}
 									</div>
 
 									<p className="text-xs text-muted-foreground mt-6">
-										Check back in a few minutes
+										{t("timeline.empty.checkBack")}
 									</p>
 								</div>
 							)}
@@ -1331,7 +1332,7 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 							<button
 								type="button"
 								className="flex items-center gap-1.5 max-w-lg min-w-0 px-3 py-1 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 hover:bg-black/80 hover:border-white/20 transition-colors cursor-pointer pointer-events-auto"
-								title={`Open ${openableUrl}`}
+								title={t("timeline.browserUrl.open", { url: openableUrl })}
 								onClick={async (e) => {
 									e.stopPropagation();
 									try {
@@ -1374,19 +1375,19 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 							<button
 								onClick={() => commands.closeWindow("Main")}
 								className="absolute top-4 right-4 p-2 bg-card hover:bg-muted border border-border rounded-md transition-colors z-50"
-								title="Close (Esc)"
+								title={t("timeline.loading.closeTitle")}
 							>
 								<X className="w-4 h-4 text-muted-foreground" />
 							</button>
 						)}
 						<div className="bg-card text-foreground p-6 rounded-2xl text-center space-y-3 max-w-md mx-4">
-							<h3 className="font-medium">Loading Timeline</h3>
+							<h3 className="font-medium">{t("timeline.loading.title")}</h3>
 							<p className="text-sm text-foreground">
-								Fetching your recorded frames...
+								{t("timeline.loading.description")}
 							</p>
 							<Loader2 className="h-5 w-5 animate-spin mx-auto mt-2" />
 							<p className="text-xs text-muted-foreground mt-4">
-								Press Esc or click X to close
+								{t("timeline.loading.hint")}
 							</p>
 						</div>
 					</div>
@@ -1405,7 +1406,7 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 							<button
 								onClick={() => commands.closeWindow("Main")}
 								className="absolute top-4 right-4 p-2 bg-card hover:bg-muted border border-border rounded-md transition-colors z-50"
-								title="Close (Esc)"
+								title={t("timeline.loading.closeTitle")}
 							>
 								<X className="w-4 h-4 text-muted-foreground" />
 							</button>
@@ -1413,21 +1414,20 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 						<div className="bg-destructive/20 border border-destructive/30 text-foreground p-6 rounded-2xl text-center space-y-4 max-w-md mx-4">
 							<div className="flex flex-col items-center gap-2">
 								<AlertCircle className="h-6 w-6 text-destructive" />
-								<h3 className="font-medium text-destructive">Connection Error</h3>
+								<h3 className="font-medium text-destructive">{t("timeline.error.title")}</h3>
 							</div>
 							<p className="text-sm text-foreground">
-								Unable to reach your screenpipe data. Please verify that the
-								screenpipe turned on.
+								{t("timeline.error.description")}
 							</p>
 							<button
 								onClick={handleRefresh}
 								className="flex items-center gap-2 px-4 py-2 bg-card rounded-lg border border-border mx-auto bg-muted"
 							>
 								<RotateCcw className="h-4 w-4" />
-								<span>Reload Timeline</span>
+								<span>{t("timeline.error.reload")}</span>
 							</button>
 							<p className="text-xs text-muted-foreground">
-								Press Esc or click X to close
+								{t("timeline.error.hint")}
 							</p>
 						</div>
 					</div>
@@ -1496,7 +1496,7 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 							className="px-1.5 hover:text-white/80 disabled:text-white/30"
 							disabled={searchResultIndex >= searchResults.length - 1}
 							onClick={() => navigateToSearchResult(searchResultIndex + 1)}
-							title="Older match (←)"
+							title={t("timeline.searchReview.olderMatch")}
 						>
 							&#9664;
 						</button>
@@ -1512,14 +1512,14 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 							className="px-1.5 hover:text-white/80 disabled:text-white/30"
 							disabled={searchResultIndex <= 0}
 							onClick={() => navigateToSearchResult(searchResultIndex - 1)}
-							title={isMac ? "Newer match (→ or ⌘G)" : "Newer match (→ or Ctrl+G)"}
+							title={t(isMac ? "timeline.searchReview.newerMatchMac" : "timeline.searchReview.newerMatchOther")}
 						>
 							&#9654;
 						</button>
 						<button
 							className="ml-1 text-white/50 hover:text-white/80"
 							onClick={() => clearSearchHighlight()}
-							title="Exit search review (Esc)"
+							title={t("timeline.searchReview.exitTitle")}
 						>
 							<X className="w-3.5 h-3.5" />
 						</button>
@@ -1580,7 +1580,7 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 										{/* Skeleton timeline slider */}
 										<div className="flex items-center gap-2 justify-center">
 											<Loader2 className="w-4 h-4 animate-spin" />
-											<span>Loading timeline...</span>
+											<span>{t("timeline.loading.bar")}</span>
 										</div>
 										<div className="h-16 bg-muted/50 rounded-lg animate-pulse flex items-end gap-0.5 px-2 pb-2">
 											{/* Skeleton bars */}
@@ -1598,14 +1598,14 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 										</div>
 									</div>
 								) : error ? (
-									<div className="text-destructive text-center">Failed to load timeline data</div>
+									<div className="text-destructive text-center">{t("timeline.bar.loadFailed")}</div>
 								) : isScreenRecordingOff(health) ? (
 									// Same signal the empty-state overlay reads. Without this the bar
 									// claims to be recording while the overlay right above it says
 									// screen recording is off — two contradictory answers on one screen.
 									<div className="text-center text-muted-foreground flex items-center justify-center gap-2">
 										<MonitorOff className="w-3.5 h-3.5" />
-										Screen recording is off — no timeline to show
+										{t("timeline.bar.recordingOff")}
 									</div>
 								) : (
 									<div className="text-center text-muted-foreground flex items-center justify-center gap-2">
@@ -1613,7 +1613,7 @@ export default function Timeline({ embedded = false }: { embedded?: boolean }) {
 											<span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
 											<span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
 										</span>
-										Recording... timeline will appear soon
+										{t("timeline.bar.recording")}
 									</div>
 								)}
 							</div>

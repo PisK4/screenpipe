@@ -6,6 +6,7 @@
 import React from "react";
 import { MemoizedReactMarkdown } from "@/components/markdown";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 import { Loader2 } from "lucide-react";
 
 export type MeetingWorkspaceTab = "notes" | "transcript" | "summary";
@@ -36,11 +37,20 @@ export const MEETING_RULE_ACTION_CLASS =
 
 const MEETING_TABS: ReadonlyArray<{
   value: MeetingWorkspaceTab;
-  label: string;
+  labelKey: string;
 }> = [
-  { value: "notes", label: "notes" },
-  { value: "transcript", label: "transcript" },
-  { value: "summary", label: "summary" },
+  {
+    value: "notes",
+    labelKey: "meetingNotes.workspace.tabNotes",
+  },
+  {
+    value: "transcript",
+    labelKey: "meetingNotes.workspace.tabTranscript",
+  },
+  {
+    value: "summary",
+    labelKey: "meetingNotes.workspace.tabSummary",
+  },
 ];
 
 export function MeetingWorkspaceTabs({
@@ -60,6 +70,7 @@ export function MeetingWorkspaceTabs({
   trailing?: React.ReactNode;
 }) {
   const tabRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
+  const t = useT();
 
   const moveFocus = (index: number) => {
     const normalized = (index + MEETING_TABS.length) % MEETING_TABS.length;
@@ -71,7 +82,7 @@ export function MeetingWorkspaceTabs({
   const tablist = (
     <div
       role="tablist"
-      aria-label="meeting workspace"
+      aria-label={t("meetingNotes.workspace.tablistAria")}
       className={cn(
         "flex min-w-0 items-stretch overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         !trailing && "border-b border-border",
@@ -114,10 +125,14 @@ export function MeetingWorkspaceTabs({
               !selected && "hover:bg-muted hover:text-foreground",
             )}
           >
-            <span>{tab.label}</span>
+            <span>{t(tab.labelKey)}</span>
             {state && (
               <span
-                aria-label={`summary ${state}`}
+                aria-label={
+                  state === "working"
+                    ? t("meetingNotes.workspace.summaryDotWorking")
+                    : t("meetingNotes.workspace.summaryDotAttention")
+                }
                 className={cn(
                   "h-1.5 w-1.5 shrink-0",
                   state === "working" &&
@@ -180,6 +195,7 @@ export function MeetingSummarySurface({
   const savedSummary = extractMeetingSummary(note);
   const isStreaming = state === "working" && Boolean(streamedSummary?.trim());
   const summary = isStreaming ? streamedSummary! : savedSummary;
+  const t = useT();
 
   return (
     <section
@@ -204,7 +220,9 @@ export function MeetingSummarySurface({
                 />
               )}
               <span>
-                {state === "working" ? "writing summary" : "meeting summary"}
+                {state === "working"
+                  ? t("meetingNotes.workspace.headerWorking")
+                  : t("meetingNotes.workspace.headerSaved")}
               </span>
             </div>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -225,10 +243,10 @@ export function MeetingSummarySurface({
                 className="h-9 shrink-0 border border-foreground bg-foreground px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-background transition-colors hover:bg-background hover:text-foreground disabled:border-border disabled:bg-muted disabled:text-muted-foreground"
               >
                 {state === "attention"
-                  ? "retry"
+                  ? t("meetingNotes.workspace.retryButton")
                   : state === "ready"
-                    ? "summarize again"
-                    : "generate"}
+                    ? t("meetingNotes.workspace.summarizeAgainButton")
+                    : t("meetingNotes.workspace.generateButton")}
               </button>
             )}
           </div>
@@ -257,20 +275,19 @@ export function MeetingSummarySurface({
               className="min-h-64 py-2"
             >
               <p className="text-sm font-medium text-foreground">
-                Draft will appear here
+                {t("meetingNotes.workspace.writingPlaceholderTitle")}
               </p>
               <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-                The first section replaces this message as soon as it is ready.
+                {t("meetingNotes.workspace.writingPlaceholderBody")}
               </p>
             </div>
           ) : (
             <div className="border-l border-border py-2 pl-5">
               <p className="text-sm font-medium text-foreground">
-                no summary yet
+                {t("meetingNotes.workspace.emptyTitle")}
               </p>
               <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-                Stop the meeting first. screenpipe will keep your notes and
-                transcript intact while the summary is written.
+                {t("meetingNotes.workspace.emptyBody")}
               </p>
             </div>
           )}

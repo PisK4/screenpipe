@@ -16,6 +16,9 @@ const openerMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@tauri-apps/plugin-opener", () => openerMocks);
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
 
 afterEach(cleanup);
 

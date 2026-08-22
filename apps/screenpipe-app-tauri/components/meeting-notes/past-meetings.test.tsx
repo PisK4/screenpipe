@@ -14,6 +14,10 @@ vi.mock("./copy-meeting", () => ({
   copyMeetingToClipboard: mocks.copyMeetingToClipboard,
 }));
 
+vi.mock("@/lib/hooks/use-settings", () => ({
+  useSettings: () => ({ settings: {}, updateSettings: vi.fn() }),
+}));
+
 import { PastMeetings } from "./past-meetings";
 
 const meeting: MeetingRecord = {

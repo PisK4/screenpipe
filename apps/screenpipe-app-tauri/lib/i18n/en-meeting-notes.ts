@@ -20,6 +20,8 @@ export const meetingNotesEn = {
   },
 
   comingUp: {
+    listTwo: "{a} and {b}",
+    listMany: "{list}, and {last}",
     title: "Coming up",
     emptyTitleLoading: "checking calendars",
     emptyTitleError: "calendar needs attention",
@@ -42,6 +44,11 @@ export const meetingNotesEn = {
   },
 
   calendarConnect: {
+    nativeNameMac: "Apple Calendar",
+    nativeNameWindows: "Windows Calendar",
+    nativeNameOther: "OS Calendar",
+    icsFetchFailed: "could not fetch calendar feed",
+    icsSaveFailed: "failed to save ICS feed",
     nativeDescriptionMac:
       "Use calendars synced through macOS Internet Accounts.",
     nativeDescriptionWindows:
@@ -156,6 +163,7 @@ export const meetingNotesEn = {
   },
 
   pastMeetings: {
+    deleteFailedToast: "couldn't delete meeting",
     bucketToday: "today",
     bucketYesterday: "yesterday",
     bucketThisWeek: "earlier this week",
@@ -226,10 +234,191 @@ export const meetingNotesEn = {
     hideAudioTitle: "hide audio",
     speakerMe: "me",
     speakerUnknown: "speaker",
+    stateRecovering: "recovering",
+    stateSaved: "saved transcript",
+    stateLive: "live transcript",
+    stateListening: "listening",
+    errorCloudConnection: "cloud connection failed",
+    errorCloudLogin: "cloud login required",
+    errorDailyLimit: "daily limit reached",
+    errorSecureConnection: "secure connection failed",
+    errorLiveStream: "live stream unavailable",
+    errorLiveTranscription: "live transcription failed",
+  },
+
+  transcriptRecovery: {
+    backlogOne:
+      "Still recording. 1 saved recorder audio segment is queued for background transcription; this count is not specific to this meeting.",
+    backlogMany:
+      "Still recording. {pending} saved recorder audio segments are queued for background transcription; this count is not specific to this meeting.",
+    noSpeechFound: "no speech was found in the saved audio",
+    batchesRefreshRequested:
+      "{batches} batch{batchLabel} from saved audio · summary refresh requested",
+    batchesUseAgain:
+      "{batches} batch{batchLabel} from saved audio · use summarize again to update the note",
+    batchOne: "",
+    batchMany: "es",
+  },
+
+  receipts: {
+    heading: "related during this meeting",
+    filesEdited: "files edited",
+    minutesShort: "{minutes}m",
+  },
+
+  noteView: {
+    back: "back to meetings",
+    meetings: "meetings",
+    untitledMeeting: "untitled meeting",
+    titleAria: "meeting title",
+    ongoing: "ongoing",
+    consentNotice: "Always get consent when transcribing others.",
+    dropImageOverlay: "drop image to add to note",
+    editorPlaceholder: 'write notes, or type "/" for blocks',
+
+    statusRecording: "recording meeting",
+    statusRecordingDetail: "notes and transcript save automatically",
+    statusResuming: "resuming meeting",
+    statusResumingDetail: "reopening this note for live capture",
+    statusFinalizing: "meeting saved",
+    statusFinalizingDetail:
+      "finishing the transcript before summary · you can safely leave",
+    statusRefreshing: "refreshing summary",
+    statusSummarizing: "summarizing meeting",
+    statusSummarizingDetail:
+      "you can leave · it appears here live and saves when finished",
+    statusRetranscribeRefreshingDetail:
+      "using the refreshed transcript · it appears here live",
+    statusReady: "summary ready",
+    statusReadyDetail: "saved to this meeting note",
+    statusNeedsAttention: "summary needs attention",
+    statusIdle: "meeting saved",
+    autoSummaryOff: "automatic summary is off",
+    savedLocally: "notes and transcript saved locally",
+
+    hideTranscript: "hide transcript",
+    showTranscript: "show transcript",
+    summaryRefreshingAfterRetranscribe:
+      "refreshing summary after retranscription",
+    summaryUnavailable: "summary unavailable",
+    summarizeMeeting: "summarize meeting",
+    retrySummary: "retry summary",
+    stopAndSummarize: "stop and summarize",
+    stopAndSummarizeShort: "stop & summarize",
+    stopMeeting: "stop meeting",
+    stoppingMeeting: "stopping meeting",
+    stopping: "stopping…",
+    stop: "stop",
+
+    menuGroupSummary: "summary",
+    menuGroupMeeting: "meeting",
+    resumeMeeting: "resume meeting",
+    resumingMeeting: "resuming meeting",
+    retranscribeSavedAudio: "retranscribe saved audio",
+    exportToMp4: "export to mp4",
+    deleteMeeting: "delete meeting",
+
+    retranscribeTitle: "retranscribe meeting",
+    retranscribeBody:
+      "rebuild the transcript from saved audio. this replaces the current transcript and refreshes the summary when automatic summary is on.",
+    retranscribeConfirm: "retranscribe",
+
+    failureRateLimit:
+      "AI is temporarily rate-limited. Retry in a moment — your meeting and transcript are safe.",
+    failureQuota:
+      "Your AI usage limit is reached. Your meeting and transcript are safe — retry after it resets, upgrade, or switch to a local model or your own provider key.",
+    failureModelNotAllowed:
+      "Your plan can't use the configured AI model. Switch the preset to an included model, or upgrade. Your meeting and transcript are safe.",
+    failureDefault:
+      "Your meeting and transcript are safe. Retry when you're ready.",
+    upgradeTo: "upgrade to {plan}",
+
+    couldntSend: "couldn't send",
+    sentTo: "sent to {destination}",
+    couldntInsertImage: "couldn't insert image",
+    dropImageHint: "drop a png, jpg, gif, webp, bmp, or svg file.",
+    stopFirstSummarize: "stop the meeting first",
+    stopFirstSummarizeDetail:
+      "summaries run on the saved transcript after the meeting ends.",
+    couldntStartSummary: "couldn't start summary",
+    tryAgainMoment: "try again in a moment.",
+    stopFirstRetranscribeDetail:
+      "batch retranscribe runs on the saved audio after a meeting ends.",
+    transcriptRefreshed: "transcript refreshed",
+    couldntRetranscribe: "couldn't retranscribe",
+    couldntSaveNotes: "couldn't save notes",
+    stoppingAnyway: "stopping anyway — your latest edits may not be saved.",
+    couldntStopMeeting: "couldn't stop meeting",
+    stopFirstExportDetail:
+      "mp4 export runs on the saved frames and audio after a meeting ends.",
+    couldntOpenSaveDialog: "couldn't open save dialog",
+    exportingMp4: "exporting mp4…",
+    exportingMp4Detail:
+      "stitching frames and audio — this can take a minute for long meetings.",
+    mp4Exported: "mp4 exported",
+    mp4ExportedDetail: "{frames} frames · {chunks} audio chunks · {size}",
+    couldntExportMp4: "couldn't export mp4",
+    copiedToClipboard: "copied to clipboard",
+    couldntCopy: "couldn't copy",
+    nothingTranscribed: "nothing transcribed yet",
+    transcriptCopied: "transcript copied",
+    couldntCopyTranscript: "couldn't copy transcript",
+    noSummaryToCopy: "no summary to copy yet",
+    summaryCopied: "summary copied",
+    pasteAnywhere: "paste it anywhere",
+    couldntCopySummary: "couldn't copy summary",
+    noSummaryToSend: "no summary to send yet",
+    couldntOpenEmail: "couldn't open your email app",
+    couldntUpdateLanguage: "couldn't update language",
+    couldntDeleteMeeting: "couldn't delete meeting",
+    micResumed: "microphone capture resumed",
+    micResumedDetail: "Transcript should start once speech is detected.",
+    couldntResumeMic: "couldn't resume microphone",
+    couldntOpenMeeting: "couldn't open meeting",
+
+    audioHealth: "audio health",
+    audioSettings: "audio settings",
+    openAudioSettings: "open audio settings",
+    audioInput: "audio input",
+    systemAudio: "system audio",
+    systemDefaultMic: "system default microphone",
+    systemOutput: "system output",
+    transcriptionEngine: "transcription engine",
+    engineOff: "off",
+    languageLabel: "language",
+    autoLanguage: "auto",
+    noneSelected: "none selected",
+    providerDeepgramLive: "deepgram live",
+    providerScreenpipeCloud: "screenpipe cloud",
+    providerWhisperTurbo: "whisper turbo",
+    providerWhisperTurboFast: "whisper turbo fast",
+    providerOpenaiCompatible: "openai compatible",
+
+    joinNearbyEvent: "nearby calendar event — join the call?",
+    dismissJoinAria: "dismiss join suggestion",
+    dismissTitle: "dismiss",
+    inactivityTitle: "Stopped transcribing after 15 minutes of inactivity",
+    inactivityDismiss: "dismiss",
+    inactivityResume: "resume",
+    dismissInactivityAria: "dismiss inactivity message",
+    recordingContinues: " Recording continues.",
+    resumeMic: "resume mic",
+
+    saveSaving: "saving…",
+    saveSavedAt: "saved · {time}",
+    saveOfflineRetry: "offline — will retry",
   },
 
   editor: {
     blocksHeading: "blocks",
     deleteImageAria: "Delete image",
+    formatBold: "bold",
+    formatItalic: "italic",
+    formatStrike: "strikethrough",
+    formatCode: "inline code",
+    formatH1: "heading 1",
+    formatH2: "heading 2",
+    formatBullet: "bullet list",
+    formatQuote: "quote",
   },
 };

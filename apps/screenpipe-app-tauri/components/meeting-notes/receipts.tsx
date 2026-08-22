@@ -6,6 +6,7 @@
 import React from "react";
 import { ExternalLink, FileText, Globe, Layers } from "lucide-react";
 import { open as openExternal } from "@tauri-apps/plugin-shell";
+import { useT } from "@/lib/i18n";
 import {
   hostFromUrl,
   pathFromUrl,
@@ -39,6 +40,7 @@ function openFile(absPath: string) {
 }
 
 export function Receipts({ activity }: ReceiptsProps) {
+  const t = useT();
   const urls = pickReceiptUrls(activity.windows, 10);
   const apps = pickAppWindows(activity.windows, 6);
   const files = (activity.edited_files ?? []).slice(0, 12);
@@ -49,7 +51,7 @@ export function Receipts({ activity }: ReceiptsProps) {
     <section className="border-t border-border pt-5">
       <h3 className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground mb-3 flex items-center gap-2">
         <Layers className="h-3 w-3" />
-        related during this meeting
+        {t("meetingNotes.receipts.heading")}
       </h3>
 
       {urls.length > 0 && (
@@ -76,7 +78,9 @@ export function Receipts({ activity }: ReceiptsProps) {
                   </div>
                 </div>
                 <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-                  {w.minutes}m
+                  {t("meetingNotes.receipts.minutesShort", {
+                    minutes: w.minutes,
+                  })}
                 </span>
                 <ExternalLink className="h-3 w-3 text-muted-foreground/40 group-hover:text-foreground transition-colors shrink-0" />
               </button>
@@ -97,7 +101,11 @@ export function Receipts({ activity }: ReceiptsProps) {
               <span className="text-muted-foreground/60" aria-hidden>·</span>
               <span className="truncate max-w-[180px]">{w.window_name}</span>
               <span className="text-muted-foreground/60" aria-hidden>·</span>
-              <span className="tabular-nums">{w.minutes}m</span>
+              <span className="tabular-nums">
+                {t("meetingNotes.receipts.minutesShort", {
+                  minutes: w.minutes,
+                })}
+              </span>
             </li>
           ))}
         </ul>
@@ -110,7 +118,7 @@ export function Receipts({ activity }: ReceiptsProps) {
       {files.length > 0 && (
         <div>
           <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60 mb-1.5 px-1">
-            files edited
+            {t("meetingNotes.receipts.filesEdited")}
           </div>
           <ul className="border border-border divide-y divide-border">
             {files.map((f) => (

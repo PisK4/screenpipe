@@ -81,6 +81,7 @@ import {
   type MemoryCardDisplay,
 } from "@/lib/utils/memory-display";
 import { useChatStore } from "@/lib/stores/chat-store";
+import { useT, type Translator } from "@/lib/i18n";
 import posthog from "posthog-js";
 import { qualifiedValue } from "@/lib/analytics/qualified-value";
 import {
@@ -180,11 +181,6 @@ type UnifiedItem =
 
 type TypeFilter = "overview" | "memories" | "artifacts";
 
-const BRAIN_TAB_DESCRIPTIONS: Record<TypeFilter, string> = {
-  overview: "live dashboards the AI builds from your activity, updated as you work",
-  memories: "what the AI has learned about you from your activity",
-  artifacts: "documents, pages and files the AI has generated for you",
-};
 type SelectedBrainItem =
   | { kind: "memory"; key: string }
   | { kind: "artifact"; key: string };
@@ -253,16 +249,16 @@ export function resetBrainViewStateForTests() {
   brainViewState.scrollTopByType.overview = 0;
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, t: Translator): string {
   const ms = Date.now() - new Date(iso).getTime();
-  if (!Number.isFinite(ms) || ms < 0) return "just now";
+  if (!Number.isFinite(ms) || ms < 0) return t("brain.time.justNow");
   const mins = Math.floor(ms / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t("brain.time.justNow");
+  if (mins < 60) return t("brain.time.minsAgo", { n: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return t("brain.time.hoursAgo", { n: hours });
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return t("brain.time.daysAgo", { n: days });
 }
 
 function isDateFilterTag(tag: string): boolean {
@@ -360,25 +356,29 @@ function emptyStateMessage(
   typeFilter: TypeFilter,
   searchQuery: string,
   hasActiveFilters: boolean,
+  t: Translator,
 ): string {
   const query = searchQuery.trim();
   if (query) {
     return typeFilter === "artifacts"
-      ? `no artifacts matching "${query}" in title or content`
-      : `no memories matching "${query}"`;
+      ? t("brain.empty.artifactsQuery", { query })
+      : t("brain.empty.memoriesQuery", { query });
   }
   if (hasActiveFilters) {
     return typeFilter === "artifacts"
-      ? "no artifacts match the selected filters"
-      : "no memories match the selected filters";
+      ? t("brain.empty.artifactsFiltered")
+      : t("brain.empty.memoriesFiltered");
   }
-  return typeFilter === "memories" ? "no memories yet" : "no artifacts yet";
+  return typeFilter === "memories"
+    ? t("brain.empty.memories")
+    : t("brain.empty.artifacts");
 }
 
 type SortField = "created_at" | "importance";
 type SortDir = "desc" | "asc";
 
 export function BrainSection() {
+  const t = useT();
   const { toast } = useToast();
   const { isMac } = usePlatform();
   // App-wide convention (chat sidebar, chat history, recent-chat switcher):
@@ -778,7 +778,7 @@ export function BrainSection() {
       } catch (err) {
         if (offset === 0) {
           toast({
-            title: "failed to load memories",
+            title: t("brain.errors.loadMemories"),
             description: String(err),
             variant: "destructive",
           });
@@ -844,7 +844,7 @@ export function BrainSection() {
         mode: "single",
         count: 1,
       });
-      toast({ title: "memory deleted" });
+      toast({ title: t("brain.toasts.memoryDeleted") });
       setMemories((prev) => prev.filter((m) => m.id !== id));
       setSelectedItem((prev) =>
         prev?.kind === "memory" && prev.key === `mem:${id}` ? null : prev,
@@ -852,7 +852,7 @@ export function BrainSection() {
       setTotal((prev) => prev - 1);
     } catch (err) {
       toast({
-        title: "failed to delete memory",
+        title: t("brain.toasts.deleteMemoryFailed"),
         description: String(err),
         variant: "destructive",
       });
@@ -912,10 +912,10 @@ export function BrainSection() {
             : m,
         ),
       );
-      toast({ title: "memory updated" });
+      toast({ title: t("brain.toasts.memoryUpdated") });
     } catch (err) {
       toast({
-        title: "failed to update memory",
+        title: t("brain.toasts.updateMemoryFailed"),
         description: String(err),
         variant: "destructive",
       });
@@ -975,12 +975,12 @@ export function BrainSection() {
       posthog.capture("brain_memory_created", {
         tag_count: newTags.length,
       });
-      toast({ title: "memory created" });
+      toast({ title: t("brain.toasts.memoryCreated") });
       closeAddMemoryDialog();
       fetchPage(0, false);
     } catch (err) {
       toast({
-        title: "failed to create memory",
+        title: t("brain.toasts.createMemoryFailed"),
         description: String(err),
         variant: "destructive",
       });
@@ -1322,9 +1322,9 @@ export function BrainSection() {
       setSelectedItem((prev) =>
         prev?.kind === "artifact" && prev.key === key ? null : prev,
       );
-      toast({ title: "artifact deleted" });
+      toast({ title: t("brain.toasts.artifactDeleted") });
     },
-    [deleteRegistered, toast],
+    [deleteRegistered, t, toast],
   );
 
   const toggleSelectAll = () => {
@@ -1390,11 +1390,11 @@ export function BrainSection() {
       }
 
       const deletedCount = memIds.length + artKeys.filter((k) => k.startsWith("output:")).length;
-      toast({ title: `deleted ${deletedCount} items` });
+      toast({ title: t("brain.toasts.deletedItems", { count: deletedCount }) });
       setSelectedIds(new Set());
     } catch (err) {
       toast({
-        title: "failed to delete some items",
+        title: t("brain.toasts.deleteSomeFailed"),
         description: String(err),
         variant: "destructive",
       });
@@ -1413,19 +1413,19 @@ export function BrainSection() {
   const brainViewOptions = [
     {
       value: "overview" as const,
-      label: "Live Views",
+      label: t("brain.tabs.overview"),
       count: liveViewsTabCount,
       Icon: LayoutDashboard,
     },
     {
       value: "memories" as const,
-      label: "Memories",
+      label: t("brain.tabs.memories"),
       count: memoriesTabCount,
       Icon: Eye,
     },
     {
       value: "artifacts" as const,
-      label: "Artifacts",
+      label: t("brain.tabs.artifacts"),
       count: artifactsTabCount,
       Icon: FolderOpen,
     },
@@ -1441,8 +1441,8 @@ export function BrainSection() {
           type="button"
           data-testid="brain-view-switcher"
           className="inline-flex h-9 w-9 shrink-0 items-center justify-center border border-border bg-background transition-colors hover:bg-foreground hover:text-background"
-          aria-label={`switch Brain view, current: ${activeBrainView.label}`}
-          title={`switch Brain view, current: ${activeBrainView.label}`}
+          aria-label={t("brain.switchViewAria", { view: activeBrainView.label })}
+          title={t("brain.switchViewAria", { view: activeBrainView.label })}
         >
           <ActiveBrainViewIcon className="h-3.5 w-3.5" />
         </button>
@@ -1484,7 +1484,7 @@ export function BrainSection() {
       }`}
     >
       <p className="mb-4 text-sm text-muted-foreground">
-        {BRAIN_TAB_DESCRIPTIONS[typeFilter]}
+        {t(`brain.tabDesc.${typeFilter}`)}
       </p>
 
       {/* stale memories warning */}
@@ -1492,14 +1492,12 @@ export function BrainSection() {
         <div className="flex items-start gap-2 rounded-md border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-600 dark:text-yellow-400">
           <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
-            memories haven&apos;t updated in {staleDays} day{staleDays !== 1 ? "s" : ""}.
-            check that a memory-writing scheduled task is installed and enabled
-            &mdash;{" "}
+            {t("brain.staleWarning", { days: staleDays })}{" "}
             <a
               href="?section=pipes&tab=discover&q=memory"
               className="underline hover:opacity-80 transition-opacity"
             >
-              browse scheduled tasks
+              {t("brain.staleWarningLink")}
             </a>
             .
           </span>
@@ -1532,7 +1530,7 @@ export function BrainSection() {
                 }`}
               >
                 <Tag className="h-3.5 w-3.5" />
-                Filter by
+                {t("brain.filter.button")}
                 <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
             </PopoverTrigger>
@@ -1547,11 +1545,7 @@ export function BrainSection() {
                   <Input
                     value={filterSearch}
                     onChange={(e) => setFilterSearch(e.target.value)}
-                    placeholder={
-                      typeFilter === "memories"
-                        ? "find filters..."
-                        : "find filters..."
-                    }
+                    placeholder={t("brain.filter.searchPlaceholder")}
                     className="h-8 pl-7 text-xs"
                     autoFocus
                     {...searchInputBehaviorProps}
@@ -1563,18 +1557,20 @@ export function BrainSection() {
               >
                 {memoryFilterLoading && typeFilter === "memories" && (
                   <div className="px-2 py-3 text-xs text-muted-foreground">
-                    loading filters...
+                    {t("brain.filter.loading")}
                   </div>
                 )}
                 {!memoryFilterLoading && filterTags.length === 0 && (
                   <div className="px-2 py-3 text-xs text-muted-foreground">
-                    no filters found
+                    {t("brain.filter.empty")}
                   </div>
                 )}
                 {labelFilterTags.length > 0 && (
                   <div className="space-y-1">
                     <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                      {typeFilter === "memories" ? "Labels" : "Sources"}
+                      {typeFilter === "memories"
+                        ? t("brain.filter.groupLabels")
+                        : t("brain.filter.groupSources")}
                     </div>
                     {labelFilterTags.map(renderFilterMenuItem)}
                   </div>
@@ -1582,7 +1578,7 @@ export function BrainSection() {
                 {personFilterTags.length > 0 && (
                   <div className="mt-2 space-y-1 border-t border-border pt-2">
                     <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                      People
+                      {t("brain.filter.groupPeople")}
                     </div>
                     {personFilterTags.map(renderFilterMenuItem)}
                   </div>
@@ -1590,7 +1586,7 @@ export function BrainSection() {
                 {dateFilterTags.length > 0 && (
                   <div className="mt-2 space-y-1 border-t border-border pt-2">
                     <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                      Dates
+                      {t("brain.filter.groupDates")}
                     </div>
                     {dateFilterTags.map(renderFilterMenuItem)}
                   </div>
@@ -1598,7 +1594,7 @@ export function BrainSection() {
                 {sourceFilterTags.length > 0 && (
                   <div className="mt-2 space-y-1 border-t border-border pt-2">
                     <div className="px-2 py-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
-                      Sources
+                      {t("brain.filter.groupSources")}
                     </div>
                     {sourceFilterTags.map(renderFilterMenuItem)}
                   </div>
@@ -1625,8 +1621,8 @@ export function BrainSection() {
             data-testid="brain-search-input"
             placeholder={
               typeFilter === "memories"
-                ? "search memory content..."
-                : "search artifact content..."
+                ? t("brain.search.memoriesPlaceholder")
+                : t("brain.search.artifactsPlaceholder")
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -1664,9 +1660,11 @@ export function BrainSection() {
       >
         <DialogContent className="max-w-xl" data-testid="brain-add-memory-dialog">
           <DialogHeader>
-            <DialogTitle className="text-base">add memory</DialogTitle>
+            <DialogTitle className="text-base">
+              {t("brain.addMemory.title")}
+            </DialogTitle>
             <DialogDescription>
-              Save a durable fact, preference, or decision the AI should keep.
+              {t("brain.addMemory.description")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -1675,7 +1673,7 @@ export function BrainSection() {
               ref={newContentRef}
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
-              placeholder="what should the AI remember?"
+              placeholder={t("brain.addMemory.placeholder")}
               className="min-h-[140px] resize-y text-sm"
               rows={6}
               onKeyDown={(e) => {
@@ -1714,7 +1712,7 @@ export function BrainSection() {
                     removeTagFromNew(newTags[newTags.length - 1]);
                   }
                 }}
-                placeholder="add tag..."
+                placeholder={t("brain.addMemory.tagPlaceholder")}
                 className="h-6 text-[10px] w-20 px-1.5 border-dashed"
               />
             </div>
@@ -1738,7 +1736,7 @@ export function BrainSection() {
               {savingNew ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                "save"
+                t("brain.addMemory.save")
               )}
             </Button>
           </DialogFooter>
@@ -1757,9 +1755,11 @@ export function BrainSection() {
       >
         <DialogContent className="max-w-xl" data-testid="brain-edit-memory-dialog">
           <DialogHeader>
-            <DialogTitle className="text-base">edit memory</DialogTitle>
+            <DialogTitle className="text-base">
+              {t("brain.editMemory.title")}
+            </DialogTitle>
             <DialogDescription>
-              Update the saved memory and its labels.
+              {t("brain.editMemory.description")}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -1810,7 +1810,7 @@ export function BrainSection() {
                     removeTagFromEdit(editTags[editTags.length - 1]);
                   }
                 }}
-                placeholder="add tag..."
+                placeholder={t("brain.addMemory.tagPlaceholder")}
                 className="h-6 text-[10px] w-20 px-1.5 border-dashed"
               />
             </div>
@@ -1837,7 +1837,7 @@ export function BrainSection() {
               {savingId !== null ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
               ) : (
-                "save"
+                t("brain.editMemory.save")
               )}
             </Button>
           </DialogFooter>
@@ -1850,7 +1850,10 @@ export function BrainSection() {
           <Skeleton className="h-6 w-16 rounded-full" />
         ) : (
           <Badge variant="secondary" className="text-xs shrink-0">
-            {totalCount.toLocaleString()} {totalCount === 1 ? "item" : "items"}
+            {totalCount.toLocaleString()}{" "}
+            {totalCount === 1
+              ? t("brain.counts.item")
+              : t("brain.counts.items")}
           </Badge>
         )}
 
@@ -1861,7 +1864,7 @@ export function BrainSection() {
             onClick={() => setActiveTags([])}
             className="inline-flex h-6 shrink-0 items-center gap-1 rounded-full border border-border px-2 text-[10px] text-muted-foreground transition-colors hover:bg-muted"
           >
-            clear
+            {t("brain.clear")}
             <X className="h-2.5 w-2.5" />
           </button>
         )}
@@ -1906,21 +1909,21 @@ export function BrainSection() {
               className="h-3.5 w-3.5"
             />
             <span className="text-muted-foreground">
-              {selectedIds.size} selected
+              {t("brain.selection.selected", { count: selectedIds.size })}
             </span>
             <button
               type="button"
               onClick={toggleSelectAll}
               className="text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
-              {allVisibleSelected ? "deselect all" : "select all"}
+              {t(allVisibleSelected ? "brain.selection.deselectAll" : "brain.selection.selectAll")}
             </button>
             <button
               type="button"
               onClick={() => setSelectedIds(new Set())}
               className="text-[10px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
-              clear
+              {t("brain.clear")}
             </button>
           </div>
           <ConfirmDeleteDialog
@@ -1939,12 +1942,22 @@ export function BrainSection() {
                 ) : (
                   <Trash2 className="h-3 w-3" />
                 )}
-                delete
+                {t("brain.selection.delete")}
               </Button>
             }
-            title={`delete ${selectedIds.size} item${selectedIds.size !== 1 ? "s" : ""}?`}
-            description="the selected items will be permanently deleted. this cannot be undone."
-            confirmLabel={`delete ${selectedIds.size}`}
+            title={
+              selectedIds.size === 1
+                ? t("brain.selection.deleteTitleOne", {
+                    count: selectedIds.size,
+                  })
+                : t("brain.selection.deleteTitleMany", {
+                    count: selectedIds.size,
+                  })
+            }
+            description={t("brain.selection.deleteDescription")}
+            confirmLabel={t("brain.selection.deleteConfirm", {
+              count: selectedIds.size,
+            })}
             onConfirm={() => { setConfirmBatchDelete(false); batchDelete(); }}
           />
         </div>
@@ -1958,7 +1971,9 @@ export function BrainSection() {
           className="text-sm text-muted-foreground py-8 space-y-3 text-center"
         >
           <div className="space-y-1">
-            <p className="font-medium text-foreground">failed to load artifacts</p>
+            <p className="font-medium text-foreground">
+              {t("brain.errors.loadArtifacts")}
+            </p>
             <p className="text-xs">{artifactsError}</p>
           </div>
           <Button
@@ -1968,27 +1983,26 @@ export function BrainSection() {
             className="h-7 text-xs"
             onClick={refreshArtifacts}
           >
-            retry
+            {t("brain.errors.retry")}
           </Button>
         </div>
       ) : unifiedItems.length === 0 ? (
         <div className="text-sm text-muted-foreground py-8 space-y-2 text-center">
-          <p>{emptyStateMessage(typeFilter, debouncedQuery, activeTags.length > 0)}</p>
+          <p>{emptyStateMessage(typeFilter, debouncedQuery, activeTags.length > 0, t)}</p>
           {!debouncedQuery && activeTags.length === 0 && typeFilter === "memories" && (
             <>
               <p className="text-xs">
-                memories are automatically created by scheduled tasks that learn from your
-                screen & audio activity.
+                {t("brain.empty.memoriesHint")}
               </p>
               <p className="text-xs mt-3">
-                install scheduled tasks from the{" "}
+                {t("brain.empty.memoriesStorePrefix")}{" "}
                 <a
                   href="?section=pipes&tab=discover"
                   className="underline text-foreground hover:text-foreground/80 transition-colors"
                 >
-                  Store
+                  {t("brain.empty.memoriesStoreLink")}
                 </a>{" "}
-                to start building memories.
+                {t("brain.empty.memoriesStoreSuffix")}
               </p>
             </>
           )}
@@ -2068,7 +2082,9 @@ export function BrainSection() {
                         }
                       >
                         <MessageSquare className="mr-2 h-3.5 w-3.5" />
-                        {target.mode === "pipe-run" ? "go to task run" : "go to chat"}
+                        {target.mode === "pipe-run"
+                          ? t("brain.artifactMenu.goToTaskRun")
+                          : t("brain.artifactMenu.goToChat")}
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
@@ -2076,23 +2092,27 @@ export function BrainSection() {
                       onClick={() => openArtifactViewer(artItem, "card_action")}
                     >
                       <Eye className="mr-2 h-3.5 w-3.5" />
-                      new window
+                      {t("brain.artifactMenu.newWindow")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => void invoke("reveal_in_default_browser", { path: artPath })}
                     >
                       <FolderOpen className="mr-2 h-3.5 w-3.5" />
-                      reveal in finder
+                      {t("brain.artifactMenu.revealInFinder")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => commands.copyTextToClipboard(artPath)}
                     >
                       <Copy className="mr-2 h-3.5 w-3.5" />
-                      copy path
+                      {t("brain.artifactMenu.copyPath")}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => toggleSelected(artKey)}>
                       <Check className="mr-2 h-3.5 w-3.5" />
-                      {isChecked ? "deselect" : "select"}
+                      {t(
+                        isChecked
+                          ? "brain.artifactMenu.deselect"
+                          : "brain.artifactMenu.select",
+                      )}
                     </DropdownMenuItem>
                     {artItem.registered && (
                       <DropdownMenuItem
@@ -2101,7 +2121,7 @@ export function BrainSection() {
                         onClick={() => void handleDeleteArtifact(artItem)}
                       >
                         <Trash2 className="mr-2 h-3.5 w-3.5" />
-                        delete
+                        {t("brain.artifactMenu.delete")}
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
@@ -2150,7 +2170,7 @@ export function BrainSection() {
                         >
                           {artifactKindLabel(artItem.kind)}
                         </Badge>
-                        {artDate && <span>{timeAgo(artDate)}</span>}
+                        {artDate && <span>{timeAgo(artDate, t)}</span>}
                         {artSize != null && <span>{formatBytes(artSize)}</span>}
                         <Checkbox
                           data-testid={`brain-checkbox-artifact-${artTestId}`}
@@ -2218,7 +2238,9 @@ export function BrainSection() {
                           aria-hidden
                         />
                       ) : (
-                        <p className="px-4 py-3 text-[13px] text-muted-foreground">loading…</p>
+                        <p className="px-4 py-3 text-[13px] text-muted-foreground">
+                          {t("brain.artifactMenu.loadingPreview")}
+                        </p>
                       )}
                     </div>
                   ) : (
@@ -2252,7 +2274,7 @@ export function BrainSection() {
                       {artDate && (
                         <>
                           <span className="text-muted-foreground/40">·</span>
-                          <span>{timeAgo(artDate)}</span>
+                          <span>{timeAgo(artDate, t)}</span>
                         </>
                       )}
                       {artSize != null && (
@@ -2267,7 +2289,11 @@ export function BrainSection() {
                     <div className="flex items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5">
                         <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-normal">
-                          {target.mode === "artifact-only" ? "artifact" : target.mode}
+                          {target.mode === "artifact-only"
+                          ? t("brain.originBadge.artifactOnly")
+                          : target.mode === "pipe-run"
+                            ? t("brain.originBadge.pipeRun")
+                            : t("brain.originBadge.chat")}
                         </Badge>
                         {artItem.saf_kind && (
                           <span
@@ -2370,12 +2396,12 @@ export function BrainSection() {
                       }}
                       className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      open
+                      {t("brain.memory.open")}
                     </button>
                   </div>
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                     <span className="text-xs text-muted-foreground">
-                      {timeAgo(memory.created_at)}
+                      {timeAgo(memory.created_at, t)}
                     </span>
                     <Badge
                       variant="outline"
@@ -2414,7 +2440,9 @@ export function BrainSection() {
                     {memory.importance > 0 && (
                       <span
                         className="flex items-center gap-1"
-                        title={`importance: ${(memory.importance * 100).toFixed(0)}%`}
+                        title={t("brain.memory.importanceTooltip", {
+                          percent: (memory.importance * 100).toFixed(0),
+                        })}
                       >
                         <span className="relative inline-block w-10 h-1 bg-border overflow-hidden">
                           <span
@@ -2440,7 +2468,7 @@ export function BrainSection() {
                       e.stopPropagation();
                       startEditing(memory);
                     }}
-                    title="edit"
+                    title={t("brain.memory.editTitle")}
                   >
                     <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
@@ -2454,7 +2482,7 @@ export function BrainSection() {
                       setCopiedId(memory.id);
                       setTimeout(() => setCopiedId(null), 2000);
                     }}
-                    title="copy"
+                    title={t("brain.memory.copyTitle")}
                   >
                     {copiedId === memory.id ? (
                       <Check className="h-3.5 w-3.5 text-muted-foreground" />
@@ -2470,7 +2498,7 @@ export function BrainSection() {
                         variant="ghost"
                         className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
                         disabled={isDeleting}
-                        title="delete"
+                        title={t("brain.memory.deleteTitle")}
                         onClick={(e) => e.stopPropagation()}
                       >
                         {isDeleting ? (
@@ -2480,8 +2508,8 @@ export function BrainSection() {
                         )}
                       </Button>
                     }
-                    title="delete memory"
-                    description="this memory will be permanently deleted. this cannot be undone."
+                    title={t("brain.memory.deleteDialogTitle")}
+                    description={t("brain.memory.deleteDialogDescription")}
                     onConfirm={() => deleteMemory(memory.id)}
                   />
                 </div>
@@ -2522,7 +2550,7 @@ export function BrainSection() {
                         </p>
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-[10px] text-muted-foreground">
-                            {timeAgo(memory.created_at)}
+                            {timeAgo(memory.created_at, t)}
                           </span>
                           {display.properties.map((property) => (
                             <Badge
@@ -2541,7 +2569,7 @@ export function BrainSection() {
                         variant="ghost"
                         className="h-7 w-7 shrink-0"
                         onClick={() => setSelectedItem(null)}
-                        title="close detail"
+                        title={t("brain.detail.closeDetail")}
                       >
                         <X className="h-3.5 w-3.5" />
                       </Button>
@@ -2598,7 +2626,7 @@ export function BrainSection() {
                           )}
                           {artifact.modified_at && (
                             <span className="text-[10px] text-muted-foreground">
-                              {timeAgo(artifact.modified_at)}
+                              {timeAgo(artifact.modified_at, t)}
                             </span>
                           )}
                         </div>
@@ -2614,7 +2642,7 @@ export function BrainSection() {
                               variant="ghost"
                               className="h-7 w-7"
                               data-testid="brain-detail-actions"
-                              title="artifact actions"
+                              title={t("brain.detail.artifactActions")}
                             >
                               <MoreVertical className="h-4 w-4" />
                             </Button>
@@ -2633,15 +2661,15 @@ export function BrainSection() {
                               >
                                 <MessageSquare className="mr-2 h-3.5 w-3.5" />
                                 {target.mode === "pipe-run"
-                                  ? "go to task run"
-                                  : "go to chat"}
+                                  ? t("brain.artifactMenu.goToTaskRun")
+                                  : t("brain.artifactMenu.goToChat")}
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuItem
                               onClick={() => openArtifactViewer(artifact, "detail")}
                             >
                               <Eye className="mr-2 h-3.5 w-3.5" />
-                              new window
+                              {t("brain.artifactMenu.newWindow")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
@@ -2651,7 +2679,7 @@ export function BrainSection() {
                               }
                             >
                               <FolderOpen className="mr-2 h-3.5 w-3.5" />
-                              reveal in finder
+                              {t("brain.artifactMenu.revealInFinder")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               onClick={() =>
@@ -2659,14 +2687,14 @@ export function BrainSection() {
                               }
                             >
                               <Copy className="mr-2 h-3.5 w-3.5" />
-                              copy content
+                              {t("brain.detail.copyContent")}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               data-testid="brain-detail-close"
                               onClick={() => setSelectedItem(null)}
                             >
                               <X className="mr-2 h-3.5 w-3.5" />
-                              close
+                              {t("brain.detail.close")}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
