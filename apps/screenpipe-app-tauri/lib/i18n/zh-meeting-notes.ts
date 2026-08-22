@@ -66,7 +66,7 @@ export const meetingNotesZh = {
     googleButton: "连接 Google 日历",
     googleFailed: "Google 日历未能连接。",
     icsIntro:
-      "粘贴私有或公开的 ICS/webcal 订阅链接。ScreenPipe 以只读方式拉取 upcoming 会议。",
+      "粘贴私有或公开的 ICS/webcal 订阅链接。ScreenPipe 以只读方式拉取即将开始的会议。",
     icsUrlPlaceholder: "https:// 或 webcal:// 链接",
     icsNamePlaceholder: "名称，可选",
     icsAddButton: "添加订阅",
@@ -116,7 +116,7 @@ export const meetingNotesZh = {
     retryButton: "重试",
     summarizeAgainButton: "重新生成摘要",
     writingPlaceholderTitle: "草稿会出现在这里",
-    writingPlaceholderBody: "第一段内容一就绪就会替换这条提示。",
+    writingPlaceholderBody: "第一段内容就绪后会替换这条提示。",
     emptyTitle: "还没有摘要",
     emptyBody:
       "请先结束会议。Cue 会在生成摘要期间完整保留你的笔记和转写。",

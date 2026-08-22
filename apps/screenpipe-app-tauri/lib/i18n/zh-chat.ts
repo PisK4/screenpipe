@@ -114,7 +114,7 @@ export const chatZh = {
     previous: "上一张图",
   },
   mainPane: {
-    checkingDesc: "screenpipe 正在检查当前任务设置，期间保存的对话记录仍可用。",
+    checkingDesc: "Cue 正在检查当前任务设置，期间保存的对话记录仍可用。",
     checkingOneChat: "正在检查记忆状态",
     goToSettings: "前往设置",
     loginToContinue: "请先登录",

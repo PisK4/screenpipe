@@ -98,10 +98,10 @@ export const settingsMiscZh = {
     },
     connect: {
       intro: "让 Cue 定时任务回调这个 Agent。填写网关凭证后，定时任务就能直接向它发送事件和消息。",
-      storedSecurely: "stored securely",
+      storedSecurely: "已加密保存",
       connecting: "连接中…",
-      connectButton: "connect",
-      disconnectButton: "disconnect",
+      connectButton: "连接",
+      disconnectButton: "断开连接",
     },
     secondBrain: {
       title: "构建第二大脑",
@@ -132,7 +132,7 @@ export const settingsMiscZh = {
     documentation: "文档",
     docsDescription: "指南、API 参考与集成说明",
     videoTutorials: "视频教程",
-    videoDescription: "观看演示与上手 walkthrough",
+    videoDescription: "观看演示与上手流程",
     featureIdeas: "功能建议",
     ideasDescription: "投票或提交需求",
     githubIssues: "GitHub Issues",
