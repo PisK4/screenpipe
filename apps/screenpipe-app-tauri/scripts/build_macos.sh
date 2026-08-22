@@ -26,8 +26,22 @@ bun tauri build --no-sign --bundles app -- --profile debug-dev
 APP_PATH="src-tauri/target/debug-dev/bundle/macos/screenpipe - Development.app"
 xattr -cr "$APP_PATH"
 
-# Sign the app manually
-IDENTITY="${APPLE_SIGNING_IDENTITY:-Apple Development: Louis Beaumont (NJ372MT773)}"
+# Sign the app manually. A stable identity keeps the designated requirement
+# anchored to the certificate, so macOS TCC grants survive reinstall; ad-hoc
+# (--sign -) mints a new cdhash every build and resets permissions.
+IDENTITY="${APPLE_SIGNING_IDENTITY:-}"
+if [ -z "$IDENTITY" ]; then
+  for candidate in "Screenpipe Local" "Fenri Local"; do
+    if security find-identity -v -p codesigning | grep -q "$candidate"; then
+      IDENTITY="$candidate"
+      break
+    fi
+  done
+fi
+if [ -z "$IDENTITY" ]; then
+  echo "warning: no stable signing identity in keychain (looked for 'Screenpipe Local' / 'Fenri Local'), falling back to ad-hoc; TCC permissions will reset on every rebuild" >&2
+  IDENTITY="-"
+fi
 codesign --force --deep --sign "$IDENTITY" "$APP_PATH"
 
 echo "Build completed successfully!"
