@@ -55,7 +55,12 @@ export default function (pi: ExtensionAPI) {
       + "材料不足时只传 {insufficient_material:true}。",
     parameters: submitParams,
 
-    async execute(args: any) {
+    async execute(_toolCallId: string, args: any) {
+      // pi calls extension tools as execute(toolCallId, params, signal, ...):
+      // the first positional argument is the tool-call ID, the payload is the
+      // SECOND parameter. A previous version declared `execute(args)` and so
+      // validated the call-ID string instead of the payload, rejecting every
+      // well-formed card (trace 01a02fee — five valid payloads bounced).
       // The schema is flat so protocol-layer validation cannot reject the two
       // payload shapes; mutual exclusion and completeness are checked here and
       // thrown as corrective error text back to the model.
