@@ -17,6 +17,7 @@ pub mod elements;
 pub mod frames;
 pub mod health;
 pub mod internal_telemetry;
+pub mod intent_cards;
 pub mod live_views;
 pub mod meeting_summary_status;
 pub mod meetings;
