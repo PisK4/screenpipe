@@ -25,6 +25,7 @@ export const SIDEBAR_NAV_ORDER = [
   "brain",
   "pipes",
   "connections",
+  "workbench",
 ] as const;
 
 export type SidebarNavId = (typeof SIDEBAR_NAV_ORDER)[number];

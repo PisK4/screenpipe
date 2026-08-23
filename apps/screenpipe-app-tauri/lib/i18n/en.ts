@@ -22,6 +22,7 @@ import { shellEn } from "./en-shell";
 import { storageEn } from "./en-storage";
 import { timelineEn } from "./en-timeline";
 import { timelineSearchEn } from "./en-timeline-search";
+import { workbenchEn } from "./en-workbench";
 
 export const en = {
   common: {
@@ -40,6 +41,7 @@ export const en = {
   activity: activityEn,
   timeline: timelineEn,
   timelineSearch: timelineSearchEn,
+  workbench: workbenchEn,
   brain: brainEn,
   pipesStore: pipesStoreEn,
   connections: connectionsEn,

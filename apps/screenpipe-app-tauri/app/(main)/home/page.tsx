@@ -18,6 +18,7 @@ import {
   CalendarClock,
   ListTree,
   ArrowLeft,
+  Sparkles,
 } from "lucide-react";
 import { emit } from "@tauri-apps/api/event";
 import {
@@ -109,9 +110,11 @@ import { PlanExpirationNotice } from "@/components/plan-expiration-notice";
 import type { AppUser } from "@/lib/app-entitlement";
 import { ONBOARDING_BRAIN_HANDOFF_EVENT } from "@/lib/live-views/onboarding-activation";
 import { ActivityLedger } from "@/components/activity-ledger";
+import { IntentWorkbench } from "@/components/intent-workbench";
 import { useT } from "@/lib/i18n";
+import { INTENT_CARD_EVENT, type IntentCardCreatedPayload } from "@/lib/intent-events";
 
-type MainSection = "home" | "timeline" | "activity" | "brain" | "pipes" | "connections" | "meetings" | "help";
+type MainSection = "home" | "timeline" | "activity" | "brain" | "pipes" | "connections" | "meetings" | "help" | "workbench";
 type ConnectionFocusRequest = {
   id: string | null;
   category: string | null;
@@ -121,7 +124,7 @@ type ConnectionFocusRequest = {
 
 // All valid URL sections for the home page
 const ALL_SECTIONS = [
-  "home", "timeline", "activity", "pipes", "help", "brain", "connections", "meetings", "history",
+  "home", "timeline", "activity", "pipes", "help", "brain", "connections", "meetings", "history", "workbench",
   "feedback", // backwards compat → maps to "help"
   "memories", // backwards compat → maps to "brain"
   "artifacts", // backwards compat → maps to "brain"
@@ -951,6 +954,12 @@ function HomeContent() {
     window.addEventListener("try-in-chat", handler);
     return () => window.removeEventListener("try-in-chat", handler);
   }, [setActiveSection]);
+  // A new intent card landed (runner notification or onboarding spawn) —
+  // bumping this key makes the workbench re-fetch when it is visible.
+  const [workbenchReloadKey, setWorkbenchReloadKey] = useState(0);
+  useTauriEvent<IntentCardCreatedPayload>(INTENT_CARD_EVENT, () => {
+    setWorkbenchReloadKey((key) => key + 1);
+  });
 
   const renderMainSection = () => {
     if (isSectionHidden(activeSection) && activeSection !== "help") {
@@ -1000,6 +1009,8 @@ function HomeContent() {
             onFocusRequestConsumed={clearConnectionFocusRequest}
           />
         );
+      case "workbench":
+        return <IntentWorkbench reloadKey={workbenchReloadKey} />;
       case "meetings":
         return (
           <MeetingNotesSection
@@ -1047,6 +1058,7 @@ function HomeContent() {
     brain: { label: t("shell.nav.brain"), icon: <Brain className="h-3.5 w-3.5" /> },
     pipes: { label: t("shell.nav.scheduled"), icon: <TimerReset className="h-3.5 w-3.5" /> },
     connections: { label: t("shell.nav.connections"), icon: <Plug className="h-3.5 w-3.5" /> },
+    workbench: { label: t("shell.nav.workbench"), icon: <Sparkles className="h-3.5 w-3.5" /> },
   };
 
   const sidebarLayout = normalizeSidebarNavLayout(settings.sidebarNavLayout);

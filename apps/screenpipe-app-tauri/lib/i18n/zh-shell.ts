@@ -14,6 +14,7 @@ export const shellZh = {
     brain: "大脑",
     scheduled: "计划任务",
     connections: "连接",
+    workbench: "工作台",
   },
   chrome: {
     expandSidebar: "展开侧边栏",

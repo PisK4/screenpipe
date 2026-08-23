@@ -23,6 +23,7 @@ import { shellZh } from "./zh-shell";
 import { storageZh } from "./zh-storage";
 import { timelineSearchZh } from "./zh-timeline-search";
 import { timelineZh } from "./zh-timeline";
+import { workbenchZh } from "./zh-workbench";
 
 export const zhCN = {
   common: {
@@ -41,6 +42,7 @@ export const zhCN = {
   activity: activityZh,
   timeline: timelineZh,
   timelineSearch: timelineSearchZh,
+  workbench: workbenchZh,
   brain: brainZh,
   pipesStore: pipesStoreZh,
   connections: connectionsZh,
