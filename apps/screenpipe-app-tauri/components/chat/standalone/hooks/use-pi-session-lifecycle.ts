@@ -163,6 +163,19 @@ export function usePiSessionLifecycle({
     });
   }, [aiPresets, isSettingsLoaded, setActivePreset, shouldFreezePresetSelection]);
 
+  // D1 v2 mirror: report the resolved active preset id (never credentials)
+  // to the intent heartbeat whenever it changes or on first app load. The
+  // heartbeat re-resolves the endpoint fresh from aiPresets on every run,
+  // so edited keys/URLs are picked up without re-reporting here.
+  const mirroredPresetIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isSettingsLoaded || shouldFreezePresetSelection) return;
+    const presetId = activePreset?.id ?? null;
+    if (presetId === mirroredPresetIdRef.current) return;
+    mirroredPresetIdRef.current = presetId;
+    void commands.intentSetFallbackPresetId(presetId);
+  }, [activePreset?.id, isSettingsLoaded, shouldFreezePresetSelection]);
+
   const hasPresets = Boolean(aiPresets && aiPresets.length > 0);
   const hasValidModel = activePreset?.provider === "acp"
     ? Boolean(activePreset.acpAgent?.id?.trim())

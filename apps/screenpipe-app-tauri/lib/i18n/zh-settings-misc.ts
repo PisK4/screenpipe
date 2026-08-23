@@ -296,4 +296,18 @@ export const settingsMiscZh = {
     restartRequiredHint:
       "重启 Cue 后才会开始捕获按键和点击。当前运行的采集进程启动时没有输入监控权限，下次启动才会生效。",
   },
+  intentSupply: {
+    title: "意图卡片模型",
+    description: "意图卡片心跳用哪个模型生成卡片提案",
+    followChat: "跟随 Chat（默认）",
+    sourceSlot: "意图专用槽",
+    sourceMirror: "跟随 Chat 的 Preset",
+    sourceBuiltin: "内置 Ollama",
+    endpointLabel: "端点",
+    lastGenerationLabel: "最近一次生成",
+    lastGenerationOk: "成功（{source}）",
+    lastGenerationFailed: "失败（{source}）：{detail}",
+    lastGenerationNone: "尚未运行",
+    saveFailed: "意图模型更新失败",
+  },
 };
