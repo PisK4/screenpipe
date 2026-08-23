@@ -28,6 +28,7 @@ Labels: wayfinder:map
 - [T7 · 模型供给与回退](tickets/07-模型供给.md): 两级回退——设置页新增 intent 槽（preset 选择器），空则回退发起时刻 chat 正用的 preset（充当 primary）；intent 槽默认内置 Ollama qwen3.5:9b，BYOK 引导不进第一版；失败记 tracing 加设置页可见状态，工作台不打扰，心跳下轮自然重试。（2026-08-23 修订：BYOK 引导提前进 v1——Pi 会话的多轮循环对本地小模型要求高；两级回退结构保留，实现载体换为 preset→PiProviderConfig 映射。）
 - [T6 · 意图卡片 UI 原型](tickets/06-UI原型.md): 原型资产 `assets/t6-workbench-proto.html` 定稿。中性视觉对齐现有 tab（`#121212` 底、白底主按钮）；方案列表含推荐预选、选中显后果、末行「自己写一个新方案」；新手接入卡文案落到 `skills.rs` 的 MCP 注册真实机制上。
 - [T9 · 现成功能可升级性盘点](tickets/09-现成功能盘点.md): 盘点结论——fork 无可直接升级为意图卡片的现成功能；Suggestions 最接近但产物形态/供给层/宿主语义/输出结构四处结构性不同，只作参考件（直调写法、UTF-8 截断纪律、模板回退），维持 T3/T4 新建决议。
+- [T10 · 去重重设计：机械配额换软去重](tickets/10-软去重重设计.md): 作废 D2——删 `(dedup_key, local_date)` 唯一索引，判重改为模型对照预载的近 48h 卡片清单自行判断（rejected 卡不再被遗忘，同日不同意图不再误伤）；读侧单一事实源是引擎只读路由 `GET /intent-cards/recent`，`sp_intent_cards_recent` 扩展单文件可独立分发给外部 Pi agent；新手卡幂等改显式预检。顺带修复 supply 懒初始化击穿「跟随 Chat」与 mirror 上报漏面；D6–D9 补录归档。
 
 ## Not yet specified
 
@@ -35,7 +36,7 @@ Labels: wayfinder:map
 - 测试与验收策略（browser-mock loop、src-tauri 显式测试路径）：等实现形态清晰。
 - （T2 建议存档）Daily Summary 持久化有独立价值，若做另立小票；memories 类型扩展 ADR 与 semantic_items 对应裁决在「不建记忆基底」定调后对本 feature 不再必要。
 
-本图九张票已全部 Resolved（2026-08-22）。Destination 达成：每个决策可回溯到票据，剩余 gap 都在上面的清单或 Out of scope。
+本图九张票已全部 Resolved（2026-08-22）；2026-08-23 增补 T10（去重重设计，作废 D2），同样 Resolved。Destination 达成：每个决策可回溯到票据，剩余 gap 都在上面的清单或 Out of scope。
 
 ## Out of scope
 

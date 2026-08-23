@@ -893,6 +893,89 @@ async installRegistrySkill(repo: string, gitRef: string, path: string, name: str
 }
 },
 /**
+ * Terminal decision from shown: `"accepted"` | `"rejected"`. Anything else
+ * (including a re-decision on a terminal card) is an error; accepting an
+ * onboarding card additionally triggers the real MCP connect (D5).
+ */
+async intentCardDecide(cardId: number, decision: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("intent_card_decide", { cardId, decision }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * proposed → shown. Idempotent-safe: repeats are rejected at the SQL layer
+ * and never extend the 48h clock (R1); onboarding cards get no clock (D10).
+ */
+async intentCardMarkShown(cardId: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("intent_card_mark_shown", { cardId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Supply state for the settings card: slot, mirror preset id, last
+ * generation outcome. Lazily seeds the builtin default slot (D8) so factory
+ * state is non-empty.
+ */
+async intentGetSupply() : Promise<Result<IntentSupplyState, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("intent_get_supply") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * List cards: `"pending"` (proposed+shown) or `"accepted"`.
+ */
+async intentList(filter: string) : Promise<Result<IntentCardDto[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("intent_list", { filter }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Set the chat-preset mirror id (frontend reports its active chat preset).
+ */
+async intentSetFallbackPresetId(presetId: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("intent_set_fallback_preset_id", { presetId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Set the intent slot preset; `None` = follow Chat (mirror).
+ */
+async intentSetSlot(slot: PresetQuadruple | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("intent_set_slot", { slot }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Spawn the system onboarding card (idempotent via dedup key). Returns the
+ * card id (the existing one when already spawned today).
+ */
+async intentSpawnOnboardingCard() : Promise<Result<number, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("intent_spawn_onboarding_card") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Whether capture is currently paused. Reads `capture_intended` which is
  * flipped immediately in stop_capture/start_capture — no health-monitor
  * delay. The frontend polls this so the UI stays in sync with the tray.
@@ -2982,9 +3065,22 @@ export type ImportedSkill = { name: string; description: string;
  */
 path: string }
 export type InstallBrainViewTemplateKitRequest = { kitId: string; targetViewId: string; expectedRevision: number | null }
+/**
+ * Wire shape of one intent card row (mirrors `IntentCardRow`).
+ */
+export type IntentCardDto = { id: number; origin: string; cardType: string; status: string; proactiveView: string | null; dedupKey: string; localDate: string; plansJson: string; modelId: string | null; shownAt: number | null; expiresAt: number | null; createdAt: number }
+/**
+ * Full supply state surfaced to the settings card (R7).
+ */
+export type IntentSupplyState = { slot: PresetQuadruple | null; fallbackPresetId: string | null; lastGeneration: LastGenerationStatus | null }
 export type JobEvent = { kind: "started"; jobId: string; label: string; message: string | null } | { kind: "progress"; jobId: string; label: string; progress: number; message: string | null } | { kind: "completed"; jobId: string; label: string; outputPath: string | null; message: string | null } | { kind: "failed"; jobId: string; label: string; error: string }
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key in string]: JsonValue }
 export type KeychainStatus = { state: string }
+/**
+ * Outcome of the last heartbeat generation attempt, shown on the settings
+ * supply card (R7). Written by the runner after every attempt (D9).
+ */
+export type LastGenerationStatus = { at: number; ok: boolean; detail: string | null; source: string }
 export type LogFile = { name: string; path: string; modified_at: number }
 export type LoginMode = "sign-in" | "sign-up"
 /**
@@ -3129,6 +3225,12 @@ preview: string;
  * label in the UI ("queued 4s ago").
  */
 queuedAtMs: number }
+/**
+ * The four fields of an AI preset that matter for generation. Provider
+ * values mirror `AIProviderType` serde names and pass straight through to
+ * Pi (`buildDailySummaryProviderConfig` precedent).
+ */
+export type PresetQuadruple = { provider: string; url: string; model: string; apiKey: string | null }
 export type ProviderAutomation = {
 /**
  * Stable registry key. It always includes the provider namespace.

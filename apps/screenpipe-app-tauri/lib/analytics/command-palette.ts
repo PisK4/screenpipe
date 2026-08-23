@@ -21,6 +21,7 @@ export const COMMAND_PALETTE_ACTION_IDS = [
   "go_timeline",
   "go_activity",
   "go_connections",
+  "go_workbench",
   "toggle_sidebar",
   "open_settings",
   "open_shortcut_settings",

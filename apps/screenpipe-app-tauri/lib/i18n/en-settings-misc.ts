@@ -316,4 +316,18 @@ export const settingsMiscEn = {
     restartRequiredHint:
       "Restart Cue to start capturing keystrokes and clicks. The running recorder was started without Input Monitoring and won't pick up the change until next launch.",
   },
+  intentSupply: {
+    title: "Intent cards model",
+    description: "Which model the intent-card heartbeat calls to propose cards",
+    followChat: "Follow Chat (default)",
+    sourceSlot: "Intent slot",
+    sourceMirror: "Follow Chat preset",
+    sourceBuiltin: "Built-in Ollama",
+    endpointLabel: "Endpoint",
+    lastGenerationLabel: "Last generation",
+    lastGenerationOk: "Succeeded ({source})",
+    lastGenerationFailed: "Failed ({source}): {detail}",
+    lastGenerationNone: "Not run yet",
+    saveFailed: "Could not update the intent model",
+  },
 };

@@ -5,7 +5,7 @@
 import { acpSpawnSignature } from "@/lib/chat/acp-spawn-signature";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type * as React from "react";
-import { readActiveAiPresetId } from "@/lib/active-ai-preset";
+import { readActiveAiPresetId, reportActiveAiPresetId } from "@/lib/active-ai-preset";
 import { piProjectDirForSession } from "@/lib/chat/pi-project-dir";
 import { toast } from "@/components/ui/use-toast";
 import { buildAppAwarenessContext, buildConnectionsContext, buildSystemPrompt } from "@/lib/chat/system-prompt";
@@ -162,6 +162,20 @@ export function usePiSessionLifecycle({
       return fallback;
     });
   }, [aiPresets, isSettingsLoaded, setActivePreset, shouldFreezePresetSelection]);
+
+  // D1 v2 mirror, load-time leg: report the resolved active preset id (never
+  // credentials) once settings are loaded. Switch-time reporting lives in
+  // writeActiveAiPresetId so every surface is covered. The heartbeat
+  // re-resolves the endpoint fresh from aiPresets on every run, so edited
+  // keys/URLs are picked up without re-reporting here.
+  const mirroredPresetIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isSettingsLoaded || shouldFreezePresetSelection) return;
+    const presetId = activePreset?.id ?? null;
+    if (presetId === mirroredPresetIdRef.current) return;
+    mirroredPresetIdRef.current = presetId;
+    reportActiveAiPresetId(presetId);
+  }, [activePreset?.id, isSettingsLoaded, shouldFreezePresetSelection]);
 
   const hasPresets = Boolean(aiPresets && aiPresets.length > 0);
   const hasValidModel = activePreset?.provider === "acp"

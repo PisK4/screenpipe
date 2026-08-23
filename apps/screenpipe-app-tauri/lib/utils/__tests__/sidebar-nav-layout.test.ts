@@ -107,7 +107,7 @@ describe("reordering", () => {
   it("moves an item to an index among the visible rows", () => {
     const next = moveSidebarNavItem(DEFAULT_SIDEBAR_NAV_LAYOUT, ALL, "connections", 0);
     expect(resolveVisibleSidebarNavIds(next, ALL)).toEqual([
-      "connections", "home", "meetings", "timeline", "activity", "brain", "pipes",
+      "connections", ...ALL.filter((id) => id !== "connections"),
     ]);
   });
 

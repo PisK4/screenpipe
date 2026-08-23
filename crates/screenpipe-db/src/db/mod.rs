@@ -451,6 +451,7 @@ mod display_layout;
 mod elements;
 mod feedback;
 mod frames;
+mod intent_cards;
 mod maintenance;
 mod meetings;
 mod memories;
@@ -467,6 +468,7 @@ pub use self::activity_ledger::{
     ActivityActionDraft, ActivityActionRecord, ActivityEvidenceDraft, ActivityEvidenceRecord,
     ActivityIntervalDraft, ActivityIntervalRecord, ActivityLedgerObservation, ActivityTaskDraft,
 };
+pub use self::intent_cards::{IntentCardRow, IntentCardSummary, NewIntentCard};
 pub use self::semantic::{
     SemanticActor, SemanticActorAlias, SemanticActorReference, SemanticAttachResult,
     SemanticCleanupResult, SemanticContextQuery, SemanticFrameContext,

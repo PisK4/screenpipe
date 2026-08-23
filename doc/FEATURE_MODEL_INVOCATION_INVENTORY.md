@@ -83,6 +83,7 @@ Screenpipe 当前通过多个运行时访问模型。主 Chat 和 Pipe 路径使
 | `PATH-ACP` | 外部 ACP Agent | `agent-llm` | `ROUTE-ACP` | 通常是 | 外部 Agent 回复和工具调用 |
 | `PATH-SUGGESTIONS` | Enhanced AI Suggestions | `agent-llm` | `ROUTE-DIRECT-CHAT` | 是 | 缓存的 Suggestions |
 | `PATH-PRESET-TEST` | AI Preset 连接测试 | `agent-llm` | `ROUTE-DIRECT-CHAT` | 取决于 Preset | 测试结果 |
+| `PATH-INTENT-CARD` | 意图卡片生成心跳 | `agent-llm` | `ROUTE-DIRECT-CHAT`（Pi Session 承载） | 取决于 Preset | 意图卡片行与面板提醒 |
 | `PATH-MEETING-MEDIA` | 可选的会议视觉分析 | `vision-language-model` | `ROUTE-PI-TOOL-HTTP` | 是 | 会议摘要所需视觉事实 |
 | `PATH-REMOTE-STT` | Deepgram 和 Screenpipe Cloud 转录 | `speech-to-text` | `ROUTE-REMOTE-STT` | 是 | 转录片段 |
 | `PATH-LOCAL-STT` | Whisper、Qwen3 ASR、Parakeet | `speech-to-text` | `ROUTE-LOCAL-STT` | 否 | 转录片段 |
@@ -271,6 +272,22 @@ Screenpipe 当前通过多个运行时访问模型。主 Chat 和 Pipe 路径使
 **多模态。** Text-only。
 
 **模型类别。** `agent-llm`，通常是一次短 Prompt，但仍具有真实 Provider 请求的隐私和鉴权影响。
+
+### PATH-INTENT-CARD：意图卡片生成心跳
+
+**场景。** 应用常驻心跳（默认 900 秒，首轮延迟 120 秒）在信号门槛（窗口内 app_switch+window_focus ≥ 3 或 frame 变化 ≥ 5）满足时生成一张意图卡片提案；另有新手接入卡由前端显式触发。
+
+**实现。** `src-tauri/src/intent_agent/` 的 runner 先结算过期、拉取 activity-summary，再经 Pi Session（项目目录 `pi-intent`）发起单次直调；输出必须为版本化 JSON（D4）。供给按三级解析：意图专用槽 → 按 id 现查 Chat active preset → 内置 Ollama（`qwen3.5:9b` @ `http://localhost:11434/v1`）。
+
+**Pi SDK。** 会话由 Pi 承载，Provider 请求为 OpenAI 兼容直调（`direct-http` 语义）；与 Chat 不同，会话一次性、不进入 Chat History。
+
+**持久化。** 卡片写入 SQLite `intent_cards` 表；失败原因写入 SettingsStore.extra 的 `intent_last_generation` 键。模型原始输出本身不持久化。
+
+**权限。** 无账户要求（local-first 基线）。凭证来自意图槽或用户 Preset，内置 Ollama 无需 Key。activity-summary 数据只发往用户配置的 Provider。
+
+**多模态。** Text-only：activity-summary JSON 与信号计数组成的文本上下文，不上传图像或音频。
+
+**模型类别。** `agent-llm`。Provider 和 Model 可配置；生成失败静默降级（日志 + 设置页可见），不打扰工作台。
 
 ### PATH-MEETING-MEDIA：可选会议视觉分析
 

@@ -118,6 +118,7 @@ mod server_core;
 #[allow(deprecated)]
 mod space_monitor;
 mod store;
+mod intent_agent;
 mod suggestions;
 mod sync;
 mod tray;
@@ -1639,6 +1640,14 @@ async fn main() {
                     store.recording.api_auth,
                     local_api.port,
                 );
+            }
+
+            // Intent-card heartbeat: resident generation loop (Task 6).
+            {
+                let app_handle_for_intent = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    crate::intent_agent::runner::start(app_handle_for_intent).await;
+                });
             }
 
             // Enterprise hidden-UI deployments always run headless with the

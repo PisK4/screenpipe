@@ -45,6 +45,7 @@ use crate::{
             api_list_monitors, api_vision_status, audio_metrics_handler, health_check,
             vision_metrics_handler,
         },
+        intent_cards::get_intent_cards_recent,
         meetings::{
             bulk_delete_meetings_handler, delete_meeting_handler, export_handler,
             get_meeting_handler, get_meeting_summary_status_handler,
@@ -962,6 +963,7 @@ impl SCServer {
             .get("/frames/:frame_id/elements", get_frame_elements)
             .get("/activity-summary", get_activity_summary)
             .get("/activity-ledger", get_activity_ledger)
+            .get("/intent-cards/recent", get_intent_cards_recent)
             // Vault routes
             .get("/vault/status", crate::routes::vault::vault_status)
             .post("/vault/lock", crate::routes::vault::vault_lock)

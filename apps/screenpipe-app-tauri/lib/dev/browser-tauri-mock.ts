@@ -60,8 +60,68 @@ const GRANTED_PERMISSION_COMMANDS = new Set([
   "check_screen_recording_permission",
 ]);
 
-function createBrowserDevLiveView(now: string): BrainViewDefinition {
+type MockIntentCard = {
+  id: number;
+  origin: string;
+  cardType: string;
+  status: string;
+  proactiveView: string | null;
+  dedupKey: string;
+  localDate: string;
+  plansJson: string;
+  modelId: string | null;
+  shownAt: number | null;
+  expiresAt: number | null;
+  createdAt: number;
+};
+
+function mockIntentCard(
+  id: number,
+  status: string,
+  now: number,
+): MockIntentCard {
+  const isOnboarding = id === 2;
   return {
+    id,
+    origin: isOnboarding ? "system_onboarding" : "proactive",
+    cardType: isOnboarding ? "read_only" : "light_proposal",
+    status,
+    proactiveView: isOnboarding
+      ? null
+      : "You spent 3h in VS Code today — want a standup summary?",
+    dedupKey: `mock-card-${id}`,
+    localDate: new Date(now).toISOString().slice(0, 10),
+    // D4 wire shapes: proposal cards carry plans; onboarding carries kind.
+    plansJson: isOnboarding
+      ? JSON.stringify({
+          v: 1,
+          kind: "onboarding_mcp",
+          detected_agents: ["Claude Desktop", "VS Code"],
+        })
+      : JSON.stringify({
+          v: 1,
+          recommended_index: 0,
+          plans: [
+            {
+              title: "Draft standup summary",
+              summary: "Collect today's VS Code activity into three bullets.",
+              consequence: "Writes a note file under ~/.screenpipe.",
+            },
+            {
+              title: "Skip today",
+              summary: "No summary generated.",
+              consequence: "",
+            },
+          ],
+        }),
+    modelId: "qwen3.5:9b",
+    shownAt: status === "shown" ? now : null,
+    expiresAt: null,
+    createdAt: now - (3 - id) * 60_000,
+  };
+}
+
+function createBrowserDevLiveView(now: string): BrainViewDefinition {  return {
     id: "browser-dev-live-view",
     title: "How I worked today",
     revision: 1,
@@ -430,6 +490,30 @@ export function createBrowserIpcMock(options: BrowserIpcMockOptions) {
         };
       case "get_screenpipe_ai_gateway_url":
         return "https://api.screenpipe.com/v1";
+      // Intent workbench fixtures: one light proposal, one onboarding card
+      // pending, one accepted. Shapes mirror IntentCardDto (camelCase).
+      case "intent_list": {
+        const filter = String(input.filter ?? "pending");
+        const now = Date.now();
+        if (filter === "accepted") return [mockIntentCard(3, "accepted", now)];
+        return [
+          mockIntentCard(1, "shown", now),
+          mockIntentCard(2, "proposed", now),
+        ];
+      }
+      case "intent_get_supply":
+        return {
+          slot: null,
+          fallbackPresetId: null,
+          lastGeneration: null,
+        };
+      case "intent_card_mark_shown":
+      case "intent_card_decide":
+      case "intent_set_slot":
+      case "intent_set_fallback_preset_id":
+        return null;
+      case "intent_spawn_onboarding_card":
+        return 2;
       case "is_enterprise_build_cmd":
       case "is_capture_paused":
         return false;

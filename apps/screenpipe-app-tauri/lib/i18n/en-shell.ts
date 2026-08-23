@@ -16,6 +16,7 @@ export const shellEn = {
     brain: "Brain",
     scheduled: "Scheduled",
     connections: "Connections",
+    workbench: "Workbench",
   },
   chrome: {
     expandSidebar: "expand sidebar",

@@ -19,6 +19,7 @@ import {
   Plus,
   Search,
   Settings as SettingsIcon,
+  Sparkles,
   TimerReset,
 } from "lucide-react";
 import {
@@ -111,6 +112,7 @@ const SECTION_ACTION_IDS: Record<SidebarNavId, CommandPaletteActionId> = {
   timeline: "go_timeline",
   activity: "go_activity",
   connections: "go_connections",
+  workbench: "go_workbench",
 };
 
 const SECTION_ICONS: Record<SidebarNavId, LucideIcon> = {
@@ -121,6 +123,7 @@ const SECTION_ICONS: Record<SidebarNavId, LucideIcon> = {
   timeline: MonitorPlay,
   activity: ListTree,
   connections: Plug,
+  workbench: Sparkles,
 };
 
 export function buildPaletteEntries(
