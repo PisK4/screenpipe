@@ -51,8 +51,11 @@ export default function (pi: ExtensionAPI) {
     label: "Submit Intent Card",
     description:
       "提交意图卡片的唯一出口。分析完成后必须调用本工具提交结论，不要把结论写成普通文字。"
-      + "两种互斥形态：普通卡片传 {v:1, card_type, proactive_view, recommended_index, plans}（plans 为 1-3 个 {title, summary, consequence?} 对象）；"
-      + "材料不足时只传 {insufficient_material:true}。",
+      + "两种互斥形态：提案卡传 {v:1, card_type, proactive_view, recommended_index, plans}（plans 为 1-3 个 {title, summary, consequence?} 对象）；"
+      + "材料不足时只传 {insufficient_material:true}。"
+      + "card_type 三选一：read_only=只读操作建议（查询、汇总、打开查看）；side_effect=会改变系统状态的建议（改设置、启动自动化），必须给 consequence；"
+      + "light=轻提示，只有一句话观察、无需用户选择方案，此时【不要传 plans】。"
+      + "只要给出了 plans，就必须用 read_only 或 side_effect，不能用 light。",
     parameters: submitParams,
 
     async execute(_toolCallId: string, args: any) {
@@ -86,6 +89,16 @@ export default function (pi: ExtensionAPI) {
           if (!p.title || !p.summary) {
             throw new Error('Each plan requires non-empty "title" and "summary".');
           }
+        }
+        // A light card has no plan picker in the UI; plans require a proposal
+        // card type. Reject the mismatch so the model re-issues with a
+        // consistent shape instead of the workbench silently dropping plans.
+        if (args.card_type === 'light') {
+          throw new Error(
+            'card_type "light" means a one-line hint with NO plans. '
+            + 'Either drop "plans" and keep card_type "light", or re-issue '
+            + 'with card_type "read_only" (or "side_effect") together with plans.',
+          );
         }
       }
       return {
