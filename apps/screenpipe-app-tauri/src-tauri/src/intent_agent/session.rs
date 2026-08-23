@@ -105,6 +105,9 @@ pub async fn run_intent_session(
     let mut cfg = base_config;
     cfg.system_prompt = Some(system_prompt);
     cfg.allowed_tools = Some(INTENT_ALLOWED_TOOLS.iter().map(|s| s.to_string()).collect());
+    // Replace (not append) so pi's built-in coding persona never reaches an
+    // unattended analysis run; see instruct::build_system_prompt.
+    cfg.replace_system_prompt = Some(true);
 
     // Final-report collector: buffered text deltas plus an agent_end
     // fallback extracted from the messages array (same shape as

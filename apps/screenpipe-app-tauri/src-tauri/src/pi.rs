@@ -1835,6 +1835,11 @@ pub struct PiProviderConfig {
     /// Optional system prompt from AI preset (appended to Pi's built-in system prompt)
     #[serde(default)]
     pub system_prompt: Option<String>,
+    /// When true, `system_prompt` replaces pi's built-in system prompt
+    /// (`--system-prompt`) instead of appending after it. Unattended
+    /// sessions set this so the coding-assistant baseline never leaks in.
+    #[serde(default)]
+    pub replace_system_prompt: Option<bool>,
     /// Optional exact Pi tool allowlist for bounded agent surfaces. `None`
     /// preserves the normal Chat tool surface; an empty list disables tools.
     #[serde(default)]
@@ -3091,7 +3096,11 @@ pub async fn pi_start_inner(
         if let Some(ref config) = provider_config {
             if let Some(ref prompt) = config.system_prompt {
                 if !prompt.is_empty() {
-                    cmd.args(["--append-system-prompt", prompt]);
+                    if config.replace_system_prompt == Some(true) {
+                        cmd.args(["--system-prompt", prompt]);
+                    } else {
+                        cmd.args(["--append-system-prompt", prompt]);
+                    }
                 }
             }
         }
@@ -5622,6 +5631,7 @@ mod tests {
             max_tokens: 4096,
             max_context_chars: Some(512_000),
             system_prompt: Some("system context".to_string()),
+            replace_system_prompt: None,
             allowed_tools: None,
             resume_session_id: None,
         };
@@ -5649,6 +5659,32 @@ mod tests {
         assert_eq!(
             super::pi_launch_fingerprint("/tmp/pi-chat", Some("token"), Some(&first_time),),
             super::pi_launch_fingerprint("/tmp/pi-chat", Some("token"), Some(&second_time),)
+        );
+    }
+
+    #[test]
+    fn replace_flag_changes_launch_fingerprint() {
+        let mut plain = super::PiProviderConfig {
+            backend: None,
+            acp_agent: None,
+            provider: "screenpipe-cloud".to_string(),
+            url: String::new(),
+            model: "auto".to_string(),
+            api_key: None,
+            max_tokens: 4096,
+            max_context_chars: Some(512_000),
+            system_prompt: None,
+            replace_system_prompt: None,
+            allowed_tools: None,
+            resume_session_id: None,
+        };
+        plain.system_prompt = Some("p".into());
+        plain.replace_system_prompt = Some(false);
+        let mut replaced = plain.clone();
+        replaced.replace_system_prompt = Some(true);
+        assert_ne!(
+            super::pi_launch_fingerprint("/tmp/pi-chat", Some("token"), Some(&plain)),
+            super::pi_launch_fingerprint("/tmp/pi-chat", Some("token"), Some(&replaced)),
         );
     }
 
@@ -6935,6 +6971,7 @@ error: InstallFailed extracting tarball"#;
             max_tokens: 4096,
             max_context_chars: Some(512_000),
             system_prompt: None,
+            replace_system_prompt: None,
             allowed_tools: None,
             resume_session_id: None,
         }

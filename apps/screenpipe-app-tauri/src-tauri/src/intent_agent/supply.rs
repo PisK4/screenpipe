@@ -112,6 +112,7 @@ pub fn to_provider_config(q: &PresetQuadruple) -> PiProviderConfig {
         max_tokens: 4096,
         max_context_chars: None,
         system_prompt: None,
+        replace_system_prompt: None,
         allowed_tools: None,
         resume_session_id: None,
     }

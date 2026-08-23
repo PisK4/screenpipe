@@ -86,35 +86,26 @@ fn shrink_other_arrays(obj: &mut serde_json::Map<String, serde_json::Value>) {
     }
 }
 
-/// System prompt for the intent-card session. Read-only tool guidance is
-/// included because the session allowlist lets the model verify material
-/// before concluding. The output contract is the `submit_intent_card` tool
-/// call (schema-validated by pi); contract literals here must stay in sync
-/// with `parse::parse_model_output`.
+/// Static system prompt for the intent-card session. Injected via pi's
+/// `--system-prompt` (REPLACE, see pi.rs) so the built-in English coding
+/// persona never reaches an unattended analysis run. Tool usage detail
+/// lives in each tool's description/schema; this file only carries role,
+/// boundary, dedup rule, and pointers. Contract literals here
+/// (`submit_intent_card`, `{"insufficient_material": true}`) must stay in
+/// sync with `parse::parse_model_output` and intent-card.ts.
+/// Note: pi's buildSystemPrompt appends the `<available_skills>` index and
+/// context files AFTER even a replaced prompt (customPrompt branch), so
+/// skill discovery survives replacement — verified against pi dist source.
 pub fn build_system_prompt() -> String {
-    r#"你在为一位 macOS 用户分析其本机活动记录，并生成一张主动式意图卡片。卡片要指出用户可能想做的下一件事，并给出可执行的备选方案。
+    r#"你是一个运行在用户 macOS 本机上的无人值守意图卡片生成器。每次运行你会收到一份首条消息里的本机活动材料；你要么产出一张有依据的新意图卡片，要么判定材料不足。
 
-你有这些只读工具可用：read、grep、find、ls（查看本机文件），sp_mcp_list_tools 与 sp_mcp_call（查询用户注册的 MCP 服务），以及 sp_intent_cards_recent（查询更早的近期意图卡片历史）。鼓励你在下结论前用它们查证材料；你没有写侧能力。
+边界：你只有只读能力（查看本机文件、查询本地数据）。没有写侧能力，也不要尝试。
 
-交卡契约（严格遵守）：
-- 结论必须通过调用 submit_intent_card 工具提交，不要把结论写成普通文字。
-- 普通卡片结构：
-  {"v":1,"card_type":"...","proactive_view":"...","recommended_index":0,"plans":[{"title":"...","summary":"...","consequence":"..."}]}
-  顶层 "v" 必须是数字 1。
-- plans 为 1–3 个方案，按推荐顺序排列，首项即 recommended_index 指向的推荐方案。
-- title 一句话方案名；summary 两三句说明怎么做；consequence 说明执行后的影响（可选）。
-- card_type 三选一：
-  - light：轻提示。用户可能想知道的观察或建议，无需选择方案。
-  - side_effect：会改变系统状态的建议（如修改设置、启动自动化），必须给出 consequence。
-  - read_only：只读操作建议（查询、汇总、打开查看某内容）。
-- proactive_view 是给用户看的一句话引子，用中文并贴合用户的语言习惯。
-- 如果材料不足以形成有依据的卡片（活动稀疏、上下文缺失），改为提交恰好这样的载荷：
-  {"insufficient_material": true}
-  不要编造。
-
-判重规则（材料里附有 recent_cards 近期卡片清单时生效）：
-- 逐条核对清单。若准备产出的卡片与清单中某张意图相同或高度相近——尤其当那张卡状态是 rejected（用户已明确拒绝过）——不得再出卡，改为提交 {"insufficient_material": true}。
-- 只有当你确信这是一个清单中没有的新意图、且材料足以支撑时才出卡。拿不准时可调用 sp_intent_cards_recent 查更早的历史。"#
+规则：
+- 结论必须通过调用 submit_intent_card 工具提交，不要把结论写成普通文字；载荷结构以该工具的参数说明为准。
+- 材料不足、或与【近期卡片】中某张卡意图相同或高度相近（尤其那张状态是 rejected，说明用户已拒绝过同类建议）时，提交 {"insufficient_material": true}，不要出卡，不要编造。
+- 需要核对更早的卡片历史时，可调用 get_recent_intent_cards 工具。
+- 卡片文案用中文，贴合用户的语言习惯。"#
         .to_string()
 }
 
@@ -148,27 +139,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn system_prompt_states_output_contract() {
+    fn system_prompt_is_static_chinese_pointer_not_enumeration() {
         let prompt = build_system_prompt();
-        assert!(prompt.contains(r#""v":1"#) || prompt.contains("\"v\": 1"));
-        assert!(prompt.contains("insufficient_material"));
-        assert!(prompt.contains("light"));
-        assert!(prompt.contains("side_effect"));
-        assert!(prompt.contains("read_only"));
-        for tool in [
-            "read",
-            "grep",
-            "find",
-            "ls",
-            "sp_mcp_list_tools",
-            "sp_mcp_call",
-            "sp_intent_cards_recent",
-        ] {
-            assert!(prompt.contains(tool), "prompt must mention tool {tool}");
-        }
+        // 契约指针与判重锚点仍在。
         assert!(prompt.contains("submit_intent_card"));
-        assert!(prompt.contains("recent_cards"));
+        assert!(prompt.contains("insufficient_material"));
         assert!(prompt.contains("rejected"));
+        assert!(prompt.contains("get_recent_intent_cards"));
+        // 精简纪律：不再枚举内置工具名，不再复述 schema 字段。
+        for gone in [
+            "\"card_type\"", "\"recommended_index\"", "read、grep",
+            "sp_mcp_list_tools", "sp_mcp_call",
+        ] {
+            assert!(!prompt.contains(gone), "prompt must not contain {gone}");
+        }
+        assert!(prompt.contains("无人值守"), "persona must state unattended nature");
+        assert!(prompt.contains("只读"), "persona must state read-only boundary");
     }
 
     #[test]
