@@ -8,9 +8,9 @@
 //! tolerated; unknown versions are rejected so future schema changes fail
 //! loudly instead of mis-parsing.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GeneratedPlan {
     pub title: String,
     pub summary: String,
@@ -18,7 +18,7 @@ pub struct GeneratedPlan {
     pub consequence: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GeneratedCard {
     pub card_type: String,
     #[serde(default)]

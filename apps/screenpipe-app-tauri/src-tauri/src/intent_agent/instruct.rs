@@ -8,7 +8,7 @@
 
 #![deny(clippy::string_slice)]
 
-use super::GenerationInput;
+pub use super::GenerationInput;
 use screenpipe_core::strings::truncate_string;
 
 /// Cap for the embedded activity-summary JSON (chars). The summary can carry

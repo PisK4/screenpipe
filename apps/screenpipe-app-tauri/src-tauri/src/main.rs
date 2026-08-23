@@ -1642,6 +1642,14 @@ async fn main() {
                 );
             }
 
+            // Intent-card heartbeat: resident generation loop (Task 6).
+            {
+                let app_handle_for_intent = app_handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    crate::intent_agent::runner::start(app_handle_for_intent).await;
+                });
+            }
+
             // Enterprise hidden-UI deployments always run headless with the
             // recorder only, regardless of user settings or onboarding state.
             let headless_startup = app_ui_hidden

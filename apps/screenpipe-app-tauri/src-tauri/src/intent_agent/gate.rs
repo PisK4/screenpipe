@@ -10,7 +10,7 @@
 //! outcome (so a run that fails to insert cannot leave the gate permanently
 //! open and retry every beat without backoff). Both cap at MAX_WINDOW_SECS.
 
-use super::WindowSignals;
+pub use super::WindowSignals;
 
 pub const HEARTBEAT_INTERVAL_SECS: u64 = 900;
 pub const FIRST_RUN_DELAY_SECS: u64 = 120;
