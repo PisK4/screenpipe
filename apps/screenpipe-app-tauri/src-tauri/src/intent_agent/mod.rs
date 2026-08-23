@@ -26,5 +26,8 @@ pub struct GenerationInput {
     pub window_start_text: String,
     pub window_end_text: String,
     pub activity_summary: serde_json::Value,
+    /// Recent cards (`gate::RECENT_CARDS_*` window) for soft dedup: the model
+    /// judges overlap against this list instead of a mechanical unique index.
+    pub recent_cards: serde_json::Value,
     pub signals: WindowSignals,
 }

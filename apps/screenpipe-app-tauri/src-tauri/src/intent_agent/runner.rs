@@ -176,10 +176,22 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
     let start_dt = to_utc(window_start_ts);
     let summary = fetch_activity_summary(app, start_dt, end).await?;
     let dominant = gate::dominant_app(&summary);
+    // Soft dedup preload (D2 revision): recent cards go into the materials so
+    // the model can avoid repeating or re-proposing rejected intents itself.
+    let recent_cards = db
+        .intent_list_recent(
+            now - gate::RECENT_CARDS_WINDOW_SECS,
+            gate::RECENT_CARDS_LIMIT,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    let recent_cards_json =
+        serde_json::to_value(&recent_cards).unwrap_or(serde_json::Value::Array(vec![]));
     let input = GenerationInput {
         window_start_text: start_dt.to_rfc3339(),
         window_end_text: end.to_rfc3339(),
         activity_summary: summary,
+        recent_cards: recent_cards_json,
         signals,
     };
 

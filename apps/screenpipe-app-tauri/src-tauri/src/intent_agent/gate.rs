@@ -20,6 +20,12 @@ pub const CARD_TTL_SECS: i64 = 48 * 3600;
 pub const DEFAULT_WINDOW_SECS: i64 = 24 * 3600;
 pub const MAX_WINDOW_SECS: i64 = 7 * 24 * 3600;
 
+/// Soft-dedup preload window (D2 revision): recent cards shown to the model
+/// so it judges overlap itself. 48h matches the card expiry clock, so the
+/// list covers every still-actionable card including rejections.
+pub const RECENT_CARDS_WINDOW_SECS: i64 = 48 * 3600;
+pub const RECENT_CARDS_LIMIT: i64 = 20;
+
 /// Either signal crossing its threshold is enough to attempt generation.
 pub fn should_attempt_generation(s: &WindowSignals) -> bool {
     s.app_switches >= MIN_APP_SWITCH_EVENTS || s.frame_changes >= MIN_FRAME_CHANGES

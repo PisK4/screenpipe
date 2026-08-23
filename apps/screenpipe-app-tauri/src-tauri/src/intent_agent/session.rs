@@ -21,8 +21,40 @@ use tauri::{AppHandle, Listener, Manager};
 pub const INTENT_SESSION_ID: &str = "intent-card";
 /// Whole-session wall-clock budget: start + prompt + final report (D6).
 pub const SESSION_TIMEOUT_SECS: u64 = 240;
-/// Read-only allowlist (D6): list user-registered MCP servers and call one.
-pub const INTENT_ALLOWED_TOOLS: [&str; 2] = ["sp_mcp_list_tools", "sp_mcp_call"];
+/// Structured-output tool registered by the intent-card extension. The card
+/// payload arrives as this tool call's arguments (schema-validated by pi);
+/// see assets/extensions/intent-card.ts and parse.rs.
+pub const INTENT_TOOL_NAME: &str = "submit_intent_card";
+/// Read-side tool from intent-card-recent.ts: recent cards for soft dedup.
+pub const INTENT_RECENT_TOOL_NAME: &str = "sp_intent_cards_recent";
+/// Read-side allowlist (D6, revised): chat's built-in tools minus bash and
+/// the write side (edit/write), plus the MCP bridge tools and the structured
+/// card-submit tool from the intent-card extension.
+pub const INTENT_ALLOWED_TOOLS: [&str; 8] = [
+    "read",
+    "grep",
+    "find",
+    "ls",
+    "sp_mcp_list_tools",
+    "sp_mcp_call",
+    INTENT_TOOL_NAME,
+    INTENT_RECENT_TOOL_NAME,
+];
+
+/// Managed extension files installed into the session's exclusive project
+/// dir (same mechanism as the chat-side extensions in `pi.rs`):
+/// - `intent-card.ts`: submit contract (`submit_intent_card`);
+/// - `intent-card-recent.ts`: read side (`sp_intent_cards_recent`), also
+///   distributed standalone to external Pi agents.
+const INTENT_EXTENSION_FILES: [&str; 2] = ["intent-card.ts", "intent-card-recent.ts"];
+
+fn intent_extension_source(file: &str) -> &'static str {
+    match file {
+        "intent-card.ts" => include_str!("../../assets/extensions/intent-card.ts"),
+        "intent-card-recent.ts" => include_str!("../../assets/extensions/intent-card-recent.ts"),
+        _ => unreachable!("INTENT_EXTENSION_FILES is exhaustive"),
+    }
+}
 
 /// Mirrors `PiExecutor::USER_SKILL_MARKER` (core keeps the const private;
 /// the literal is stable and asserted by core tests).
@@ -32,6 +64,20 @@ const USER_SKILL_MARKER: &str = ".screenpipe-managed";
 /// daily-summary sessions, which is what makes the D7 marker cleanup safe.
 pub fn intent_project_dir() -> std::path::PathBuf {
     screenpipe_core::paths::default_screenpipe_data_dir().join("pi-intent")
+}
+
+/// Install the managed intent extensions into the session's exclusive
+/// project dir. Idempotent per run by construction.
+pub fn ensure_intent_card_extension(dir: &Path) -> Result<(), String> {
+    let ext_dir = dir.join(".pi").join("extensions");
+    std::fs::create_dir_all(&ext_dir)
+        .map_err(|e| format!("failed to create intent extensions dir: {e}"))?;
+    for file in INTENT_EXTENSION_FILES {
+        let ext_path = ext_dir.join(file);
+        std::fs::write(&ext_path, intent_extension_source(file))
+            .map_err(|e| format!("failed to write {file}: {e}"))?;
+    }
+    Ok(())
 }
 
 /// Run one intent generation session, returning the model's final report
@@ -44,6 +90,7 @@ pub async fn run_intent_session(
 ) -> Result<String, String> {
     let dir = intent_project_dir();
     std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create intent dir: {e}"))?;
+    ensure_intent_card_extension(&dir)?;
 
     // Baseline skills, then strip user mirrors (D7): core's installer also
     // mirrors the user's skill store into the session; the marker cleanup
@@ -87,11 +134,19 @@ pub async fn run_intent_session(
                 && event["willRetry"] != serde_json::json!(true)
             {
                 let mut buf = collector.lock().unwrap();
-                let final_text = if !buf.0.trim().is_empty() {
-                    buf.0.clone()
-                } else {
-                    text_from_agent_end_messages(event)
-                };
+                // Structured path first: the contract is a submit_intent_card
+                // tool call, and its arguments are the parseable payload. The
+                // text paths remain as fallback for sessions that never call
+                // the tool (parse.rs still rejects non-JSON text).
+                let final_text = structured_card_from_agent_end(event)
+                    .or_else(|| {
+                        (!buf.0.trim().is_empty()).then(|| buf.0.clone())
+                    })
+                    .or_else(|| {
+                        let t = text_from_agent_end_messages(event);
+                        (!t.trim().is_empty()).then_some(t)
+                    })
+                    .unwrap_or_default();
                 buf.1 = Some(final_text.clone());
                 if let Some(tx) = done_tx.lock().unwrap().take() {
                     let _ = tx.send(final_text);
@@ -185,6 +240,30 @@ fn text_from_agent_end_messages(event: &serde_json::Value) -> String {
     out
 }
 
+/// Extract the structured card payload from `agent_end`'s messages array:
+/// the last assistant toolCall block named [`INTENT_TOOL_NAME`], serialized
+/// back to a JSON string for `parse::parse_model_output`. Block shape per
+/// pi-ai's `ToolCall`: `{ type, id, name, arguments }`.
+fn structured_card_from_agent_end(event: &serde_json::Value) -> Option<String> {
+    let messages = event["messages"].as_array()?;
+    let mut found: Option<&serde_json::Value> = None;
+    for message in messages {
+        if message["role"] != serde_json::json!("assistant") {
+            continue;
+        }
+        if let Some(blocks) = message["content"].as_array() {
+            for block in blocks {
+                if block["type"] == serde_json::json!("toolCall")
+                    && block["name"] == serde_json::json!(INTENT_TOOL_NAME)
+                {
+                    found = block.get("arguments");
+                }
+            }
+        }
+    }
+    found.map(|args| serde_json::to_string(args).unwrap_or_default())
+}
+
 /// Remove mirrored user skills (dirs stamped with the `.screenpipe-managed`
 /// marker) from a session skills root. Baseline and hand-authored dirs (no
 /// marker) are untouched. Returns how many were removed. Safety rests on the
@@ -240,6 +319,86 @@ mod tests {
             ]
         });
         assert_eq!(text_from_agent_end_messages(&event), "hello world");
+    }
+
+    #[test]
+    fn structured_card_extraction_reads_the_submit_tool_call() {
+        let card = serde_json::json!({
+            "v": 1, "card_type": "light", "proactive_view": "引子",
+            "recommended_index": 0,
+            "plans": [{ "title": "t", "summary": "s" }]
+        });
+        let event = serde_json::json!({
+            "type": "agent_end",
+            "messages": [
+                { "role": "assistant", "content": [
+                    { "type": "toolCall", "id": "x", "name": "bash", "arguments": {} },
+                    { "type": "toolCall", "id": "y", "name": INTENT_TOOL_NAME, "arguments": card }
+                ]}
+            ]
+        });
+        let raw = structured_card_from_agent_end(&event).unwrap();
+        // Must round-trip through parse_model_output untouched.
+        assert!(matches!(
+            super::super::parse::parse_model_output(&raw).unwrap(),
+            super::super::parse::ModelOutcome::Card(_)
+        ));
+    }
+
+    #[test]
+    fn structured_card_extraction_takes_the_last_call_and_ignores_other_tools() {
+        let first = serde_json::json!({ "insufficient_material": true });
+        let second = serde_json::json!({
+            "v": 1, "card_type": "read_only", "proactive_view": "p",
+            "recommended_index": 0,
+            "plans": [{ "title": "a", "summary": "b" }]
+        });
+        let event = serde_json::json!({
+            "messages": [
+                { "role": "assistant", "content": [
+                    { "type": "toolCall", "name": INTENT_TOOL_NAME, "arguments": first }
+                ]},
+                { "role": "assistant", "content": [
+                    { "type": "text", "text": "plain text answer" },
+                    { "type": "toolCall", "name": INTENT_TOOL_NAME, "arguments": second }
+                ]}
+            ]
+        });
+        let raw = structured_card_from_agent_end(&event).unwrap();
+        assert!(raw.contains("read_only"));
+        assert!(structured_card_from_agent_end(&serde_json::json!({
+            "messages": [
+                { "role": "assistant", "content": [
+                    { "type": "toolCall", "name": "bash", "arguments": {"cmd": "ls"} }
+                ]}
+            ]
+        }))
+        .is_none());
+    }
+
+    #[test]
+    fn intent_card_extensions_are_written_into_the_project_dir() {
+        let dir = tempfile::TempDir::new().unwrap();
+        ensure_intent_card_extension(dir.path()).unwrap();
+        for file in INTENT_EXTENSION_FILES {
+            let path = dir.path().join(".pi").join("extensions").join(file);
+            let content = std::fs::read_to_string(&path).unwrap();
+            assert!(!content.is_empty(), "{file} must not be empty");
+        }
+        let submit = std::fs::read_to_string(
+            dir.path().join(".pi").join("extensions").join("intent-card.ts"),
+        )
+        .unwrap();
+        assert!(submit.contains(INTENT_TOOL_NAME));
+        // Idempotent: a second write succeeds and content is stable.
+        ensure_intent_card_extension(dir.path()).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(
+                dir.path().join(".pi").join("extensions").join("intent-card.ts")
+            )
+            .unwrap(),
+            submit
+        );
     }
 
     #[test]
