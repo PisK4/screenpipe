@@ -10,7 +10,7 @@ use super::supply::{self, IntentSupplyState, LastGenerationStatus, PresetQuadrup
 use crate::events;
 use crate::recording::RecordingState;
 use crate::store::SettingsStore;
-use screenpipe_db::{InsertOutcome, NewIntentCard};
+use screenpipe_db::NewIntentCard;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{AppHandle, Manager};
@@ -176,13 +176,17 @@ pub async fn intent_spawn_onboarding_card(app: AppHandle) -> Result<i64, String>
     };
 
     let db = live_db(&app).await?;
-    let id = match db.insert_intent_card(&card).await.map_err(|e| e.to_string())? {
-        InsertOutcome::Inserted(id) => {
-            events::emit_intent_card_created(&app, id);
-            id
-        }
-        InsertOutcome::DedupHit(id) => id,
-    };
+    // Onboarding idempotency without a unique index: explicit same-day
+    // pre-check, then plain insert.
+    if let Some(existing) = db
+        .intent_find_id_by_dedup_key(&card.dedup_key, &card.local_date)
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        return Ok(existing);
+    }
+    let id = db.insert_intent_card(&card).await.map_err(|e| e.to_string())?;
+    events::emit_intent_card_created(&app, id);
     Ok(id)
 }
 

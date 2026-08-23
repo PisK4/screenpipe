@@ -18,7 +18,7 @@ use crate::notifications::client::send_typed_with_actions_and_priority;
 use crate::notifications::store::NotificationPriority;
 use crate::recording::local_api_context_from_app;
 use screenpipe_core::strings::truncate_string;
-use screenpipe_db::{InsertOutcome, NewIntentCard};
+use screenpipe_db::NewIntentCard;
 use tauri::Manager;
 
 pub async fn start(app: tauri::AppHandle) {
@@ -210,7 +210,7 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
             },
             Ok(ModelOutcome::Card(c)) => {
                 let date = chrono::Local::now().format("%Y-%m-%d").to_string();
-                let outcome = db
+                let id = db
                     .insert_intent_card(&NewIntentCard {
                         origin: "proactive".into(),
                         card_type: c.card_type.clone(),
@@ -223,15 +223,12 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
                     })
                     .await
                     .map_err(|e| e.to_string())?;
-                if let InsertOutcome::Inserted(id) = &outcome {
-                    events::emit_intent_card_created(app, *id);
-                    notify_new_card(app, *id, &c).await?;
-                }
+                events::emit_intent_card_created(app, id);
+                notify_new_card(app, id, &c).await?;
                 LastGenerationStatus {
                     at: now,
                     ok: true,
-                    detail: matches!(outcome, InsertOutcome::DedupHit(_))
-                        .then(|| "dedup hit".into()),
+                    detail: None,
                     source: source.into(),
                 }
             }

@@ -35,22 +35,17 @@ pub struct NewIntentCard {
     pub model_id: Option<String>,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum InsertOutcome {
-    Inserted(i64),
-    DedupHit(i64),
-}
-
-impl InsertOutcome {
-    pub fn id(&self) -> i64 {
-        match self {
-            InsertOutcome::Inserted(id) | InsertOutcome::DedupHit(id) => *id,
-        }
-    }
-
-    pub fn is_new(&self) -> bool {
-        matches!(self, InsertOutcome::Inserted(_))
-    }
+/// Slim card view for soft-dedup context and the `/intent-cards/recent`
+/// route: everything a model needs to judge intent overlap, none of the
+/// state-machine plumbing.
+pub struct IntentCardSummary {
+    pub id: i64,
+    pub origin: String,
+    pub card_type: String,
+    pub status: String,
+    pub proactive_view: Option<String>,
+    pub dedup_key: String,
+    pub created_at: i64,
 }
 
 fn row_to_card(row: sqlx::sqlite::SqliteRow) -> IntentCardRow {
@@ -71,18 +66,16 @@ fn row_to_card(row: sqlx::sqlite::SqliteRow) -> IntentCardRow {
 }
 
 impl DatabaseManager {
-    /// Insert a card. The `(dedup_key, local_date)` unique index encodes the
-    /// "one card per app per type per day" product policy; hitting it returns
-    /// the existing row's id flagged as [`InsertOutcome::DedupHit`] so the
-    /// caller can skip notifications without a second round trip.
-    pub async fn insert_intent_card(
-        &self,
-        card: &NewIntentCard,
-    ) -> Result<InsertOutcome, sqlx::Error> {
+    /// Insert a card and return its row id. Duplicate suppression is soft
+    /// (the generation model judges overlap against recent cards); the
+    /// `dedup_key` column is an informational record, not a constraint. The
+    /// onboarding card keeps insert-idempotency via
+    /// [`DatabaseManager::intent_find_id_by_dedup_key`] pre-checks.
+    pub async fn insert_intent_card(&self, card: &NewIntentCard) -> Result<i64, sqlx::Error> {
         let mut tx = self.begin_immediate_with_retry().await?;
         let result = sqlx::query(
             r#"
-            INSERT OR IGNORE INTO intent_cards
+            INSERT INTO intent_cards
                 (origin, card_type, proactive_view, dedup_key, local_date, plans_json, model_id)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
             "#,
@@ -96,21 +89,56 @@ impl DatabaseManager {
         .bind(&card.model_id)
         .execute(&mut **tx.conn())
         .await?;
-
-        let outcome = if result.rows_affected() > 0 {
-            InsertOutcome::Inserted(result.last_insert_rowid())
-        } else {
-            let existing: i64 = sqlx::query_scalar(
-                "SELECT id FROM intent_cards WHERE dedup_key = ?1 AND local_date = ?2",
-            )
-            .bind(&card.dedup_key)
-            .bind(&card.local_date)
-            .fetch_one(&mut **tx.conn())
-            .await?;
-            InsertOutcome::DedupHit(existing)
-        };
         tx.commit().await?;
-        Ok(outcome)
+        Ok(result.last_insert_rowid())
+    }
+
+    /// Newest cards since `since` (unixepoch), newest first — the shared read
+    /// side behind the heartbeat's soft-dedup preload and the
+    /// `GET /intent-cards/recent` route.
+    pub async fn intent_list_recent(
+        &self,
+        since: i64,
+        limit: i64,
+    ) -> Result<Vec<IntentCardSummary>, sqlx::Error> {
+        let rows = sqlx::query(
+            "SELECT id, origin, card_type, status, proactive_view, dedup_key, created_at \
+             FROM intent_cards WHERE created_at >= ?1 \
+             ORDER BY created_at DESC, id DESC LIMIT ?2",
+        )
+        .bind(since)
+        .bind(limit)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|row| IntentCardSummary {
+                id: row.get("id"),
+                origin: row.get("origin"),
+                card_type: row.get("card_type"),
+                status: row.get("status"),
+                proactive_view: row.get("proactive_view"),
+                dedup_key: row.get("dedup_key"),
+                created_at: row.get("created_at"),
+            })
+            .collect())
+    }
+
+    /// Id of the card carrying this dedup key on this local date, if any —
+    /// onboarding-spawn idempotency without a unique index.
+    pub async fn intent_find_id_by_dedup_key(
+        &self,
+        dedup_key: &str,
+        local_date: &str,
+    ) -> Result<Option<i64>, sqlx::Error> {
+        let id: Option<i64> = sqlx::query_scalar(
+            "SELECT id FROM intent_cards WHERE dedup_key = ?1 AND local_date = ?2 LIMIT 1",
+        )
+        .bind(dedup_key)
+        .bind(local_date)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(id)
     }
 
     /// Cards awaiting or awaiting-decision display: `proposed` + `shown`.
@@ -264,7 +292,7 @@ mod tests {
     #[tokio::test]
     async fn mark_shown_sets_expiry_and_finish_only_from_shown() {
         let db = test_db().await;
-        let id = db.insert_intent_card(&sample_card()).await.unwrap().id();
+        let id = db.insert_intent_card(&sample_card()).await.unwrap();
         assert!(db.intent_card_mark_shown(id, 1_000_000).await.unwrap());
         let row = db.intent_list_pending().await.unwrap().pop().unwrap();
         assert_eq!(row.status, "shown");
@@ -277,7 +305,7 @@ mod tests {
     #[tokio::test]
     async fn repeated_mark_shown_never_extends_expiry() {
         let db = test_db().await;
-        let id = db.insert_intent_card(&sample_card()).await.unwrap().id();
+        let id = db.insert_intent_card(&sample_card()).await.unwrap();
         assert!(db.intent_card_mark_shown(id, 1_000_000).await.unwrap());
         assert!(!db.intent_card_mark_shown(id, 99_000_000).await.unwrap());
         let row = db.intent_list_pending().await.unwrap().pop().unwrap();
@@ -291,7 +319,7 @@ mod tests {
         let mut card = sample_card();
         card.origin = "system_onboarding".into();
         card.dedup_key = "system_onboarding:onboarding".into();
-        let id = db.insert_intent_card(&card).await.unwrap().id();
+        let id = db.insert_intent_card(&card).await.unwrap();
         assert!(db.intent_card_mark_shown(id, 1_000_000).await.unwrap());
         let row = db.intent_list_pending().await.unwrap().pop().unwrap();
         assert_eq!(row.status, "shown");
@@ -300,21 +328,79 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn dedup_hit_returns_existing_id_and_is_flagged() {
+    async fn duplicate_keys_insert_independently_without_unique_index() {
         let db = test_db().await;
+        // Soft dedup: the same key may produce multiple rows; suppression is
+        // the model's job, not a constraint's.
         let first = db.insert_intent_card(&sample_card()).await.unwrap();
         let second = db.insert_intent_card(&sample_card()).await.unwrap();
-        assert!(matches!(first, InsertOutcome::Inserted(_)));
-        assert!(matches!(second, InsertOutcome::DedupHit(id) if id == first.id()));
+        assert_ne!(first, second);
+        assert_eq!(
+            db.intent_find_id_by_dedup_key("light:VSCode", "2026-08-23")
+                .await
+                .unwrap(),
+            Some(first)
+        );
+        assert_eq!(
+            db.intent_find_id_by_dedup_key("light:VSCode", "2026-08-24")
+                .await
+                .unwrap(),
+            None
+        );
+    }
+
+    #[tokio::test]
+    async fn intent_list_recent_returns_newest_first_within_window() {
+        let db = test_db().await;
+        let old = sample_card();
+        let mut new = sample_card();
+        new.card_type = "read_only".into();
+        new.dedup_key = "read_only:Orca".into();
+        db.insert_intent_card(&old).await.unwrap();
+
+        // Seed created_at directly: the column defaults to now(), so shift
+        // the first row back to make windowing observable.
+        let mut tx = db.begin_immediate_with_retry().await.unwrap();
+        sqlx::query("UPDATE intent_cards SET created_at = 1_000_000 WHERE id = ?1")
+            .bind(old_first_id(&db).await)
+            .execute(&mut **tx.conn())
+            .await
+            .unwrap();
+        tx.commit().await.unwrap();
+
+        db.insert_intent_card(&new).await.unwrap();
+
+        // Window covering both.
+        let all = db.intent_list_recent(0, 10).await.unwrap();
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0].card_type, "read_only"); // newest first
+        assert_eq!(all[1].card_type, "light");
+
+        // Window strictly after the old card excludes it.
+        let recent = db.intent_list_recent(2_000_000, 10).await.unwrap();
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].dedup_key, "read_only:Orca");
+
+        // Limit truncates to the newest.
+        let one = db.intent_list_recent(0, 1).await.unwrap();
+        assert_eq!(one.len(), 1);
+        assert_eq!(one[0].card_type, "read_only");
+    }
+
+    async fn old_first_id(db: &DatabaseManager) -> i64 {
+        sqlx::query_scalar("SELECT id FROM intent_cards WHERE card_type = 'light' LIMIT 1")
+            .fetch_one(&db.pool)
+            .await
+            .unwrap()
     }
 
     #[tokio::test]
     async fn expire_due_only_settles_due_shown_cards() {
         let db = test_db().await;
-        let due = db.insert_intent_card(&sample_card()).await.unwrap().id();
+        let due = db.insert_intent_card(&sample_card()).await.unwrap();
         let mut future = sample_card();
         future.dedup_key = "light:Figma".into();
-        let future_id = db.insert_intent_card(&future).await.unwrap().id();
+        let future_id = db.insert_intent_card(&future).await.unwrap();
 
         assert!(db.intent_card_mark_shown(due, 1_000_000).await.unwrap());
         // Shown later → later expiry clock.
@@ -345,7 +431,7 @@ mod tests {
     #[tokio::test]
     async fn finish_rejects_proposed_cards() {
         let db = test_db().await;
-        let id = db.insert_intent_card(&sample_card()).await.unwrap().id();
+        let id = db.insert_intent_card(&sample_card()).await.unwrap();
         assert!(!db.intent_card_finish(id, "accepted").await.unwrap());
         let row = db.intent_list_pending().await.unwrap().pop().unwrap();
         assert_eq!(row.status, "proposed");

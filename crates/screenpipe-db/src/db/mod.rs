@@ -468,7 +468,7 @@ pub use self::activity_ledger::{
     ActivityActionDraft, ActivityActionRecord, ActivityEvidenceDraft, ActivityEvidenceRecord,
     ActivityIntervalDraft, ActivityIntervalRecord, ActivityLedgerObservation, ActivityTaskDraft,
 };
-pub use self::intent_cards::{InsertOutcome, IntentCardRow, NewIntentCard};
+pub use self::intent_cards::{IntentCardRow, IntentCardSummary, NewIntentCard};
 pub use self::semantic::{
     SemanticActor, SemanticActorAlias, SemanticActorReference, SemanticAttachResult,
     SemanticCleanupResult, SemanticContextQuery, SemanticFrameContext,
