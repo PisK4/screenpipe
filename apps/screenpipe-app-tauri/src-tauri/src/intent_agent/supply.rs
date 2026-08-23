@@ -9,7 +9,9 @@
 //!
 //! Levels:
 //! - slot: user-picked preset stored in settings extra key `intent_slot`.
-//!   Factory default is empty; `intent_get_supply` lazily seeds the builtin.
+//!   Factory default is empty; empty means "follow Chat", never seeded with
+//!   a default (a written slot would outrank the mirror and silently stop
+//!   intent cards from following Chat).
 //! - mirror: "follow Chat" — the frontend reports its active chat preset id
 //!   into extra key `intent_fallback_preset_id`; we look the preset up fresh
 //!   from top-level `ai_presets` each time so edits are picked up (D1/R3).

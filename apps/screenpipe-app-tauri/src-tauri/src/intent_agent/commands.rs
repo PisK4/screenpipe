@@ -191,21 +191,13 @@ pub async fn intent_spawn_onboarding_card(app: AppHandle) -> Result<i64, String>
 }
 
 /// Supply state for the settings card: slot, mirror preset id, last
-/// generation outcome. Lazily seeds the builtin default slot (D8) so factory
-/// state is non-empty.
+/// generation outcome. Slot stays None unless the user explicitly picked one
+/// — writing a default here would outrank the "follow Chat" mirror in
+/// resolve_chain and silently stop intent cards from using the chat model.
 #[tauri::command]
 #[specta::specta]
 pub async fn intent_get_supply(app: AppHandle) -> Result<IntentSupplyState, String> {
-    let (mut slot, fallback_preset_id) = supply::read_supply(&app).await;
-    if slot.is_none() && extra_has_no_slot_key(&app) {
-        let default = supply::builtin_default();
-        supply::extra_set(
-            &app,
-            supply::INTENT_SLOT_KEY,
-            serde_json::to_value(&default).map_err(|e| e.to_string())?,
-        )?;
-        slot = Some(default);
-    }
+    let (slot, fallback_preset_id) = supply::read_supply(&app).await;
     let last_generation = extra_get_last_generation(&app);
     Ok(IntentSupplyState {
         slot,
@@ -216,12 +208,6 @@ pub async fn intent_get_supply(app: AppHandle) -> Result<IntentSupplyState, Stri
 
 fn settings_extra(app: &AppHandle) -> Option<std::collections::HashMap<String, serde_json::Value>> {
     Some(SettingsStore::get(app).ok()??.extra)
-}
-
-fn extra_has_no_slot_key(app: &AppHandle) -> bool {
-    settings_extra(app)
-        .map(|extra| !extra.contains_key(supply::INTENT_SLOT_KEY))
-        .unwrap_or(false)
 }
 
 fn extra_get_last_generation(app: &AppHandle) -> Option<LastGenerationStatus> {

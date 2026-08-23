@@ -38,6 +38,7 @@ pub struct NewIntentCard {
 /// Slim card view for soft-dedup context and the `/intent-cards/recent`
 /// route: everything a model needs to judge intent overlap, none of the
 /// state-machine plumbing.
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct IntentCardSummary {
     pub id: i64,
     pub origin: String,
