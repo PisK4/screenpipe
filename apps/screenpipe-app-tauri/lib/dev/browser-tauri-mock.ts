@@ -80,25 +80,44 @@ function mockIntentCard(
   status: string,
   now: number,
 ): MockIntentCard {
+  const isOnboarding = id === 2;
   return {
     id,
-    origin: "proactive",
-    cardType:
-      id === 2
-        ? "system_onboarding"
-        : "light_proposal",
+    origin: isOnboarding ? "system_onboarding" : "proactive",
+    cardType: isOnboarding ? "read_only" : "light_proposal",
     status,
-    proactiveView:
-      id === 2
-        ? "Cue can walk you through connecting your first AI model."
-        : "You spent 3h in VS Code today — want a standup summary?",
+    proactiveView: isOnboarding
+      ? null
+      : "You spent 3h in VS Code today — want a standup summary?",
     dedupKey: `mock-card-${id}`,
     localDate: new Date(now).toISOString().slice(0, 10),
-    plansJson: "[]",
+    // D4 wire shapes: proposal cards carry plans; onboarding carries kind.
+    plansJson: isOnboarding
+      ? JSON.stringify({
+          v: 1,
+          kind: "onboarding_mcp",
+          detected_agents: ["Claude Desktop", "VS Code"],
+        })
+      : JSON.stringify({
+          v: 1,
+          recommended_index: 0,
+          plans: [
+            {
+              title: "Draft standup summary",
+              summary: "Collect today's VS Code activity into three bullets.",
+              consequence: "Writes a note file under ~/.screenpipe.",
+            },
+            {
+              title: "Skip today",
+              summary: "No summary generated.",
+              consequence: "",
+            },
+          ],
+        }),
     modelId: "qwen3.5:9b",
     shownAt: status === "shown" ? now : null,
     expiresAt: null,
-    createdAt: now,
+    createdAt: now - (3 - id) * 60_000,
   };
 }
 
