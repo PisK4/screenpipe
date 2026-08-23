@@ -25,6 +25,8 @@ use tauri::Manager;
 
 pub const INTENT_SLOT_KEY: &str = "intent_slot";
 pub const INTENT_FALLBACK_PRESET_ID_KEY: &str = "intent_fallback_preset_id";
+/// Settings extra key holding the last generation-attempt record (D9).
+pub const INTENT_LAST_GENERATION_KEY: &str = "intent_last_generation";
 const BUILTIN_PROVIDER: &str = "native-ollama";
 const BUILTIN_URL: &str = "http://localhost:11434/v1";
 const BUILTIN_MODEL: &str = "qwen3.5:9b";
@@ -39,6 +41,26 @@ pub struct PresetQuadruple {
     pub url: String,
     pub model: String,
     pub api_key: Option<String>,
+}
+
+/// Outcome of the last heartbeat generation attempt, shown on the settings
+/// supply card (R7). Written by the runner after every attempt (D9).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct LastGenerationStatus {
+    pub at: i64,
+    pub ok: bool,
+    pub detail: Option<String>,
+    pub source: String,
+}
+
+/// Full supply state surfaced to the settings card (R7).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct IntentSupplyState {
+    pub slot: Option<PresetQuadruple>,
+    pub fallback_preset_id: Option<String>,
+    pub last_generation: Option<LastGenerationStatus>,
 }
 
 /// Built-in local-Ollama default (D8). Non-empty by design: intent cards
@@ -109,6 +131,14 @@ pub(crate) fn extra_set(
     let mut settings =
         SettingsStore::get(app)?.ok_or_else(|| "settings store not initialized".to_string())?;
     settings.extra.insert(key.to_string(), value);
+    settings.save(app)
+}
+
+/// Remove one extra key (e.g. clearing the slot to follow Chat).
+pub(crate) fn extra_remove(app: &tauri::AppHandle, key: &str) -> Result<(), String> {
+    let mut settings =
+        SettingsStore::get(app)?.ok_or_else(|| "settings store not initialized".to_string())?;
+    settings.extra.remove(key);
     settings.save(app)
 }
 

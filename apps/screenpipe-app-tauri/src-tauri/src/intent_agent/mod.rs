@@ -7,6 +7,7 @@
 //! No I/O here — orchestration lives in `session`/`runner`, supply
 //! resolution in `supply`.
 
+pub mod commands;
 pub mod gate;
 pub mod instruct;
 pub mod parse;

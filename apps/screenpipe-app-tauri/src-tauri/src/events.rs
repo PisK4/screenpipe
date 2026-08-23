@@ -16,6 +16,8 @@ pub const ENGINE_EVENT: &str = "engine:event";
 /// pill on windows. Linux handles actions in the webview.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub const NOTIFICATION_ACTION_EVENT: &str = "notification:action";
+/// A new intent card was created; the workbench reloads its pending list.
+pub const INTENT_CARD_EVENT: &str = "intent_card_created";
 
 #[derive(Debug, Clone, Serialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -113,6 +115,10 @@ pub fn emit_export(app: &tauri::AppHandle, event: ExportEvent) {
 
 pub fn emit_engine(app: &tauri::AppHandle, event: EngineEvent) {
     let _ = app.emit(ENGINE_EVENT, event);
+}
+
+pub fn emit_intent_card_created(app: &tauri::AppHandle, card_id: i64) {
+    let _ = app.emit(INTENT_CARD_EVENT, serde_json::json!({ "cardId": card_id }));
 }
 
 // Both native overlays route notification actions through here: the SwiftUI

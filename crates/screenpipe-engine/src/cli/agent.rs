@@ -399,6 +399,19 @@ fn detected_desktop_agents_in(home: &Path) -> Vec<DesktopDetectedAgent> {
     detected
 }
 
+/// Names of the AI tools detected on this machine, in detection order.
+/// Read-only probe shared by onboarding and the intent-card onboarding
+/// card (`detected_agents`); never writes configs.
+pub fn detected_desktop_agent_names() -> Vec<String> {
+    match dirs::home_dir() {
+        Some(home) => detected_desktop_agents_in(&home)
+            .into_iter()
+            .map(|agent| agent.id.to_string())
+            .collect(),
+        None => Vec::new(),
+    }
+}
+
 fn skills_ready(layout: &AgentLayout) -> bool {
     layout.skills_dir.as_ref().is_none_or(|skills_dir| {
         ["screenpipe-api", "screenpipe-cli"]
