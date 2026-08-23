@@ -55,7 +55,7 @@ interface RecentCard {
 
 export default function (pi: ExtensionAPI) {
   pi.registerTool({
-    name: "sp_intent_cards_recent",
+    name: "get_recent_intent_cards",
     label: "Recent Intent Cards",
     description:
       "读取最近生成的意图卡片清单（含状态 proposed/shown/accepted/rejected/expired）。"
@@ -84,7 +84,7 @@ export default function (pi: ExtensionAPI) {
             content: [
               {
                 type: "text" as const,
-                text: `sp_intent_cards_recent failed (${res.status}): ${text.slice(0, 400)}`,
+                text: `get_recent_intent_cards failed (${res.status}): ${text.slice(0, 400)}`,
               },
             ],
           };
@@ -111,7 +111,7 @@ export default function (pi: ExtensionAPI) {
           content: [
             {
               type: "text" as const,
-              text: `sp_intent_cards_recent failed: ${e?.message ?? String(e)}`,
+              text: `get_recent_intent_cards failed: ${e?.message ?? String(e)}`,
             },
           ],
         };

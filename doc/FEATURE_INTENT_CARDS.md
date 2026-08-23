@@ -73,7 +73,7 @@ proposed 与 shown 分开，是为了让过期时钟从「用户有机会看到�
 
 - 迁移 `20260823120000_drop_intent_cards_dedup_index.sql` 删除唯一索引（DROP INDEX，不重建表）。`dedup_key` 列保留继续写，降级为记录字段（格式仍是 `{card_type}:{dominant_app}`），排查有用、不构成约束。
 - 心跳预载近 48 小时卡片清单进生成材料（`RECENT_CARDS_WINDOW_SECS` / `RECENT_CARDS_LIMIT`，gate.rs）。system prompt 写明判重规则：与清单中某卡意图相同或高度相近——尤其那张是 rejected——必须提交 `{"insufficient_material": true}`，不要出卡。rejected 从此有跨日记忆。
-- 模型要查更早历史时调 `sp_intent_cards_recent` 工具（第 8 节）。
+- 模型要查更早历史时调 `get_recent_intent_cards` 工具（第 8 节）。
 - 新手卡幂等从唯一索引改为 command 内显式当日预检（`intent_find_id_by_dedup_key`）；`InsertOutcome::DedupHit` 已移除，insert 直接返回新行 id。
 - 成本边界：心跳节拍（900s）是硬顶，判重失效的最坏结果是一天几十次会话里多几张重复卡，通知面板兜底。不设机械保险丝；实测命中率不可接受时，最粗兜底是同 app 单日 COUNT 检查，届时另议。
 
@@ -103,7 +103,7 @@ Rust 侧从 agent_end 的 messages 数组提取最后一个 `submit_intent_card`
 
 会话专属项目目录 `~/.screenpipe/pi-intent`，与其他会话互不共享——这是技能隔离安全性的前提：每次运行前清除目录内带 `.screenpipe-managed` marker 的用户技能镜像，只留基线技能（screenpipe-api / screenpipe-cli / render-html-report）。理由：这是无人值守的定时任务，bash、写侧工具、用户自装 skills 都意味着周期性执行任意指令的能力；chat 里有人盯着，风险性质不同。
 
-工具白名单八项：read / grep / find / ls（本机文件读取）、sp_mcp_list_tools / sp_mcp_call（查询用户注册的 MCP 服务）、submit_intent_card（交卡）、sp_intent_cards_recent（近期卡片查询）。会话 transcript 天然留存于 pi-intent 目录，排查某张烂卡能看到完整推理与工具调用过程。
+工具白名单八项：read / grep / find / ls（本机文件读取）、sp_mcp_list_tools / sp_mcp_call（查询用户注册的 MCP 服务）、submit_intent_card（交卡）、get_recent_intent_cards（近期卡片查询）。会话 transcript 天然留存于 pi-intent 目录，排查某张烂卡能看到完整推理与工具调用过程。
 
 ## 7. 模型供给：三级链与镜像汇点
 
@@ -126,7 +126,7 @@ Rust 侧从 agent_end 的 messages 数组提取最后一个 `submit_intent_card`
 
 近期卡片的读取只有一个事实源：引擎路由 `GET :3030/intent-cards/recent`（screenpipe-engine routes/intent_cards.rs），参数 `since_hours`（默认 48，对齐过期时钟）与 `limit`(默认 20，上限 100)，鉴权走本地 API 的 Bearer。App 内预载进程内直调同一个查询函数，不走 HTTP。
 
-`assets/extensions/intent-card-recent.ts` 注册 `sp_intent_cards_recent` 工具包装这条路由，刻意只依赖 fetch 和 env（`SCREENPIPE_PORT`、`SCREENPIPE_LOCAL_API_KEY`），对 App 零进程内依赖——因此它可以整文件拷进任何外部 Pi agent 的 `.pi/extensions/` 目录直接用（本机已装：`~/.pi/agent/extensions/`）。未来其他场景要读卡片，复用同一路由。
+`assets/extensions/intent-card-recent.ts` 注册 `get_recent_intent_cards` 工具包装这条路由，刻意只依赖 fetch 和 env（`SCREENPIPE_PORT`、`SCREENPIPE_LOCAL_API_KEY`），对 App 零进程内依赖——因此它可以整文件拷进任何外部 Pi agent 的 `.pi/extensions/` 目录直接用（本机已装：`~/.pi/agent/extensions/`）。未来其他场景要读卡片，复用同一路由。
 
 写侧刻意不存在：模型侧没有任何 HTTP 路径能创建或改写卡片。交卡走的是 App 内嵌的 `intent-card.ts`（submit_intent_card），其载荷由宿主从会话 transcript 提取，不经 HTTP；外部分发版不含此文件。若将来要给外部 agent 开交卡能力，须新增带 token 门控的 POST 路由并在 wayfinder 记信任边界裁决，不要悄悄扩例。
 

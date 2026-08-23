@@ -26,7 +26,7 @@ pub const SESSION_TIMEOUT_SECS: u64 = 240;
 /// see assets/extensions/intent-card.ts and parse.rs.
 pub const INTENT_TOOL_NAME: &str = "submit_intent_card";
 /// Read-side tool from intent-card-recent.ts: recent cards for soft dedup.
-pub const INTENT_RECENT_TOOL_NAME: &str = "sp_intent_cards_recent";
+pub const INTENT_RECENT_TOOL_NAME: &str = "get_recent_intent_cards";
 /// Read-side allowlist (D6, revised): chat's built-in tools minus bash and
 /// the write side (edit/write), plus the MCP bridge tools and the structured
 /// card-submit tool from the intent-card extension.
@@ -44,7 +44,7 @@ pub const INTENT_ALLOWED_TOOLS: [&str; 8] = [
 /// Managed extension files installed into the session's exclusive project
 /// dir (same mechanism as the chat-side extensions in `pi.rs`):
 /// - `intent-card.ts`: submit contract (`submit_intent_card`);
-/// - `intent-card-recent.ts`: read side (`sp_intent_cards_recent`), also
+/// - `intent-card-recent.ts`: read side (`get_recent_intent_cards`), also
 ///   distributed standalone to external Pi agents.
 const INTENT_EXTENSION_FILES: [&str; 2] = ["intent-card.ts", "intent-card-recent.ts"];
 

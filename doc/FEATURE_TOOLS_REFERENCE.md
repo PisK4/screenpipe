@@ -30,7 +30,7 @@ Cue 里「agent 能调用的每一个工具」的目录级参考：它是什么�
 | `screenpipe_list_connections` | connection-gate.ts | chat 全量 | 读 | 本地 `/connections` |
 | `screenpipe_connect_app` | connection-gate.ts | chat 全量 | 发起用户授权流程（阻塞等待） | 授权 UI + 连接刷新 |
 | `submit_intent_card` | intent-card.ts | 仅意图生成会话 | 受控交卡出口 | 无网络调用，宿主从 transcript 提取 |
-| `sp_intent_cards_recent` | intent-card-recent.ts | intent 白名单；可独立分发 | 只读 | 本地 `/intent-cards/recent` |
+| `get_recent_intent_cards` | intent-card-recent.ts | intent 白名单；可独立分发 | 只读 | 本地 `/intent-cards/recent` |
 | Pi 内置七件（read/grep/find/ls/bash/edit/write） | Pi 自带 | 见第 3 节矩阵 | 视具体工具 | 本机文件系统 |
 
 ## 3. 会话矩阵
@@ -40,7 +40,7 @@ Cue 里「agent 能调用的每一个工具」的目录级参考：它是什么�
 | 会话 | 内置工具 | 扩展工具 |
 | --- | --- | --- |
 | Chat | 全量含 bash/edit/write | 上表 chat 全量各工具 |
-| 意图卡片生成会话（session id `intent-card`） | 仅 read / grep / find / ls | `sp_mcp_list_tools`、`sp_mcp_call`、`submit_intent_card`、`sp_intent_cards_recent`（八项白名单，常量 `INTENT_ALLOWED_TOOLS`） |
+| 意图卡片生成会话（session id `intent-card`） | 仅 read / grep / find / ls | `sp_mcp_list_tools`、`sp_mcp_call`、`submit_intent_card`、`get_recent_intent_cards`（八项白名单，常量 `INTENT_ALLOWED_TOOLS`） |
 | 外部 Pi agent（用户自装） | 该 agent 自己的默认面 | 仅拷入的扩展文件（现例：intent-card-recent.ts） |
 
 白名单机制：会话配置带 `allowedTools` 数组，Pi 只暴露名单内工具。意图会话另有两条隔离纪律：专属项目目录 `~/.screenpipe/pi-intent`，运行前清除带 `.screenpipe-managed` marker 的用户技能镜像（防无人值守定时任务执行任意导入指令）；bash 与一切写侧工具不进白名单。
@@ -190,7 +190,7 @@ Response：JSON 文本 `{ status: connected | declined | failed, connectionId, n
 
 Response：execute 只回执 `Intent card submitted.`——真正的载荷由宿主从会话 transcript 的最后一个 submit_intent_card 工具调用里提取（见 FEATURE_INTENT_CARDS.md 第 5 节）。此工具仅在 App 内意图会话安装，不经 HTTP，外部分发版不含。
 
-### 4.10 `sp_intent_cards_recent`
+### 4.10 `get_recent_intent_cards`
 
 读取最近生成的意图卡片清单。主用途是判重：同一意图已有卡片或曾被拒就不要再产出同类卡。生成材料里通常已附带近 48 小时清单，本工具用于查更早历史。
 
