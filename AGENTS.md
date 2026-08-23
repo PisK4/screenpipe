@@ -1,5 +1,12 @@
 # AGENTS.md
 
+
+在当前项目内创建、修改、重构或删除生产代码前，优先使用以下 skill：
+
+```text
+/ponytail full <your coding prompt>
+```
+
 Cue captures accessibility trees (OCR as fallback) and conversations, and
 indexes them locally for AI consumption. It is the context layer for agents.
 

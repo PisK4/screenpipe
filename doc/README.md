@@ -11,6 +11,7 @@
 | FEATURE_LOCAL_FIRST_MODE.md | 本地优先构建的默认运行边界 | 录制资格、账户 gate、遥测、Provider 配置 |
 | FEATURE_AGENT_CAPABILITY_SURFACE.md | Pi、Skill、Tool 与本地 API 的能力供给关系 | 改 Agent 能力入口、extension 或媒体代理 |
 | FEATURE_MODEL_INVOCATION_INVENTORY.md | 全部模型调用路径盘点，重构基线 | 触及任何会发起模型推理的代码 |
+| FEATURE_INTENT_CARDS.md | 意图卡片的生成、状态机与裁决链路（核验于 feat/intent-cards 分支） | 改 intent_cards 表、心跳生成或工作台交互 |
 
 ## 合同格式
 
