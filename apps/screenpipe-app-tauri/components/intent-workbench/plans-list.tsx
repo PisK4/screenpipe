@@ -18,7 +18,9 @@ export type ParsedPlans =
 export function parsePlansJson(plansJson: string): ParsedPlans {
   try {
     const v = JSON.parse(plansJson);
-    if (v?.v !== 1) return { kind: "invalid" };
+    // Missing v is treated as v1: rows written before the writer fix (runner
+    // serialized without the D4 version field) must still render their plans.
+    if (v?.v !== 1 && v?.v !== undefined) return { kind: "invalid" };
     if (v.kind === "onboarding_mcp") {
       const agents = Array.isArray(v.detected_agents)
         ? v.detected_agents.filter((a: unknown) => typeof a === "string")

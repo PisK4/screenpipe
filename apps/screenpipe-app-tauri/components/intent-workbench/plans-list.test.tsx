@@ -31,11 +31,19 @@ describe("parsePlansJson (D4)", () => {
     expect(parsed.kind).toBe("plans");
   });
 
-  it("rejects unknown versions and missing v", () => {
+  it("treats missing v as v1 (legacy rows), rejects explicit wrong versions", () => {
+    expect(
+      parsePlansJson(
+        JSON.stringify({
+          plans: [
+            { title: "A", summary: "a" },
+            { title: "B", summary: "b" },
+          ],
+          recommended_index: 0,
+        }),
+      ).kind,
+    ).toBe("plans");
     expect(parsePlansJson(JSON.stringify({ v: 2, plans: [] })).kind).toBe("invalid");
-    expect(parsePlansJson(JSON.stringify({ plans: [{ title: "A" }] })).kind).toBe(
-      "invalid",
-    );
   });
 
   it("rejects empty plans", () => {

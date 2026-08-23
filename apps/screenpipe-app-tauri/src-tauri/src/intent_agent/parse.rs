@@ -20,6 +20,10 @@ pub struct GeneratedPlan {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct GeneratedCard {
+    /// D4 wire version. Carried through so `serde_json::to_string` on insert
+    /// keeps `"v":1` in stored plans_json — dropping it makes the frontend
+    /// parser reject every proactive card.
+    pub v: i64,
     pub card_type: String,
     #[serde(default)]
     pub proactive_view: String,
@@ -150,5 +154,19 @@ mod tests {
     #[test]
     fn invalid_json_reports_error() {
         assert!(parse_model_output("not json at all").is_err());
+    }
+
+    #[test]
+    fn serialization_keeps_the_d4_version_field() {
+        // Round-trip guard: what runner.rs stores must satisfy the frontend
+        // contract (`parsePlansJson` requires v === 1).
+        match parse_model_output(SAMPLE).unwrap() {
+            ModelOutcome::Card(c) => {
+                let stored = serde_json::to_string(&c).unwrap();
+                let back: serde_json::Value = serde_json::from_str(&stored).unwrap();
+                assert_eq!(back["v"], 1);
+            }
+            _ => panic!("expected card"),
+        }
     }
 }
