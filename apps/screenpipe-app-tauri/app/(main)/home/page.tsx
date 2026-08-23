@@ -113,6 +113,8 @@ import { ActivityLedger } from "@/components/activity-ledger";
 import { IntentWorkbench } from "@/components/intent-workbench";
 import { useT } from "@/lib/i18n";
 import { INTENT_CARD_EVENT, type IntentCardCreatedPayload } from "@/lib/intent-events";
+import { TAURI_EVENTS } from "@/lib/events/tauri-events";
+import type { NotificationActionEvent } from "@/lib/utils/tauri";
 
 type MainSection = "home" | "timeline" | "activity" | "brain" | "pipes" | "connections" | "meetings" | "help" | "workbench";
 type ConnectionFocusRequest = {
@@ -960,6 +962,17 @@ function HomeContent() {
   useTauriEvent<IntentCardCreatedPayload>(INTENT_CARD_EVENT, () => {
     setWorkbenchReloadKey((key) => key + 1);
   });
+  // The card notification's action button deep-links into the workbench
+  // (payload emitted by notify_new_card). macOS/Windows only on the Rust
+  // side; Linux has no native action forwarding (noted in the PR).
+  useTauriEvent<NotificationActionEvent>(
+    TAURI_EVENTS.notificationAction,
+    (event) => {
+      if (event.payload.actionType === "open_intent_workbench") {
+        setActiveSection("workbench");
+      }
+    },
+  );
 
   const renderMainSection = () => {
     if (isSectionHidden(activeSection) && activeSection !== "help") {
