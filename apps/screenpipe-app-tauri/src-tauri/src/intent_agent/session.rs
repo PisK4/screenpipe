@@ -5,8 +5,9 @@
 //! Pi session orchestration for intent-card generation (D6).
 //!
 //! One dedicated session id (`intent-card`) in an exclusive project dir
-//! (`~/.screenpipe/pi-intent`), a read-only tool allowlist, and baseline-only
-//! skills. The final report is collected in-process from `agent_event`
+//! (`~/.screenpipe/pi-intent`) and a read-only tool allowlist. Skill
+//! visibility matches Chat: pi discovers global skills regardless of cwd, so
+//! the boundary is the TOOL allowlist (no bash/edit/write), not skill hiding. The final report is collected in-process from `agent_event`
 //! broadcasts — the stdout reader hot path is untouched. The session is
 //! stopped after every run so resources stay predictable; spawn frequency is
 //! bounded by the gate anyway.
@@ -56,12 +57,8 @@ fn intent_extension_source(file: &str) -> &'static str {
     }
 }
 
-/// Mirrors `PiExecutor::USER_SKILL_MARKER` (core keeps the const private;
-/// the literal is stable and asserted by core tests).
-const USER_SKILL_MARKER: &str = ".screenpipe-managed";
-
 /// Exclusive project dir for the intent session — never shared with chat or
-/// daily-summary sessions, which is what makes the D7 marker cleanup safe.
+/// daily-summary sessions.
 pub fn intent_project_dir() -> std::path::PathBuf {
     screenpipe_core::paths::default_screenpipe_data_dir().join("pi-intent")
 }
@@ -92,14 +89,14 @@ pub async fn run_intent_session(
     std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create intent dir: {e}"))?;
     ensure_intent_card_extension(&dir)?;
 
-    // Baseline skills, then strip user mirrors (D7): core's installer also
-    // mirrors the user's skill store into the session; the marker cleanup
-    // removes exactly those copies so the intent session sees baseline only.
+    // Skill visibility parity with Chat (2026-08-24 decision, revising D7):
+    // pi discovers global skills regardless of cwd, so the old strip only
+    // removed project-level mirrors while user-global skills flowed in
+    // anyway (traces 01a02f23/01a02f15 list all 18 skills). Baseline
+    // skills stay installed below; hard boundaries remain the TOOL
+    // allowlist (no bash/edit/write), not skill hiding.
     screenpipe_core::agents::pi::PiExecutor::ensure_screenpipe_skill(&dir)
         .map_err(|e| format!("failed to install baseline skills: {e}"))?;
-    if let Err(e) = strip_user_skill_copies(&dir.join(".pi").join("skills")) {
-        tracing::warn!("intent session: user skill cleanup failed: {e}");
-    }
 
     // D6: allowlist and system prompt ride the session config.
     let mut cfg = base_config;
@@ -267,28 +264,6 @@ fn structured_card_from_agent_end(event: &serde_json::Value) -> Option<String> {
     found.map(|args| serde_json::to_string(args).unwrap_or_default())
 }
 
-/// Remove mirrored user skills (dirs stamped with the `.screenpipe-managed`
-/// marker) from a session skills root. Baseline and hand-authored dirs (no
-/// marker) are untouched. Returns how many were removed. Safety rests on the
-/// caller pointing this at the intent session's exclusive project dir (D7).
-fn strip_user_skill_copies(skills_dir: &Path) -> std::io::Result<usize> {
-    let mut removed = 0;
-    let entries = match std::fs::read_dir(skills_dir) {
-        Ok(entries) => entries,
-        // No skills dir yet — nothing mirrored, nothing to do.
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(0),
-        Err(e) => return Err(e),
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() && path.join(USER_SKILL_MARKER).exists() {
-            std::fs::remove_dir_all(&path)?;
-            removed += 1;
-        }
-    }
-    Ok(removed)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -401,29 +376,6 @@ mod tests {
             )
             .unwrap(),
             submit
-        );
-    }
-
-    #[test]
-    fn strip_user_skill_copies_removes_only_marked_dirs() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let skills = dir.path().join("skills");
-        std::fs::create_dir_all(skills.join("screenpipe-api")).unwrap();
-        std::fs::create_dir_all(skills.join("my-own-skill")).unwrap();
-        std::fs::create_dir_all(skills.join("imported-one")).unwrap();
-        std::fs::write(skills.join("imported-one/.screenpipe-managed"), "").unwrap();
-        assert_eq!(strip_user_skill_copies(&skills).unwrap(), 1);
-        assert!(skills.join("screenpipe-api").exists()); // 基线保留
-        assert!(skills.join("my-own-skill").exists()); // 无 marker 的不动
-        assert!(!skills.join("imported-one").exists()); // marker 目录删除（D7）
-    }
-
-    #[test]
-    fn strip_user_skill_copies_handles_missing_dir() {
-        let dir = tempfile::TempDir::new().unwrap();
-        assert_eq!(
-            strip_user_skill_copies(&dir.path().join("nope")).unwrap(),
-            0
         );
     }
 

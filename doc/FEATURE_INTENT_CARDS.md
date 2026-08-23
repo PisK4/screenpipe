@@ -101,7 +101,7 @@ Rust 侧从 agent_end 的 messages 数组提取最后一个 `submit_intent_card`
 
 为什么用会话不用单次直调：aha moment 藏在 activity-summary 压缩掉的部分里，会话形态下模型拿只读工具自己查证，「材料不足」也从客套话变成查证后的有据结论；且加工具从一轮架构改动变成一行白名单配置。
 
-会话专属项目目录 `~/.screenpipe/pi-intent`，与其他会话互不共享——这是技能隔离安全性的前提：每次运行前清除目录内带 `.screenpipe-managed` marker 的用户技能镜像，只留基线技能（screenpipe-api / screenpipe-cli / render-html-report）。理由：这是无人值守的定时任务，bash、写侧工具、用户自装 skills 都意味着周期性执行任意指令的能力；chat 里有人盯着，风险性质不同。
+会话专属项目目录 `~/.screenpipe/pi-intent`，与其他会话互不共享。技能可见面与 Chat 对齐（全局发现 + 基线三件照常安装；2026-08-24 修订 D7——原镜像剥离对 pi 全局技能发现本就无效，轨迹取证见 01a02f23/01a02f15）。隔离边界收敛到工具白名单：bash 与一切写侧工具不进白名单；残余的技能正文注入风险由工具白名单兜底（sp_mcp_call 的外部副作用为已知并接受的残留面）。
 
 工具白名单八项：read / grep / find / ls（本机文件读取）、sp_mcp_list_tools / sp_mcp_call（查询用户注册的 MCP 服务）、submit_intent_card（交卡）、get_recent_intent_cards（近期卡片查询）。会话 transcript 天然留存于 pi-intent 目录，排查某张烂卡能看到完整推理与工具调用过程。
 
