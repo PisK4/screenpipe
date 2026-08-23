@@ -10,6 +10,7 @@
 | FEATURE_I18N_UI_LANGUAGE.md | UI 多语言层结构，新增文案的规则 | 新增或编辑界面文案 |
 | FEATURE_LOCAL_FIRST_MODE.md | 本地优先构建的默认运行边界 | 录制资格、账户 gate、遥测、Provider 配置 |
 | FEATURE_AGENT_CAPABILITY_SURFACE.md | Pi、Skill、Tool 与本地 API 的能力供给关系 | 改 Agent 能力入口、extension 或媒体代理 |
+| FEATURE_TOOLS_REFERENCE.md | 全部 agent 工具的目录：参数、响应、触发时机、会话可见性、集成步骤 | 新增或修改工具、把工具接进外部 agent |
 | FEATURE_MODEL_INVOCATION_INVENTORY.md | 全部模型调用路径盘点，重构基线 | 触及任何会发起模型推理的代码 |
 | FEATURE_INTENT_CARDS.md | 意图卡片的生成、状态机与裁决链路（核验于 feat/intent-cards 分支） | 改 intent_cards 表、心跳生成或工作台交互 |
 
