@@ -9,12 +9,82 @@
 #![deny(clippy::string_slice)]
 
 pub use super::GenerationInput;
-use screenpipe_core::strings::truncate_string;
 
-/// Cap for the embedded activity-summary JSON (chars). The summary can carry
-/// per-window lists and sampled texts; 12k chars keeps the payload well
-/// inside a small-model context.
+/// Hard ceiling for the serialized activity-summary section (bytes).
 const MAX_SUMMARY_CHARS: usize = 12_000;
+/// Apps kept before byte-budget halving kicks in.
+const MAX_APPS_IN_SUMMARY: usize = 16;
+
+/// Bound the summary at the DATA level so the serialized form is always
+/// valid JSON: rank apps by minutes, then shrink under a byte budget by
+/// halving the kept count. Never string-truncate serialized JSON.
+fn bound_activity_summary(summary: &serde_json::Value) -> serde_json::Value {
+    let mut obj = match summary.as_object() {
+        Some(o) => o.clone(),
+        None => serde_json::Map::new(),
+    };
+    let mut apps = obj
+        .get("apps")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    apps.sort_by(|a, b| {
+        let mins = |v: &serde_json::Value| {
+            v.get("minutes").and_then(|m| m.as_f64()).unwrap_or(0.0)
+        };
+        mins(b).partial_cmp(&mins(a)).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let total = apps.len();
+    let mut keep = total.min(MAX_APPS_IN_SUMMARY);
+    loop {
+        obj.insert("apps".into(), serde_json::Value::Array(apps[..keep].to_vec()));
+        let size = serde_json::to_string(&obj).map(|s| s.len()).unwrap_or(usize::MAX);
+        if size <= MAX_SUMMARY_CHARS || keep == 0 {
+            break;
+        }
+        keep = if keep <= 1 { 0 } else { keep / 2 };
+    }
+    let size = serde_json::to_string(&obj).map(|s| s.len()).unwrap_or(usize::MAX);
+    if size > MAX_SUMMARY_CHARS {
+        shrink_other_arrays(&mut obj);
+    }
+    serde_json::Value::Object(obj)
+}
+
+/// Shrink remaining oversized top-level array fields (sampled texts, window
+/// lists) by halving their length at the data level, so the serialized form
+/// stays valid JSON. Largest arrays first so the fewest cuts reach the budget.
+fn shrink_other_arrays(obj: &mut serde_json::Map<String, serde_json::Value>) {
+    let mut keys: Vec<String> = obj
+        .iter()
+        .filter(|(k, v)| k.as_str() != "apps" && v.is_array())
+        .map(|(k, _)| k.clone())
+        .collect();
+    keys.sort_by_key(|k| {
+        std::cmp::Reverse(
+            obj.get(k)
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0),
+        )
+    });
+    for key in keys {
+        loop {
+            let Some(arr) = obj.get_mut(&key).and_then(|v| v.as_array_mut()) else {
+                break;
+            };
+            if arr.is_empty() {
+                obj.shift_remove(&key);
+                break;
+            }
+            arr.truncate(arr.len() / 2);
+            let size = serde_json::to_string(obj).map(|s| s.len()).unwrap_or(usize::MAX);
+            if size <= MAX_SUMMARY_CHARS {
+                return;
+            }
+        }
+    }
+}
 
 /// System prompt for the intent-card session. Read-only tool guidance is
 /// included because the session allowlist lets the model verify material
@@ -48,20 +118,28 @@ pub fn build_system_prompt() -> String {
         .to_string()
 }
 
-/// Single user message with the generation window, signals, the (possibly
-/// truncated) activity summary JSON and the soft-dedup recent-cards list.
+/// First user message: labeled sections carrying prepared materials (local
+/// time, window signals, bounded summary, recent cards) plus the task line.
+/// Static persona lives in the system prompt; everything per-tick lives here.
 pub fn build_user_payload(input: &GenerationInput) -> String {
-    let summary_raw = serde_json::to_string(&input.activity_summary).unwrap_or_default();
-    let summary_text = truncate_string(&summary_raw, MAX_SUMMARY_CHARS);
-    let recent_raw = serde_json::to_string(&input.recent_cards).unwrap_or_else(|_| "[]".into());
+    let summary_text = serde_json::to_string(&bound_activity_summary(&input.activity_summary))
+        .unwrap_or_else(|_| "{}".into());
+    let recent_text =
+        serde_json::to_string(&input.recent_cards).unwrap_or_else(|_| "[]".into());
     format!(
-        r#"{{"window_start":"{}","window_end":"{}","signals":{{"app_switches":{},"frame_changes":{}}},"activity_summary":{},"recent_cards":{}}}"#,
-        input.window_start_text,
-        input.window_end_text,
-        input.signals.app_switches,
-        input.signals.frame_changes,
-        summary_text,
-        recent_raw,
+        "【当前时间】{now}\n\
+         【材料窗口】{start} 至 {end}（UTC），app_switches={sw}，frame_changes={fc}\n\
+         【活动简报】{summary}\n\
+         【近期卡片】{recent}\n\
+         【任务】分析以上材料，产出一张新的意图卡片，或判定材料不足。\
+         通过调用 submit_intent_card 工具提交结论；材料不足或判重命中时提交 {{\"insufficient_material\": true}}。",
+        now = input.local_now_text,
+        start = input.window_start_text,
+        end = input.window_end_text,
+        sw = input.signals.app_switches,
+        fc = input.signals.frame_changes,
+        summary = summary_text,
+        recent = recent_text,
     )
 }
 
@@ -96,6 +174,7 @@ mod tests {
     #[test]
     fn user_payload_carries_window_signals_and_summary() {
         let input = GenerationInput {
+            local_now_text: "2026-08-24 12:00 (UTC+00:00)".into(),
             window_start_text: "2026-08-23T00:00:00+00:00".into(),
             window_end_text: "2026-08-23T01:00:00+00:00".into(),
             activity_summary: serde_json::json!({ "apps": [{ "name": "VSCode", "minutes": 42.0 }] }),
@@ -105,32 +184,54 @@ mod tests {
             signals: super::super::WindowSignals { app_switches: 7, frame_changes: 120 },
         };
         let payload = build_user_payload(&input);
-        assert!(payload.contains("\"app_switches\":7"));
-        assert!(payload.contains("\"frame_changes\":120"));
+        assert!(payload.contains("app_switches=7"));
+        assert!(payload.contains("frame_changes=120"));
         assert!(payload.contains("2026-08-23T00:00:00+00:00"));
         assert!(payload.contains("2026-08-23T01:00:00+00:00"));
-        assert!(payload.contains("VSCode"));
+        // Soft-dedup list rides along in its own labeled section.
+        let recent: serde_json::Value =
+            serde_json::from_str(section_line(&payload, "【近期卡片】")).unwrap();
+        assert_eq!(recent[0]["status"], "rejected");
+    }
 
-        // Must remain parseable JSON overall; soft-dedup list rides along.
-        let v: serde_json::Value = serde_json::from_str(&payload).unwrap();
-        assert_eq!(v["signals"]["app_switches"], 7);
-        assert_eq!(v["recent_cards"][0]["status"], "rejected");
+    /// 从分节 payload 中抠出某节一行的正文（到行尾为止）。
+    fn section_line<'a>(payload: &'a str, marker: &str) -> &'a str {
+        payload
+            .lines()
+            .find_map(|l| l.strip_prefix(marker))
+            .unwrap_or("")
     }
 
     #[test]
-    fn user_payload_truncates_huge_summaries() {
-        let big = serde_json::json!({ "key_texts": vec!["字"; 20_000] });
+    fn summary_and_recent_sections_stay_valid_json_under_huge_input() {
+        let big = serde_json::json!({
+            "apps": (0..400).map(|i| serde_json::json!({
+                "name": format!("App-{i}-with-a-fairly-long-display-name"),
+                "minutes": 100.0 - i as f64,
+                "frame_count": 10_000 - i,
+            })).collect::<Vec<_>>(),
+            "key_texts": vec!["字"; 20_000],
+        });
         let input = GenerationInput {
-            window_start_text: "s".into(),
-            window_end_text: "e".into(),
+            local_now_text: "2026-08-24 14:32 (UTC+08:00)".into(),
+            window_start_text: "2026-08-23T06:06:13+00:00".into(),
+            window_end_text: "2026-08-23T15:00:47+00:00".into(),
             activity_summary: big,
-            recent_cards: serde_json::Value::Array(vec![]),
-            signals: super::super::WindowSignals { app_switches: 0, frame_changes: 0 },
+            recent_cards: serde_json::json!([{ "id": 4, "status": "rejected" }]),
+            signals: super::super::WindowSignals { app_switches: 22, frame_changes: 51 },
         };
         let payload = build_user_payload(&input);
-        assert!(payload.chars().count() < 15_000);
-        // Truncation may cut the JSON mid-string; the model sees a prefix.
-        // We only assert it stayed bounded and contains the key header.
-        assert!(payload.contains("\"window_start\":\"s\""));
+        assert!(payload.chars().count() < 15_000, "payload must stay bounded");
+        // 两节嵌入的 JSON 必须各自合法——这是对旧截断 bug 的回归断言。
+        let summary: serde_json::Value = serde_json::from_str(
+            section_line(&payload, "【活动简报】"),
+        ).expect("activity summary section must be valid JSON");
+        assert!(summary["apps"].as_array().unwrap().len() <= 16);
+        let recent: serde_json::Value = serde_json::from_str(
+            section_line(&payload, "【近期卡片】"),
+        ).expect("recent cards section must be valid JSON");
+        assert_eq!(recent[0]["status"], "rejected");
+        assert!(payload.contains("【当前时间】2026-08-24 14:32"));
+        assert!(payload.contains("app_switches=22"));
     }
 }

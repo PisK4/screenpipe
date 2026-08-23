@@ -23,6 +23,8 @@ pub struct WindowSignals {
 
 /// Everything the model needs for one generation attempt.
 pub struct GenerationInput {
+    /// Wall-clock at tick time, user-local zone, rendered for the model.
+    pub local_now_text: String,
     pub window_start_text: String,
     pub window_end_text: String,
     pub activity_summary: serde_json::Value,

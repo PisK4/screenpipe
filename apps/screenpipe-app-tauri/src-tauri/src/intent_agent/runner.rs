@@ -188,6 +188,7 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
     let recent_cards_json =
         serde_json::to_value(&recent_cards).unwrap_or(serde_json::Value::Array(vec![]));
     let input = GenerationInput {
+        local_now_text: chrono::Local::now().format("%Y-%m-%d %H:%M (UTC%:z)").to_string(),
         window_start_text: start_dt.to_rfc3339(),
         window_end_text: end.to_rfc3339(),
         activity_summary: summary,
