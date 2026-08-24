@@ -172,6 +172,23 @@ module.exports = {
 			border: "hsl(var(--sidebar-border))",
 			ring: "hsl(var(--sidebar-ring))",
 		  },
+
+		  // cue soft-light status pill families (flat keys, kebab-case classes)
+		  "accent-soft": "hsl(var(--accent-soft))",
+		  "accent-soft-border": "hsl(var(--accent-soft-border))",
+		  "accent-on-soft": "hsl(var(--accent-on-soft))",
+		  "verified-soft": "hsl(var(--verified-soft))",
+		  "verified-soft-border": "hsl(var(--verified-soft-border))",
+		  "verified-on-soft": "hsl(var(--verified-on-soft))",
+		  "risk-soft": "hsl(var(--risk-soft))",
+		  "risk-soft-border": "hsl(var(--risk-soft-border))",
+		  "risk-on-soft": "hsl(var(--risk-on-soft))",
+		  "failure-soft": "hsl(var(--failure-soft))",
+		  "failure-soft-border": "hsl(var(--failure-soft-border))",
+		  "failure-on-soft": "hsl(var(--failure-on-soft))",
+		  "unknown-soft": "hsl(var(--unknown-soft))",
+		  "unknown-soft-border": "hsl(var(--unknown-soft-border))",
+		  "unknown-on-soft": "hsl(var(--unknown-on-soft))",
 		},
 		borderRadius: {
 		  lg: "var(--radius)",
