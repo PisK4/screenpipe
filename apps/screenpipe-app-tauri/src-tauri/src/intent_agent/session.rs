@@ -107,12 +107,12 @@ pub async fn run_intent_session(
     std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create intent dir: {e}"))?;
     ensure_intent_card_extension(&dir)?;
 
-    // Skill visibility parity with Chat (2026-08-24 decision, revising D7):
-    // pi discovers global skills regardless of cwd, so the old strip only
-    // removed project-level mirrors while user-global skills flowed in
-    // anyway (traces 01a02f23/01a02f15 list all 18 skills). Baseline
-    // skills stay installed below; hard boundaries remain the TOOL
-    // allowlist (no bash/edit/write), not skill hiding.
+    // Baseline skills in the project dir are a degraded-mode fallback only:
+    // normal spawns pass --no-skills plus explicit --skill args pointing at
+    // ~/.cue/agent/skills (see pi.rs), so these copies are not auto-loaded.
+    // Keeping them means a failed agent-skills materialization still yields a
+    // working session under legacy auto-discovery. The hard boundary remains
+    // the TOOL allowlist (no bash/edit/write).
     screenpipe_core::agents::pi::PiExecutor::ensure_screenpipe_skill(&dir)
         .map_err(|e| format!("failed to install baseline skills: {e}"))?;
 

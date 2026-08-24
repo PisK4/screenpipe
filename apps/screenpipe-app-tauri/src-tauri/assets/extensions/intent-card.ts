@@ -50,12 +50,12 @@ export default function (pi: ExtensionAPI) {
     name: "submit_intent_card",
     label: "Submit Intent Card",
     description:
-      "提交意图卡片的唯一出口。分析完成后必须调用本工具提交结论，不要把结论写成普通文字。"
-      + "两种互斥形态：提案卡传 {v:1, card_type, proactive_view, recommended_index, plans}（plans 为 1-3 个 {title, summary, consequence?} 对象）；"
-      + "材料不足时只传 {insufficient_material:true}。"
-      + "card_type 三选一：read_only=只读操作建议（查询、汇总、打开查看）；side_effect=会改变系统状态的建议（改设置、启动自动化），必须给 consequence；"
-      + "light=轻提示，只有一句话观察、无需用户选择方案，此时【不要传 plans】。"
-      + "只要给出了 plans，就必须用 read_only 或 side_effect，不能用 light。",
+      "The only exit for submitting an intent card. Once analysis is done you MUST call this tool; never write the conclusion as plain text."
+      + "Two mutually exclusive forms: a proposal card passes {v:1, card_type, proactive_view, recommended_index, plans} (plans is 1-3 objects of {title, summary, consequence?});"
+      + " insufficient material passes only {insufficient_material:true}."
+      + "card_type is one of three: read_only = suggestion that only reads (query, summarize, open for viewing); side_effect = suggestion that changes system state (settings, automations), consequence is REQUIRED;"
+      + " light = one-line observation needing no user decision, in which case do NOT pass plans."
+      + "Whenever plans is present, card_type must be read_only or side_effect, never light.",
     parameters: submitParams,
 
     async execute(_toolCallId: string, args: any) {

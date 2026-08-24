@@ -103,7 +103,7 @@ pub fn build_system_prompt() -> String {
 
 规则：
 - 结论必须通过调用 submit_intent_card 工具提交，不要把结论写成普通文字；载荷结构以该工具的参数说明为准。
-- 材料不足、或与【近期卡片】中某张卡意图相同或高度相近（尤其那张状态是 rejected，说明用户已拒绝过同类建议）时，提交 {"insufficient_material": true}，不要出卡，不要编造。
+- 材料不足、或与[RECENT_CARDS]中某张卡意图相同或高度相近（尤其那张状态是 rejected，说明用户已拒绝过同类建议）时，提交 {"insufficient_material": true}，不要出卡，不要编造。
 - 需要核对更早的卡片历史时，可调用 get_recent_intent_cards 工具。
 - 卡片文案用中文，贴合用户的语言习惯。"#
         .to_string()
@@ -121,22 +121,22 @@ pub fn build_user_payload(input: &GenerationInput) -> String {
     let drafts_text =
         serde_json::to_string(&input.open_drafts).unwrap_or_else(|_| "[]".into());
     let drafts_section = if input.open_drafts.as_array().map(|a| a.is_empty()).unwrap_or(true) {
-        "【未定稿草稿】无".to_string()
+        "[OPEN_DRAFTS]none".to_string()
     } else {
         format!(
-            "【未定稿草稿】{drafts}\n\
+            "[OPEN_DRAFTS]{drafts}\n\
              有活跃草稿时优先续写对应 draft_id（save_intent_draft），不要新建平行草稿；\
              renew_count≥3 或 ripe_when 已满足的必须收敛：升级交卡或判定不再值得追踪。",
             drafts = drafts_text
         )
     };
     format!(
-        "【当前时间】{now}\n\
-         【材料窗口】{start} 至 {end}（UTC），app_switches={sw}，frame_changes={fc}\n\
-         【活动简报】{summary}\n\
-         【近期卡片】{recent}\n\
+        "[CURRENT_TIME]{now}\n\
+         [MATERIAL_WINDOW]{start} to {end} (UTC), app_switches={sw}, frame_changes={fc}\n\
+         [ACTIVITY_SUMMARY]{summary}\n\
+         [RECENT_CARDS]{recent}\n\
          {drafts_section}\n\
-         【任务】分析以上材料，产出一张新的意图卡片，或判定材料不足。\
+         [TASK]分析以上材料，产出一张新的意图卡片，或判定材料不足。\
          通过调用 submit_intent_card 工具提交结论；材料不足或判重命中时提交 {{\"insufficient_material\": true}}。",
         now = input.local_now_text,
         start = input.window_start_text,
@@ -191,7 +191,7 @@ mod tests {
         assert!(payload.contains("2026-08-23T01:00:00+00:00"));
         // Soft-dedup list rides along in its own labeled section.
         let recent: serde_json::Value =
-            serde_json::from_str(section_line(&payload, "【近期卡片】")).unwrap();
+            serde_json::from_str(section_line(&payload, "[RECENT_CARDS]")).unwrap();
         assert_eq!(recent[0]["status"], "rejected");
     }
 
@@ -229,14 +229,14 @@ mod tests {
         assert!(payload.chars().count() < 15_000, "payload must stay bounded");
         // 两节嵌入的 JSON 必须各自合法——这是对旧截断 bug 的回归断言。
         let summary: serde_json::Value = serde_json::from_str(
-            section_line(&payload, "【活动简报】"),
+            section_line(&payload, "[ACTIVITY_SUMMARY]"),
         ).expect("activity summary section must be valid JSON");
         assert!(summary["apps"].as_array().unwrap().len() <= 16);
         let recent: serde_json::Value = serde_json::from_str(
-            section_line(&payload, "【近期卡片】"),
+            section_line(&payload, "[RECENT_CARDS]"),
         ).expect("recent cards section must be valid JSON");
         assert_eq!(recent[0]["status"], "rejected");
-        assert!(payload.contains("【当前时间】2026-08-24 14:32"));
+        assert!(payload.contains("[CURRENT_TIME]2026-08-24 14:32"));
         assert!(payload.contains("app_switches=22"));
 
         // Draft continuation section: non-empty drafts carry the converge
@@ -257,7 +257,7 @@ mod tests {
             signals: super::super::WindowSignals { app_switches: 0, frame_changes: 0 },
         };
         let payload = build_user_payload(&input);
-        assert!(payload.contains("【未定稿草稿】无"));
+        assert!(payload.contains("[OPEN_DRAFTS]none"));
         assert!(!payload.contains("renew_count"), "no converge rule without drafts");
     }
 }

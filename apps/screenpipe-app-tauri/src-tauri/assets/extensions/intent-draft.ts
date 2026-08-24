@@ -57,11 +57,11 @@ export default function (pi: ExtensionAPI) {
     name: "save_intent_draft",
     label: "Save Intent Draft",
     description:
-      "信号真实但未熟时，把追踪线索存档为草稿，下个心跳会带着它继续跑。"
-      + "三分语义：已熟就交卡（submit_intent_card）；没信号才 insufficient_material；"
-      + "本工具只给『值得继续追踪但还不到出卡时机』的场景。"
-      + "材料里出现【未定稿草稿】时应优先续写对应草稿（传 draft_id），"
-      + "而不是新建平行草稿；renew_count 已很高的草稿必须收敛：升级交卡或废弃。",
+      "Archive a real-but-unripe signal as a draft; the next heartbeat continues from it."
+      + "Three-way split: ripe signals go to submit_intent_card; no signal means insufficient_material;"
+      + " this tool exists only for 'worth tracking, not yet card-worthy'."
+      + "When the materials contain an [OPEN_DRAFTS] section, prefer renewing the matching draft (pass draft_id)"
+      + " over creating a parallel one; a draft with a high renew_count must converge: promote to a card or discard it.",
     parameters: draftParams,
 
     async execute(
@@ -95,8 +95,8 @@ export default function (pi: ExtensionAPI) {
             content: [
               {
                 type: "text" as const,
-                text: `save_intent_draft failed (${res.status}): ${text.slice(0, 400)}。`
-                  + `${res.status === 409 ? "先收敛或废弃一条活跃草稿再试；或改走 submit_intent_card / insufficient_material。" : "可修正参数后重试一次。"}`,
+                text: `save_intent_draft failed (${res.status}): ${text.slice(0, 400)}.`
+                  + `${res.status === 409 ? " Converge or discard an active draft first, or fall back to submit_intent_card / insufficient_material." : " Fix the parameters and retry once."}`,
               },
             ],
           };

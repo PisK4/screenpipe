@@ -87,7 +87,7 @@ proposed 与 shown 分开，是为了让过期时钟从「用户有机会看到�
 2. `expire_due`：心跳每拍结算超过 TTL（`INTENT_DRAFT_TTL_SECS=48h`，锚定 created_at）的 active 行；
 3. submitted / discarded 为终态，不可续写复活。
 
-防拖延是宿主职责而非模型自觉：runner 把活跃草稿注入材料【未定稿草稿】节并附收敛规则（renew_count≥3 或 ripe_when 已满足必须升级交卡或放弃）。gate 的 spawn 门槛暂不因活跃草稿降低，先观察真实续写率。
+防拖延是宿主职责而非模型自觉：runner 把活跃草稿注入材料 [OPEN_DRAFTS] 节并附收敛规则（renew_count≥3 或 ripe_when 已满足必须升级交卡或放弃）。gate 的 spawn 门槛暂不因活跃草稿降低，先观察真实续写率。
 
 ### 运行时配置与设定页（2026-08-24）
 

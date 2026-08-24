@@ -259,7 +259,7 @@ Response：`Draft #<id> saved|updated (renew_count=N, active budget left: M).`�
 
 两项阈值与心跳间隔、卡片 TTL、材料窗口默认值同属运行时配置：存共享 KV 表 `intent_settings`（引擎与 App 同库各读一份定义），设定页「意图卡片」写入，心跳每拍与每次 drafts 请求即时生效，无需重启；加载时夹取到合理区间。
 
-联动现状：runner 每拍先结算到期草稿，再把活跃草稿注入材料【未定稿草稿】节（空时渲染「无」）；生命周期状态机 draft → updated* → submitted | discarded | expired 见 FEATURE_INTENT_CARDS.md。gate 的 spawn 门槛尚未因活跃草稿降低——续写比冷启动便宜，但改门槛前需要先观察真实续写率。
+联动现状：runner 每拍先结算到期草稿，再把活跃草稿注入材料 [OPEN_DRAFTS] 节（空时渲染 none）；生命周期状态机 draft → updated* → submitted | discarded | expired 见 FEATURE_INTENT_CARDS.md。gate 的 spawn 门槛尚未因活跃草稿降低——续写比冷启动便宜，但改门槛前需要先观察真实续写率。
 
 #### 4.3.3 `save_artifact`
 
