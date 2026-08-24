@@ -101,6 +101,12 @@ impl From<&AIPreset> for PresetQuadruple {
 
 /// Map onto PiProviderConfig. Session-scoped fields (system prompt, tool
 /// allowlist) stay unset here — the session layer owns them (D6).
+/// Output budget for intent generation. 4096 (the old chat-era default) was
+/// the direct cause of truncated turns that died mid-analysis without ever
+/// calling submit_intent_card (traces 01a033b6 / 01a03407); frontier models
+/// ship 128K output tiers, so align with that.
+pub const INTENT_MAX_TOKENS: i32 = 128_000;
+
 pub fn to_provider_config(q: &PresetQuadruple) -> PiProviderConfig {
     PiProviderConfig {
         backend: None,
@@ -109,7 +115,7 @@ pub fn to_provider_config(q: &PresetQuadruple) -> PiProviderConfig {
         url: q.url.clone(),
         model: q.model.clone(),
         api_key: q.api_key.clone(),
-        max_tokens: 4096,
+        max_tokens: INTENT_MAX_TOKENS,
         max_context_chars: None,
         system_prompt: None,
         replace_system_prompt: None,
@@ -229,7 +235,7 @@ mod tests {
         assert_eq!(cfg.url, "https://api.anthropic.com");
         assert_eq!(cfg.model, "claude-sonnet-4");
         assert_eq!(cfg.api_key.as_deref(), Some("k"));
-        assert_eq!(cfg.max_tokens, 4096);
+        assert_eq!(cfg.max_tokens, INTENT_MAX_TOKENS);
         // 白名单由 session 层挂，supply 不带（D6）
         assert!(cfg.allowed_tools.is_none());
         assert!(cfg.system_prompt.is_none());

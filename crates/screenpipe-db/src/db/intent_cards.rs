@@ -28,6 +28,10 @@ pub struct IntentCardRow {
 pub struct NewIntentCard {
     pub origin: String,
     pub card_type: String,
+    /// Generator-authored one-line summary; required since the title contract
+    /// (2026-08-24). Legacy rows were backfilled by migration from
+    /// plans_json[0].title or a bounded body prefix.
+    pub title: String,
     pub proactive_view: Option<String>,
     pub dedup_key: String,
     pub local_date: String,
@@ -44,6 +48,9 @@ pub struct IntentCardSummary {
     pub origin: String,
     pub card_type: String,
     pub status: String,
+    /// Coalesced display name: stored title, else first plan title, else a
+    /// bounded body prefix — never NULL after the backfill migration.
+    pub title: String,
     pub proactive_view: Option<String>,
     pub dedup_key: String,
     pub created_at: i64,
@@ -77,12 +84,13 @@ impl DatabaseManager {
         let result = sqlx::query(
             r#"
             INSERT INTO intent_cards
-                (origin, card_type, proactive_view, dedup_key, local_date, plans_json, model_id)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                (origin, card_type, title, proactive_view, dedup_key, local_date, plans_json, model_id)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
             "#,
         )
         .bind(&card.origin)
         .bind(&card.card_type)
+        .bind(&card.title)
         .bind(&card.proactive_view)
         .bind(&card.dedup_key)
         .bind(&card.local_date)
@@ -103,7 +111,9 @@ impl DatabaseManager {
         limit: i64,
     ) -> Result<Vec<IntentCardSummary>, sqlx::Error> {
         let rows = sqlx::query(
-            "SELECT id, origin, card_type, status, proactive_view, dedup_key, created_at \
+            "SELECT id, origin, card_type, status, \
+             COALESCE(title, json_extract(plans_json, '$[0].title'), substr(proactive_view, 1, 120)) AS title, \
+             proactive_view, dedup_key, created_at \
              FROM intent_cards WHERE created_at >= ?1 \
              ORDER BY created_at DESC, id DESC LIMIT ?2",
         )
@@ -118,6 +128,7 @@ impl DatabaseManager {
                 origin: row.get("origin"),
                 card_type: row.get("card_type"),
                 status: row.get("status"),
+                title: row.get("title"),
                 proactive_view: row.get("proactive_view"),
                 dedup_key: row.get("dedup_key"),
                 created_at: row.get("created_at"),
@@ -289,6 +300,7 @@ mod tests {
         NewIntentCard {
             origin: "proactive".into(),
             card_type: "light".into(),
+            title: "窗口切换提醒".into(),
             proactive_view: Some("你似乎在反复切换".into()),
             dedup_key: "light:VSCode".into(),
             local_date: "2026-08-23".into(),

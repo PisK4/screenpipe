@@ -24,6 +24,10 @@ pub struct GeneratedCard {
     /// keeps `"v":1` in stored plans_json — dropping it makes the frontend
     /// parser reject every proactive card.
     pub v: i64,
+    /// Generator-authored one-line summary. Required since the title contract
+    /// (2026-08-24): a payload without it fails deserialization and the model
+    /// sees the corrective error.
+    pub title: String,
     pub card_type: String,
     #[serde(default)]
     pub proactive_view: String,
@@ -78,6 +82,7 @@ mod tests {
 
     const SAMPLE: &str = r#"{
         "v": 1,
+        "title": "窗口切换提醒",
         "card_type": "light",
         "proactive_view": "你似乎在反复切换窗口",
         "recommended_index": 0,
@@ -92,6 +97,7 @@ mod tests {
         let outcome = parse_model_output(SAMPLE).unwrap();
         match outcome {
             ModelOutcome::Card(c) => {
+                assert_eq!(c.title, "窗口切换提醒");
                 assert_eq!(c.card_type, "light");
                 assert_eq!(c.recommended_index, 0);
                 assert_eq!(c.plans.len(), 2);
@@ -129,8 +135,13 @@ mod tests {
 
     #[test]
     fn empty_plans_rejected() {
-        let empty = r#"{"v":1,"card_type":"light","recommended_index":0,"plans":[]}"#;
+        let empty = r#"{"v":1,"title":"t","card_type":"light","recommended_index":0,"plans":[]}"#;
         assert!(parse_model_output(empty).unwrap_err().contains("empty plans"));
+        // Title is a required contract field since 2026-08-24.
+        let no_title = SAMPLE.replace("\"title\": \"窗口切换提醒\",", "");
+        assert!(parse_model_output(&no_title)
+            .unwrap_err()
+            .contains("missing field `title`"));
     }
 
     #[test]

@@ -212,8 +212,26 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
         )
         .await
         .map_err(|e| e.to_string())?;
-    let recent_cards_json =
-        serde_json::to_value(&recent_cards).unwrap_or(serde_json::Value::Array(vec![]));
+    // Lean projection (2026-08-24): materials carry only the dedup minimal
+    // set — id anchors detail lookup via get_recent_intent_cards, gist/title
+    // is what the card was about, status drives the rejected-intent rule,
+    // created_at separates fresh repeats from stale ones. Full prose
+    // (proactive_view) previously dominated the payload and trained the model
+    // to enumerate cards in its own output until the response budget died
+    // (traces 01a033b6 / 01a03407).
+    let recent_cards_json = serde_json::Value::Array(
+        recent_cards
+            .iter()
+            .map(|c| {
+                serde_json::json!({
+                    "id": c.id,
+                    "gist": c.title,
+                    "status": c.status,
+                    "created_at": c.created_at,
+                })
+            })
+            .collect(),
+    );
     // Draft continuation: active drafts ride the materials so the model
     // renews, converges, or drops them instead of starting parallel threads.
     let open_drafts = db
@@ -263,6 +281,7 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
                     .insert_intent_card(&NewIntentCard {
                         origin: "proactive".into(),
                         card_type: c.card_type.clone(),
+                        title: c.title.clone(),
                         proactive_view: Some(c.proactive_view.clone()),
                         dedup_key: gate::dedup_key(&c.card_type, &dominant),
                         local_date: date,

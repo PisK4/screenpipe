@@ -24,6 +24,7 @@ const submitParams = {
   type: "object",
   properties: {
     v: { type: "integer" },
+    title: { type: "string", minLength: 1 },
     card_type: { type: "string", enum: ["light", "side_effect", "read_only"] },
     proactive_view: { type: "string" },
     recommended_index: { type: "integer", minimum: 0 },
@@ -51,6 +52,7 @@ export default function (pi: ExtensionAPI) {
     label: "Submit Intent Card",
     description:
       "The only exit for submitting an intent card. Once analysis is done you MUST call this tool; never write the conclusion as plain text."
+      + "title (required): your own one-line summary of the card — it becomes the card's display name and the dedup context for future runs."
       + "Two mutually exclusive forms: a proposal card passes {v:1, card_type, proactive_view, recommended_index, plans} (plans is 1-3 objects of {title, summary, consequence?});"
       + " insufficient material passes only {insufficient_material:true}."
       + "card_type is one of three: read_only = suggestion that only reads (query, summarize, open for viewing); side_effect = suggestion that changes system state (settings, automations), consequence is REQUIRED;"
@@ -68,12 +70,15 @@ export default function (pi: ExtensionAPI) {
       // payload shapes; mutual exclusion and completeness are checked here and
       // thrown as corrective error text back to the model.
       const isCard =
-        args && args.v !== undefined && args.card_type && Array.isArray(args.plans);
+        args && args.v !== undefined && args.card_type
+        && typeof args.title === "string" && args.title.trim().length > 0
+        && Array.isArray(args.plans);
       const isInsufficient = args && args.insufficient_material === true;
       if (!isCard && !isInsufficient) {
         throw new Error(
           'Invalid intent card payload. Either pass the full card '
-          + '{v:1, card_type, proactive_view?, recommended_index?, plans:[{title, summary, consequence?}]} '
+          + '{v:1, title, card_type, proactive_view?, recommended_index?, plans:[{title, summary, consequence?}]} '
+          + '(title is REQUIRED: a one-line summary naming the card) '
           + 'or exactly {"insufficient_material": true}.',
         );
       }

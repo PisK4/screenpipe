@@ -23,6 +23,25 @@ fn bound_activity_summary(summary: &serde_json::Value) -> serde_json::Value {
         Some(o) => o.clone(),
         None => serde_json::Map::new(),
     };
+    // Render-time slimming of fields that bloat materials without helping
+    // card decisions. Host-side consumers (gate) read the raw engine summary
+    // before this transform, so removal here only shapes the model-facing
+    // copy — and through it the card prose: frame counts leaked into user-
+    // facing text ("34 帧") that users cannot interpret; minutes already
+    // carries attention intensity (trace 01a03407).
+    for section in ["apps", "windows"] {
+        if let Some(items) = obj.get_mut(section).and_then(|v| v.as_array_mut()) {
+            for item in items.iter_mut() {
+                if let Some(o) = item.as_object_mut() {
+                    o.remove("frame_count");
+                    if section == "apps" {
+                        o.remove("first_seen");
+                        o.remove("last_seen");
+                    }
+                }
+            }
+        }
+    }
     let mut apps = obj
         .get("apps")
         .and_then(|v| v.as_array())

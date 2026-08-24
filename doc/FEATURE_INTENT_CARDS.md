@@ -54,7 +54,7 @@ P2 是唯一能改卡片状态的通道：前端按钮只调 command，SQL 层�
 
 ### 表结构与状态机
 
-`intent_cards` 十二列（迁移 `20260822120000_create_intent_cards.sql`）：身份（id、origin、card_type、dedup_key、local_date）、内容（proactive_view、plans_json）、供给追溯（model_id）、时间戳（created_at、shown_at、expires_at）、状态（status）。
+`intent_cards` 十三列（迁移 `20260822120000_create_intent_cards.sql` + `20260824220000_add_intent_card_title.sql`）：身份（id、origin、card_type、dedup_key、local_date）、内容（title、proactive_view、plans_json；title 自 2026-08-24 起是交卡契约必填项，历史行按首方案标题回填）、供给追溯（model_id）、时间戳（created_at、shown_at、expires_at）、状态（status）。
 
 状态机五值 `proposed → shown → accepted / rejected / expired`，v1 只生效四条转移，全部由 SQL WHERE 守卫保证：
 

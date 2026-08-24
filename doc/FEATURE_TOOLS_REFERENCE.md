@@ -230,6 +230,7 @@ Response：JSON 文本 `{ status: connected | declined | failed, connectionId, n
 | 字段 | 类型 | 必填 | 含义 |
 | --- | --- | --- | --- |
 | `v` | integer | 卡载荷必填 | 契约版本，恒为数字 1 |
+| `title` | string ≥1 字符 | 卡载荷必填 | 生成器自拟的一行标题，卡片的显示名与后续判重语境（2026-08-24 起一等公民；历史行由迁移回填） |
 | `card_type` | enum：light / side_effect / read_only | 卡载荷必填 | 卡片类型，语义见下 |
 | `proactive_view` | string | 否 | 给用户看的一句话引子，中文 |
 | `recommended_index` | integer ≥0 | 否 | 推荐方案下标 |
@@ -355,7 +356,7 @@ store 镜像永不遮蔽基线名与 cue-tools（导入端拒绝 + 同步端双�
 | `since_hours` | number | 48 | 回看小时数，夹取 0–744 |
 | `limit` | integer | 20 | 上限数，夹取 1–100 |
 
-响应 `{ cards: [{ id, origin, card_type, status, proactive_view, dedup_key, created_at }], generated_at }`，created_at 为 unixepoch 秒，cards 按 created_at 倒序。错误：500 带 `{"error"}`。
+响应 `{ cards: [{ id, origin, card_type, status, title, proactive_view, dedup_key, created_at }], generated_at }`，title 为合并后的显示名（存储 title → 首方案 title → 正文前 120 字），created_at 为 unixepoch 秒，cards 按 created_at 倒序。错误：500 带 `{"error"}`。
 
 ### `GET /intent-cards/drafts` · `POST /intent-cards/drafts`
 

@@ -320,7 +320,7 @@ mod tests {
     #[test]
     fn structured_card_extraction_reads_the_submit_tool_call() {
         let card = serde_json::json!({
-            "v": 1, "card_type": "light", "proactive_view": "引子",
+            "v": 1, "title": "窗口切换提醒", "card_type": "light", "proactive_view": "引子",
             "recommended_index": 0,
             "plans": [{ "title": "t", "summary": "s" }]
         });

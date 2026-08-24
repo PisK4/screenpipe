@@ -1191,7 +1191,9 @@ pub struct AIPreset {
 }
 
 fn default_max_tokens() -> i32 {
-    4096
+    // 2026-08-24: lifted from the chat-era 4096 — frontier models now ship
+    // 128K output tiers and a 4K budget truncates agentic turns mid-flight.
+    128_000
 }
 
 impl Default for AIPreset {
@@ -1206,7 +1208,7 @@ impl Default for AIPreset {
             default_preset: false,
             api_key: None,
             max_context_chars: 512000,
-            max_tokens: 4096,
+            max_tokens: 128_000,
         }
     }
 }
@@ -1475,7 +1477,7 @@ Rules:
             default_preset: true,
             api_key: None,
             max_context_chars: 128000,
-            max_tokens: 4096,
+            max_tokens: 128_000,
         };
 
         // Rust persists store.bin before the frontend mounts. All-null values

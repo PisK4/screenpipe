@@ -1859,7 +1859,9 @@ fn uses_acp_backend(config: Option<&PiProviderConfig>) -> bool {
 }
 
 fn default_max_tokens() -> i32 {
-    4096
+    // Lifted with the store defaults (2026-08-24): see store.rs
+    // default_max_tokens for rationale.
+    128_000
 }
 
 fn context_window_tokens(max_context_chars: Option<i32>) -> Option<i32> {

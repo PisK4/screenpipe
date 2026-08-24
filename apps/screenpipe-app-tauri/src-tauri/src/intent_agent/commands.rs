@@ -170,6 +170,7 @@ pub async fn intent_spawn_onboarding_card(app: AppHandle) -> Result<i64, String>
     let card = NewIntentCard {
         origin: "system_onboarding".into(),
         card_type: "read_only".into(),
+        title: "把本机 AI 工具接入 Cue".into(),
         proactive_view: Some("把本机 AI 工具接入 Cue".into()),
         dedup_key: "system_onboarding:onboarding".into(),
         local_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
