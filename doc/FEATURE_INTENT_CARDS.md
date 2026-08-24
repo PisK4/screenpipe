@@ -77,6 +77,18 @@ proposed 与 shown 分开，是为了让过期时钟从「用户有机会看到�
 - 新手卡幂等从唯一索引改为 command 内显式当日预检（`intent_find_id_by_dedup_key`）；`InsertOutcome::DedupHit` 已移除，insert 直接返回新行 id。
 - 成本边界：心跳节拍（900s）是硬顶，判重失效的最坏结果是一天几十次会话里多几张重复卡，通知面板兜底。不设机械保险丝；实测命中率不可接受时，最粗兜底是同 app 单日 COUNT 检查，届时另议。
 
+### 草稿状态机（2026-08-24 新增，`intent_drafts` 表）
+
+交卡出口从二元扩为三分：已熟交卡（submit_intent_card）、未熟存档（save_intent_draft，工具见 FEATURE_TOOLS_REFERENCE §4.3.2）、无信号（insufficient_material）。草稿是「带成熟条件的期票」：`gist` + `evidence_so_far` + 必填的 `ripe_when`，跨心跳存活于独立的 `intent_drafts` 表（迁移 `20260824120000_create_intent_drafts.sql`），不经 transcript 提取。
+
+状态四值 `active → submitted | discarded | expired`：
+
+1. `upsert`：新建或按 id 续写（renew_count +1）；活跃数达上限（`INTENT_DRAFT_MAX_ACTIVE=3`）由 POST 路由拒绝；
+2. `expire_due`：心跳每拍结算超过 TTL（`INTENT_DRAFT_TTL_SECS=48h`，锚定 created_at）的 active 行；
+3. submitted / discarded 为终态，不可续写复活。
+
+防拖延是宿主职责而非模型自觉：runner 把活跃草稿注入材料【未定稿草稿】节并附收敛规则（renew_count≥3 或 ripe_when 已满足必须升级交卡或放弃）。两项阈值目前为编译期常量，待设定页转可配置。gate 的 spawn 门槛暂不因活跃草稿降低，先观察真实续写率。
+
 ## 5. 输出契约：submit_intent_card 结构化交卡
 
 结论必须通过调用 `submit_intent_card` 工具提交，不写普通文字。工具参数 schema 内嵌完整卡片契约（oneOf 两分支），pi 在协议层做 TypeBox 编译校验：非法调用在 execute 之前被拒并回灌错误让模型自纠。第三方结构化输出包评估后未采纳——Ajv 校验与 steering 重试都有更便宜的等价物（协议层校验、心跳下拍自然重试）。

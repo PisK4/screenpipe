@@ -110,18 +110,32 @@ pub fn build_system_prompt() -> String {
 }
 
 /// First user message: labeled sections carrying prepared materials (local
-/// time, window signals, bounded summary, recent cards) plus the task line.
-/// Static persona lives in the system prompt; everything per-tick lives here.
+/// time, window signals, bounded summary, recent cards, open drafts) plus the
+/// task line. Static persona lives in the system prompt; everything per-tick
+/// lives here.
 pub fn build_user_payload(input: &GenerationInput) -> String {
     let summary_text = serde_json::to_string(&bound_activity_summary(&input.activity_summary))
         .unwrap_or_else(|_| "{}".into());
     let recent_text =
         serde_json::to_string(&input.recent_cards).unwrap_or_else(|_| "[]".into());
+    let drafts_text =
+        serde_json::to_string(&input.open_drafts).unwrap_or_else(|_| "[]".into());
+    let drafts_section = if input.open_drafts.as_array().map(|a| a.is_empty()).unwrap_or(true) {
+        "【未定稿草稿】无".to_string()
+    } else {
+        format!(
+            "【未定稿草稿】{drafts}\n\
+             有活跃草稿时优先续写对应 draft_id（save_intent_draft），不要新建平行草稿；\
+             renew_count≥3 或 ripe_when 已满足的必须收敛：升级交卡或判定不再值得追踪。",
+            drafts = drafts_text
+        )
+    };
     format!(
         "【当前时间】{now}\n\
          【材料窗口】{start} 至 {end}（UTC），app_switches={sw}，frame_changes={fc}\n\
          【活动简报】{summary}\n\
          【近期卡片】{recent}\n\
+         {drafts_section}\n\
          【任务】分析以上材料，产出一张新的意图卡片，或判定材料不足。\
          通过调用 submit_intent_card 工具提交结论；材料不足或判重命中时提交 {{\"insufficient_material\": true}}。",
         now = input.local_now_text,
@@ -167,6 +181,7 @@ mod tests {
             recent_cards: serde_json::json!([
                 { "id": 2, "card_type": "read_only", "status": "rejected" }
             ]),
+            open_drafts: serde_json::json!([]),
             signals: super::super::WindowSignals { app_switches: 7, frame_changes: 120 },
         };
         let payload = build_user_payload(&input);
@@ -204,6 +219,10 @@ mod tests {
             window_end_text: "2026-08-23T15:00:47+00:00".into(),
             activity_summary: big,
             recent_cards: serde_json::json!([{ "id": 4, "status": "rejected" }]),
+            open_drafts: serde_json::json!([
+                { "id": 7, "gist": "追踪排障", "renew_count": 3,
+                  "evidence_so_far": "Xcode 两小时", "ripe_when": "出现报错原文" }
+            ]),
             signals: super::super::WindowSignals { app_switches: 22, frame_changes: 51 },
         };
         let payload = build_user_payload(&input);
@@ -219,5 +238,26 @@ mod tests {
         assert_eq!(recent[0]["status"], "rejected");
         assert!(payload.contains("【当前时间】2026-08-24 14:32"));
         assert!(payload.contains("app_switches=22"));
+
+        // Draft continuation section: non-empty drafts carry the converge
+        // rule; the payload must stay bounded with them embedded.
+        assert!(payload.contains("renew_count≥3"), "converge rule must ride along");
+        assert!(payload.contains("追踪排障"));
+    }
+
+    #[test]
+    fn empty_drafts_render_as_none() {
+        let input = GenerationInput {
+            local_now_text: "2026-08-24 12:00 (UTC+00:00)".into(),
+            window_start_text: "2026-08-23T00:00:00+00:00".into(),
+            window_end_text: "2026-08-23T01:00:00+00:00".into(),
+            activity_summary: serde_json::json!({}),
+            recent_cards: serde_json::json!([]),
+            open_drafts: serde_json::json!([]),
+            signals: super::super::WindowSignals { app_switches: 0, frame_changes: 0 },
+        };
+        let payload = build_user_payload(&input);
+        assert!(payload.contains("【未定稿草稿】无"));
+        assert!(!payload.contains("renew_count"), "no converge rule without drafts");
     }
 }
