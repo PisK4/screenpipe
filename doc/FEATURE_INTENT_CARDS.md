@@ -87,7 +87,11 @@ proposed 与 shown 分开，是为了让过期时钟从「用户有机会看到�
 2. `expire_due`：心跳每拍结算超过 TTL（`INTENT_DRAFT_TTL_SECS=48h`，锚定 created_at）的 active 行；
 3. submitted / discarded 为终态，不可续写复活。
 
-防拖延是宿主职责而非模型自觉：runner 把活跃草稿注入材料【未定稿草稿】节并附收敛规则（renew_count≥3 或 ripe_when 已满足必须升级交卡或放弃）。两项阈值目前为编译期常量，待设定页转可配置。gate 的 spawn 门槛暂不因活跃草稿降低，先观察真实续写率。
+防拖延是宿主职责而非模型自觉：runner 把活跃草稿注入材料【未定稿草稿】节并附收敛规则（renew_count≥3 或 ripe_when 已满足必须升级交卡或放弃）。gate 的 spawn 门槛暂不因活跃草稿降低，先观察真实续写率。
+
+### 运行时配置与设定页（2026-08-24）
+
+心跳间隔、卡片 TTL、草稿上限、草稿 TTL、材料窗口默认值五项为运行时配置：存共享 KV 表 `intent_settings`（迁移 `20260824130000_create_intent_settings.sql`），引擎进程（drafts 路由的上限校验）与 App 进程（心跳循环、mark_shown 时钟、窗口锚定）读同一份定义；设定页「意图卡片」（`components/settings/intent-settings.tsx` 对应的 `intent-cards` section）写入后即时生效，无需重启。加载侧统一夹取区间，手改数据库不会卡死心跳。gate 阈值、会话超时等判据仍留编译期常量——暴露给用户只会制造误调。
 
 ## 5. 输出契约：submit_intent_card 结构化交卡
 

@@ -24,7 +24,7 @@ use std::sync::Arc;
 use tracing::error;
 
 use crate::server::AppState;
-use screenpipe_db::{IntentDraftSummary, INTENT_DRAFT_MAX_ACTIVE};
+use screenpipe_db::{IntentDraftSummary, IntentRuntimeConfig};
 
 #[derive(Debug, Deserialize, OaSchema)]
 pub struct IntentCardsRecentQuery {
@@ -120,7 +120,8 @@ pub struct IntentDraftsResponse {
 pub async fn get_intent_drafts(
     State(state): State<Arc<AppState>>,
 ) -> Result<JsonResponse<IntentDraftsResponse>, (StatusCode, JsonResponse<Value>)> {
-    let rows = state.db.intent_list_active_drafts().await.map_err(|e| {
+    let cfg = state.db.intent_load_config().await.unwrap_or_default();
+    let rows = state.db.intent_list_active_drafts(cfg.draft_ttl_secs).await.map_err(|e| {
         error!(error = %e, "intent drafts query failed");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -188,22 +189,24 @@ pub async fn upsert_intent_draft(
         ));
     }
 
+    let cfg = state.db.intent_load_config().await.unwrap_or_default();
     if body.id.is_none() {
-        let active = state.db.intent_count_active_drafts().await.map_err(|e| {
+        let active = state.db.intent_count_active_drafts(cfg.draft_ttl_secs).await.map_err(|e| {
             error!(error = %e, "intent drafts count failed");
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 JsonResponse(json!({"error": "intent drafts count failed"})),
             )
         })?;
-        if active >= INTENT_DRAFT_MAX_ACTIVE {
+        if active >= cfg.draft_max_active {
             return Err((
                 StatusCode::CONFLICT,
                 JsonResponse(json!({
                     "error": format!(
-                        "active draft cap reached ({active}/{INTENT_DRAFT_MAX_ACTIVE}); \
+                        "active draft cap reached ({active}/{}); \
                          converge one into a card via submit_intent_card or drop it \
-                         before creating a new draft"
+                         before creating a new draft",
+                        cfg.draft_max_active
                     )
                 })),
             ));
@@ -221,11 +224,12 @@ pub async fn upsert_intent_draft(
                 JsonResponse(json!({"error": "intent draft upsert failed"})),
             )
         })?;
-    let active_left = INTENT_DRAFT_MAX_ACTIVE - state.db.intent_count_active_drafts().await.unwrap_or(0);
+    let active_left =
+        cfg.draft_max_active - state.db.intent_count_active_drafts(cfg.draft_ttl_secs).await.unwrap_or(0);
     // Renewal path needs the fresh renew_count for the receipt.
     let renew_count = state
         .db
-        .intent_list_active_drafts()
+        .intent_list_active_drafts(cfg.draft_ttl_secs)
         .await
         .ok()
         .and_then(|rows| rows.into_iter().find(|r| r.id == id))

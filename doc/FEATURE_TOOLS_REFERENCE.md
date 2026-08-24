@@ -255,7 +255,9 @@ Response：execute 回执 `Intent card submitted.`——真正的载荷由宿主
 
 Response：`Draft #<id> saved|updated (renew_count=N, active budget left: M).`。新建撞上限时返回 409，附「先收敛或废弃」指引（工具层会把这个指引拼进错误文本）；其余非 2xx 照 §9.3 纪律。
 
-边界与宿主侧纪律：草稿持久化在引擎侧 SQLite 表 `intent_drafts`（status: active/submitted/discarded/expired），不经 transcript 提取——跨心跳续写要求它独立于单次会话存在，App 重启不丢。防拖延三条全部宿主强制：活跃草稿数超上限（`INTENT_DRAFT_MAX_ACTIVE`，当前 3）拒绝新建；存活超时（`INTENT_DRAFT_TTL_SECS`，当前 48 小时，对齐卡片过期钟）由心跳每拍结算为 expired；renew_count 由 runner 注入材料并附收敛规则（≥3 或 ripe_when 已满足必须升级交卡或放弃）。两项阈值目前是编译期常量，设定页落地后转可配置。
+边界与宿主侧纪律：草稿持久化在引擎侧 SQLite 表 `intent_drafts`（status: active/submitted/discarded/expired），不经 transcript 提取——跨心跳续写要求它独立于单次会话存在，App 重启不丢。防拖延三条全部宿主强制：活跃草稿数超上限（`INTENT_DRAFT_MAX_ACTIVE`，缺省 3）拒绝新建；存活超时（`INTENT_DRAFT_TTL_SECS`，缺省 48 小时，对齐卡片过期钟）由心跳每拍结算为 expired；renew_count 由 runner 注入材料并附收敛规则（≥3 或 ripe_when 已满足必须升级交卡或放弃）。
+
+两项阈值与心跳间隔、卡片 TTL、材料窗口默认值同属运行时配置：存共享 KV 表 `intent_settings`（引擎与 App 同库各读一份定义），设定页「意图卡片」写入，心跳每拍与每次 drafts 请求即时生效，无需重启；加载时夹取到合理区间。
 
 联动现状：runner 每拍先结算到期草稿，再把活跃草稿注入材料【未定稿草稿】节（空时渲染「无」）；生命周期状态机 draft → updated* → submitted | discarded | expired 见 FEATURE_INTENT_CARDS.md。gate 的 spawn 门槛尚未因活跃草稿降低——续写比冷启动便宜，但改门槛前需要先观察真实续写率。
 

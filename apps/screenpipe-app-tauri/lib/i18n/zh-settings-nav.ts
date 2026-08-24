@@ -20,6 +20,7 @@ export const settingsNavZh = {
     privacy: "隐私",
     permissions: "权限",
     aiFeatures: "AI 功能",
+    intentCards: "意图卡片",
     modelsKeys: "模型与密钥",
     aiCredits: "AI 额度",
     account: "账户",

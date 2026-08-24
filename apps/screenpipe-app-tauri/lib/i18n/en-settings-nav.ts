@@ -21,6 +21,7 @@ export const settingsNavEn = {
     privacy: "Privacy",
     permissions: "Permissions",
     aiFeatures: "AI features",
+    intentCards: "Intent cards",
     modelsKeys: "Models & keys",
     aiCredits: "AI credits",
     account: "Account",

@@ -44,7 +44,6 @@ export const searchIndex: SettingsField[] = [
     ],
   },
   { label: "Auto-generate chat titles", keywords: ["chat", "tokens"] },
-  { label: "Intent cards model", keywords: ["intent", "cards", "heartbeat", "ollama"] },
 ];
 
 export function AISettings() {
@@ -188,8 +187,6 @@ export function AISettings() {
           </div>
         </CardContent>
       </Card>
-
-      <IntentSupplyCard />
     </div>
   );
 }
@@ -199,7 +196,7 @@ export function AISettings() {
  * visible effective-source line, so even "follow chat" and builtin
  * fallback show exactly which endpoint receives activity data.
  */
-function IntentSupplyCard() {
+export function IntentSupplyCard() {
   const { settings } = useSettings();
   const t = useT();
   const { toast } = useToast();

@@ -330,4 +330,18 @@ export const settingsMiscEn = {
     lastGenerationNone: "Not run yet",
     saveFailed: "Could not update the intent model",
   },
+  intentSettings: {
+    title: "Heartbeat & lifecycle",
+    description:
+      "Cadence and expiry for proactive cards. Applies without an app restart; values are clamped to sane ranges.",
+    heartbeat: "Heartbeat (seconds)",
+    materialWindow: "Material window (hours)",
+    cardTtl: "Card expiry (hours)",
+    draftCap: "Max active drafts",
+    draftTtl: "Draft expiry (hours)",
+    save: "Save",
+    resetDefaults: "Reset defaults",
+    saved: "Intent card settings saved",
+    saveFailed: "Could not save intent card settings",
+  },
 };

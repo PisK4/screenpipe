@@ -163,22 +163,29 @@ impl DatabaseManager {
         Ok(rows.into_iter().map(row_to_card).collect())
     }
 
-    /// `proposed → shown`, one-way. Writes the 48h expiry clock only for
-    /// `origin='proactive'` cards; repeated calls are rejected and never
-    /// extend an existing clock. Returns whether the transition happened.
-    pub async fn intent_card_mark_shown(&self, id: i64, now: i64) -> Result<bool, sqlx::Error> {
+    /// `proposed → shown`, one-way. Writes the expiry clock (`card_ttl_secs`,
+    /// from IntentRuntimeConfig) only for `origin='proactive'` cards;
+    /// repeated calls are rejected and never extend an existing clock.
+    /// Returns whether the transition happened.
+    pub async fn intent_card_mark_shown(
+        &self,
+        id: i64,
+        now: i64,
+        card_ttl_secs: i64,
+    ) -> Result<bool, sqlx::Error> {
         let mut tx = self.begin_immediate_with_retry().await?;
         let result = sqlx::query(
             r#"
             UPDATE intent_cards SET
                 status = 'shown',
                 shown_at = ?2,
-                expires_at = CASE WHEN origin = 'proactive' THEN ?2 + 172800 ELSE expires_at END
+                expires_at = CASE WHEN origin = 'proactive' THEN ?2 + ?3 ELSE expires_at END
             WHERE id = ?1 AND status = 'proposed'
             "#,
         )
         .bind(id)
         .bind(now)
+        .bind(card_ttl_secs)
         .execute(&mut **tx.conn())
         .await?;
         tx.commit().await?;
@@ -294,7 +301,7 @@ mod tests {
     async fn mark_shown_sets_expiry_and_finish_only_from_shown() {
         let db = test_db().await;
         let id = db.insert_intent_card(&sample_card()).await.unwrap();
-        assert!(db.intent_card_mark_shown(id, 1_000_000).await.unwrap());
+        assert!(db.intent_card_mark_shown(id, 1_000_000, 48 * 3600).await.unwrap());
         let row = db.intent_list_pending().await.unwrap().pop().unwrap();
         assert_eq!(row.status, "shown");
         assert_eq!(row.expires_at, Some(1_000_000 + 48 * 3600));
@@ -307,8 +314,8 @@ mod tests {
     async fn repeated_mark_shown_never_extends_expiry() {
         let db = test_db().await;
         let id = db.insert_intent_card(&sample_card()).await.unwrap();
-        assert!(db.intent_card_mark_shown(id, 1_000_000).await.unwrap());
-        assert!(!db.intent_card_mark_shown(id, 99_000_000).await.unwrap());
+        assert!(db.intent_card_mark_shown(id, 1_000_000, 48 * 3600).await.unwrap());
+        assert!(!db.intent_card_mark_shown(id, 99_000_000, 48 * 3600).await.unwrap());
         let row = db.intent_list_pending().await.unwrap().pop().unwrap();
         assert_eq!(row.shown_at, Some(1_000_000));
         assert_eq!(row.expires_at, Some(1_000_000 + 48 * 3600)); // 时钟未被续命
@@ -321,7 +328,7 @@ mod tests {
         card.origin = "system_onboarding".into();
         card.dedup_key = "system_onboarding:onboarding".into();
         let id = db.insert_intent_card(&card).await.unwrap();
-        assert!(db.intent_card_mark_shown(id, 1_000_000).await.unwrap());
+        assert!(db.intent_card_mark_shown(id, 1_000_000, 48 * 3600).await.unwrap());
         let row = db.intent_list_pending().await.unwrap().pop().unwrap();
         assert_eq!(row.status, "shown");
         assert_eq!(row.expires_at, None); // 48h 后不得被 expire_due 结算
@@ -403,9 +410,9 @@ mod tests {
         future.dedup_key = "light:Figma".into();
         let future_id = db.insert_intent_card(&future).await.unwrap();
 
-        assert!(db.intent_card_mark_shown(due, 1_000_000).await.unwrap());
+        assert!(db.intent_card_mark_shown(due, 1_000_000, 48 * 3600).await.unwrap());
         // Shown later → later expiry clock.
-        assert!(db.intent_card_mark_shown(future_id, 5_000_000).await.unwrap());
+        assert!(db.intent_card_mark_shown(future_id, 5_000_000, 48 * 3600).await.unwrap());
 
         let due_at = 1_000_000 + 48 * 3600;
         let future_at = 5_000_000 + 48 * 3600;

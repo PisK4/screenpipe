@@ -85,14 +85,17 @@ impl DatabaseManager {
         Ok(result)
     }
 
-    /// Active drafts within the TTL window, oldest first — continuation order.
-    pub async fn intent_list_active_drafts(&self) -> Result<Vec<IntentDraftSummary>, sqlx::Error> {
+    /// Active drafts within `ttl_secs`, oldest first — continuation order.
+    pub async fn intent_list_active_drafts(
+        &self,
+        ttl_secs: i64,
+    ) -> Result<Vec<IntentDraftSummary>, sqlx::Error> {
         let rows = sqlx::query(
             "SELECT id, gist, evidence_so_far, ripe_when, renew_count, created_at, updated_at \
              FROM intent_drafts WHERE status = 'active' \
              AND created_at > unixepoch() - ?1 ORDER BY created_at ASC, id ASC",
         )
-        .bind(INTENT_DRAFT_TTL_SECS)
+        .bind(ttl_secs)
         .fetch_all(&self.pool)
         .await?;
         Ok(rows
@@ -109,12 +112,12 @@ impl DatabaseManager {
             .collect())
     }
 
-    pub async fn intent_count_active_drafts(&self) -> Result<i64, sqlx::Error> {
+    pub async fn intent_count_active_drafts(&self, ttl_secs: i64) -> Result<i64, sqlx::Error> {
         let count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM intent_drafts WHERE status = 'active' \
              AND created_at > unixepoch() - ?1",
         )
-        .bind(INTENT_DRAFT_TTL_SECS)
+        .bind(ttl_secs)
         .fetch_one(&self.pool)
         .await?;
         Ok(count)
@@ -122,13 +125,13 @@ impl DatabaseManager {
 
     /// Settle overdue active rows (`created_at + ttl <= now`). Called from the
     /// heartbeat alongside card expiration; returns rows settled.
-    pub async fn intent_expire_due_drafts(&self) -> Result<u64, sqlx::Error> {
+    pub async fn intent_expire_due_drafts(&self, ttl_secs: i64) -> Result<u64, sqlx::Error> {
         let mut tx = self.begin_immediate_with_retry().await?;
         let result = sqlx::query(
             "UPDATE intent_drafts SET status = 'expired', updated_at = unixepoch() \
              WHERE status = 'active' AND created_at <= unixepoch() - ?1",
         )
-        .bind(INTENT_DRAFT_TTL_SECS)
+        .bind(ttl_secs)
         .execute(&mut **tx.conn())
         .await?;
         tx.commit().await?;
@@ -139,7 +142,10 @@ impl DatabaseManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::intent_settings::IntentRuntimeConfig;
     use screenpipe_config::DbConfig;
+
+    fn ttl() -> i64 { IntentRuntimeConfig::default().draft_ttl_secs }
 
     async fn test_db() -> DatabaseManager {
         // Same pattern as intent_cards tests: leak the tempdir guard so the
@@ -168,7 +174,7 @@ mod tests {
             .unwrap();
         assert!(!created2);
         assert_eq!(id2, id);
-        let drafts = db.intent_list_active_drafts().await.unwrap();
+        let drafts = db.intent_list_active_drafts(ttl()).await.unwrap();
         assert_eq!(drafts.len(), 1);
         assert_eq!(drafts[0].renew_count, 1);
         assert_eq!(drafts[0].evidence_so_far, "补充：切换到终端");
@@ -206,22 +212,22 @@ mod tests {
         sqlx::query(
             "UPDATE intent_drafts SET created_at = unixepoch() - ?1 - 10",
         )
-        .bind(INTENT_DRAFT_TTL_SECS)
+        .bind(ttl() + 10)
         .execute(&mut **tx.conn())
         .await
         .unwrap();
         tx.commit().await.unwrap();
 
         // Overdue rows are invisible to both reads...
-        assert!(db.intent_list_active_drafts().await.unwrap().is_empty());
-        assert_eq!(db.intent_count_active_drafts().await.unwrap(), 0);
+        assert!(db.intent_list_active_drafts(ttl()).await.unwrap().is_empty());
+        assert_eq!(db.intent_count_active_drafts(ttl()).await.unwrap(), 0);
         // ...and settle exactly once.
-        assert_eq!(db.intent_expire_due_drafts().await.unwrap(), 1);
-        assert_eq!(db.intent_expire_due_drafts().await.unwrap(), 0);
+        assert_eq!(db.intent_expire_due_drafts(ttl()).await.unwrap(), 1);
+        assert_eq!(db.intent_expire_due_drafts(ttl()).await.unwrap(), 0);
 
         // A fresh draft survives the same sweep untouched.
         db.intent_upsert_draft(None, "new", "e", "r").await.unwrap();
-        assert_eq!(db.intent_expire_due_drafts().await.unwrap(), 0);
-        assert_eq!(db.intent_list_active_drafts().await.unwrap().len(), 1);
+        assert_eq!(db.intent_expire_due_drafts(ttl()).await.unwrap(), 0);
+        assert_eq!(db.intent_list_active_drafts(ttl()).await.unwrap().len(), 1);
     }
 }

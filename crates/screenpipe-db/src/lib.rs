@@ -48,7 +48,7 @@ pub use db::{
     ActivityActionRecord, ActivityEvidenceDraft, ActivityEvidenceRecord, ActivityIntervalDraft,
     ActivityIntervalRecord, ActivityLedgerObservation, ActivityTaskDraft, DatabaseManager,
     DeleteTimeRangeResult, ImmediateTx, IntentCardRow, IntentCardSummary, IntentDraftSummary,
-    NewIntentCard, INTENT_DRAFT_MAX_ACTIVE, INTENT_DRAFT_TTL_SECS,
+    NewIntentCard, IntentRuntimeConfig, MATERIAL_WINDOW_MAX_SECS,
     NewMeetingTranscriptSegment, SemanticActor,
     SemanticActorAlias, SemanticActorReference, SemanticAttachResult, SemanticCleanupResult,
     SemanticContextQuery, SemanticFrameContext, SemanticProjectionWriteResult,
