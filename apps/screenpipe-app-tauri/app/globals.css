@@ -228,95 +228,135 @@
     --phosphor-ink: 0 0% 2%;
     --trace: 60 4% 56%;
 
-    --background: 0 0% 7%; /* #121212 */
-    --foreground: 0 0% 100%; /* #FFFFFF */
+    /* Base */
+    --background: 220 5% 12%;        /* #1C1D1F */
+    --foreground: 210 8% 95%;        /* #F2F3F4 */
 
-    /* Surface colors */
-    --surface: 0 0% 10%;
-    --surface-secondary: 0 0% 13%;
-    --surface-tertiary: 0 0% 16%;
+    /* Surfaces */
+    --surface-canvas: 220 5% 12%;
+    --surface-sidebar: 220 6% 10%;   /* #17181A */
+    --surface-raised: 225 5% 15%;    /* #232427 — L3 预留 */
+    --surface-sunken: 220 5% 13%;    /* #1F2022 — L3 预留 */
+    --surface-hover: 225 5% 17%;     /* #2A2B2E — L3 预留 */
+    --surface-hover2: 228 5% 20%;    /* #313236 — L3 预留 */
+    --surface-field: 225 4% 18%;     /* #2B2C2F — L3 预留 */
+    --surface: 220 5% 12%;
+    --surface-secondary: 220 5% 13%;
+    --surface-tertiary: 225 5% 17%;
 
-    /* Card colors */
-    --card: 0 0% 9%;
-    --card-foreground: 0 0% 100%;
-    --card-hover: 0 0% 100%; /* Invert on hover */
+    --card: 225 5% 15%;
+    --card-foreground: 210 8% 95%;
+    --card-hover: 225 5% 17%;
+    --popover: 225 5% 15%;
+    --popover-foreground: 210 8% 95%;
 
-    /* Popover colors */
-    --popover: 0 0% 10%;
-    --popover-foreground: 0 0% 100%;
+    --primary: 210 8% 95%;           /* #F2F3F4 */
+    --primary-foreground: 220 5% 12%;
+    --primary-hover: 220 5% 24%;     /* lifted ink-hover — L3 预留 */
+    --primary-muted: 228 5% 20%;
 
-    /* Primary - Pure white */
-    --primary: 0 0% 100%;
-    --primary-foreground: 0 0% 0%;
-    --primary-hover: 0 0% 80%;
-    --primary-muted: 0 0% 15%;
+    --secondary: 220 5% 13%;
+    --secondary-foreground: 210 8% 95%;
+    --secondary-hover: 225 5% 17%;
 
-    /* Secondary */
-    --secondary: 0 0% 14%;
-    --secondary-foreground: 0 0% 100%;
-    --secondary-hover: 0 0% 18%;
+    --success: 145 51% 49%;          /* #3DBB72 */
+    --success-foreground: 220 5% 12%;
+    --success-muted: 152 34% 20%;    /* #214333 */
+    --warning: 27 91% 60%;           /* #F68F3C */
+    --warning-foreground: 220 5% 12%;
+    --warning-muted: 29 39% 21%;     /* #493420 */
+    --destructive: 358 81% 65%;      /* #EE5C61 */
+    --destructive-foreground: 220 5% 12%;
+    --destructive-hover: 358 81% 72%;
+    --destructive-muted: 356 29% 23%;/* #4B292B */
+    --info: 212 100% 80%;            /* #9BCAFF */
+    --info-foreground: 220 5% 12%;
+    --info-muted: 211 33% 22%;       /* #26384B */
 
-    /* Status colors - Grayscale */
-    --success: 0 0% 80%;
-    --success-foreground: 0 0% 0%;
-    --success-muted: 0 0% 15%;
+    --muted: 225 5% 17%;
+    --muted-foreground: 218 5% 66%;  /* #A5A8AD */
+    --accent: 225 5% 17%;
+    --accent-foreground: 210 8% 95%;
+    --accent-hover: 228 5% 20%;
 
-    --warning: 0 0% 60%;
-    --warning-foreground: 0 0% 0%;
-    --warning-muted: 0 0% 15%;
+    --border: 216 5% 19%;            /* #2E3033 */
+    --input: 225 4% 18%;
+    --input-focus: 209 100% 75%;     /* #7EC0FF */
+    --ring: 209 100% 75%;
 
-    --destructive: 0 0% 100%;
-    --destructive-foreground: 0 0% 0%;
-    --destructive-hover: 0 0% 80%;
-    --destructive-muted: 0 0% 15%;
+    --text-primary: 210 8% 95%;
+    --text-secondary: 218 5% 66%;
+    --text-tertiary: 220 4% 44%;     /* #6C6F75 */
+    --text-disabled: 220 5% 24%;     /* #3A3C40 — 暗底下可见 */
 
-    --info: 0 0% 60%;
-    --info-foreground: 0 0% 0%;
-    --info-muted: 0 0% 15%;
+    --brand-1: 210 8% 95%;
+    --brand-2: 218 5% 66%;
+    --brand-3: 220 4% 44%;
+    --brand-4: 220 5% 24%;
+    --brand-5: 220 5% 12%;
+    --color-1: 210 8% 95%;
+    --color-2: 218 5% 66%;
+    --color-3: 220 4% 44%;
+    --color-4: 220 5% 24%;
+    --color-5: 220 5% 12%;
 
-    /* Muted colors — brightened for vibrancy/translucent sidebar */
-    --muted: 0 0% 14%;
-    --muted-foreground: 0 0% 75%; /* Brightened from 60% for vibrancy contrast */
+    /* Accent */
+    --accent-base: 211 100% 62%;     /* #3D9AFF — L3 预留 */
+    --accent-highlight: 209 100% 75%;/* #7EC0FF */
+    --accent-strong-hover: 209 100% 75%; /* 与 Task 1 的改名对应 */
+    --accent-pressed: 209 100% 83%;  /* #A9D5FF — L3 预留 */
+    --accent-soft: 211 33% 22%;      /* #26384B */
+    --accent-soft-border: 210 38% 35%; /* #385B7D */
+    --accent-on-soft: 212 100% 80%;  /* #9BCAFF */
 
-    /* Accent colors */
-    --accent: 0 0% 14%;
-    --accent-foreground: 0 0% 100%;
-    --accent-hover: 0 0% 18%;
+    /* Risk */
+    --risk-base: 27 91% 60%;         /* #F68F3C — L3 预留 */
+    --risk-soft: 29 39% 21%;
+    --risk-soft-border: 29 40% 33%;  /* #765333 */
+    --risk-on-soft: 29 100% 79%;     /* #FFC995 */
 
-    /* Border and input */
-    --border: 0 0% 22%;
-    --input: 0 0% 10%;
-    --input-focus: 0 0% 100%;
-    --ring: 0 0% 100%;
+    /* Verified */
+    --verified-base: 145 51% 49%;    /* #3DBB72 — L3 预留 */
+    --verified-soft: 152 34% 20%;
+    --verified-soft-border: 145 33% 35%; /* #3B7654 */
+    --verified-on-soft: 142 69% 80%; /* #A7EFC2 */
 
-    /* Text colors */
-    --text-primary: 0 0% 100%;
-    --text-secondary: 0 0% 60%; /* #999999 */
-    --text-tertiary: 0 0% 40%; /* #666666 */
-    --text-disabled: 0 0% 30%;
+    /* Failure */
+    --failure-base: 358 81% 65%;     /* #EE5C61 — L3 预留 */
+    --failure-soft: 356 29% 23%;
+    --failure-soft-border: 356 32% 34%; /* #713A3E */
+    --failure-on-soft: 357 100% 85%; /* #FFB0B4 */
 
-    /* Brand colors */
-    --brand-1: 0 0% 100%;
-    --brand-2: 0 0% 80%;
-    --brand-3: 0 0% 60%;
-    --brand-4: 0 0% 40%;
-    --brand-5: 0 0% 20%;
+    /* Unknown */
+    --unknown-base: 213 5% 63%;      /* #9DA1A6 — L3 预留 */
+    --unknown-soft: 210 4% 21%;      /* #343638 */
+    --unknown-soft-border: 210 4% 30%; /* #4A4D50 */
+    --unknown-on-soft: 210 8% 95%;   /* #E0E2E5 */
 
-    --color-1: 0 0% 100%;
-    --color-2: 0 0% 80%;
-    --color-3: 0 0% 60%;
-    --color-4: 0 0% 40%;
-    --color-5: 0 0% 20%;
+    /* Usage — L3 预留 */
+    --usage-system: 213 5% 63%;      /* #9DA1A6 */
+    --usage-tools: 264 77% 75%;      /* #B48CF0 */
+    --usage-rules: 146 46% 57%;      /* #5FC48A */
+    --usage-skills: 43 75% 59%;      /* #E5B94A */
+    --usage-subagents: 212 82% 68%;  /* #6BA9F0 */
+    --usage-memory: 337 77% 71%;     /* #EE7BA8 */
+    --usage-timeline: 183 50% 54%;   /* #4FC0C5 */
+    --usage-other: 27 88% 67%;       /* #F5A461 */
 
-    /* Sidebar colors */
-    --sidebar-background: 0 0% 5%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 0 0% 14%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 22%;
-    --sidebar-ring: 0 0% 100%;
+    /* Elevation — 暗色 alpha 更高、ring 用 strong 边（token 源语义） */
+    --shadow-card: 0 0 0 1px hsl(var(--border)), 0 1px 2px rgba(0,0,0,0.20), 0 2px 6px rgba(0,0,0,0.20);
+    --shadow-raised: 0 0 0 1px hsl(var(--border)), 0 2px 10px rgba(0,0,0,0.22);
+    --shadow-overlay: 0 0 0 1px hsl(var(--border)), 0 8px 28px rgba(0,0,0,0.34);
+
+    /* Sidebar (vibrancy gradient paints over these; values are fallbacks) */
+    --sidebar-background: 220 6% 10%;
+    --sidebar-foreground: 210 8% 95%;
+    --sidebar-primary: 210 8% 95%;
+    --sidebar-primary-foreground: 220 5% 12%;
+    --sidebar-accent: 225 5% 17%;
+    --sidebar-accent-foreground: 210 8% 95%;
+    --sidebar-border: 216 5% 19%;
+    --sidebar-ring: 209 100% 75%;
   }
 }
 
