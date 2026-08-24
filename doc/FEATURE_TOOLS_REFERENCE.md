@@ -1,7 +1,7 @@
 # Cue Tools 参考
 
 <!-- doc-covers: apps/screenpipe-app-tauri/src-tauri/assets/extensions/web-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/mcp-bridge.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/save-artifact.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/live-views.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/connection-gate.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card-recent.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-search.ts, crates/screenpipe-core/assets/extensions/sub-agent.ts, crates/screenpipe-engine/src/routes/intent_cards.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/session.rs -->
-<!-- doc-verified: b4068aa10（分支 feat/intent-cards，已合入 cue-branding） -->
+<!-- doc-verified: f9894e860（分支 feat/intent-agent-prompt-fix） -->
 
 ## 1. 这份文档管什么
 
