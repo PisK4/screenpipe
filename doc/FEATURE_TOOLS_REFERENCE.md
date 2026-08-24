@@ -1,6 +1,6 @@
 # Cue Tools 参考
 
-<!-- doc-covers: apps/screenpipe-app-tauri/src-tauri/assets/extensions/web-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/mcp-bridge.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/save-artifact.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/live-views.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/connection-gate.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card-recent.ts, crates/screenpipe-core/assets/extensions/sub-agent.ts, crates/screenpipe-engine/src/routes/intent_cards.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/session.rs -->
+<!-- doc-covers: apps/screenpipe-app-tauri/src-tauri/assets/extensions/web-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/mcp-bridge.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/save-artifact.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/live-views.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/connection-gate.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card-recent.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-search.ts, crates/screenpipe-core/assets/extensions/sub-agent.ts, crates/screenpipe-engine/src/routes/intent_cards.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/session.rs -->
 <!-- doc-verified: b4068aa10（分支 feat/intent-cards，已合入 cue-branding） -->
 
 ## 1. 这份文档管什么
@@ -24,10 +24,10 @@ Cue 里「agent 能调用的每一个工具」的目录级参考：它是什么�
 | 工具 | 注册扩展 | 可见会话 | 性质 | 后端 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | `get_recent_intent_cards` | intent-card-recent.ts | intent 白名单；可独立分发 | 只读 | 本地 `/intent-cards/recent` | 已上线 |
-| `get_activity_summary` | intent-search.ts | intent 白名单 | 只读 | 本地 `/activity-summary` | **规划中** |
-| `search_activity` | intent-search.ts | intent 白名单 | 只读 | 本地 `/search` | **规划中** |
-| `search_memories` | intent-search.ts | intent 白名单 | 只读 | 本地 `/memories`（仅 GET） | **规划中** |
-| `list_meetings` | intent-search.ts | intent 白名单 | 只读 | 本地 `/meetings` | **规划中** |
+| `get_activity_summary` | intent-search.ts | intent 白名单 | 只读 | 本地 `/activity-summary` | 已上线 |
+| `search_activity` | intent-search.ts | intent 白名单 | 只读 | 本地 `/search` | 已上线 |
+| `search_memories` | intent-search.ts | intent 白名单 | 只读 | 本地 `/memories`（仅 GET） | 已上线 |
+| `list_meetings` | intent-search.ts | intent 白名单 | 只读 | 本地 `/meetings` | 已上线 |
 | `query_data` | 待定 | intent 白名单 | 只读（wrapper 强制） | 本地 `/raw_sql` | **二期议** |
 | `sp_web_search` | web-search.ts | chat 全量 | 读，出网 | Cue Cloud 搜索接口 | 已上线 |
 | `sp_mcp_list_tools` | mcp-bridge.ts | chat 全量；intent 白名单 | 读 | 本地 `/mcp-servers` | 已上线 |
@@ -41,7 +41,7 @@ Cue 里「agent 能调用的每一个工具」的目录级参考：它是什么�
 | `screenpipe_live_view_propose` | live-views.ts | chat 全量 | 提议变更，schema 内校验 | 无网络调用，返回提案文本 | 已上线 |
 | Pi 内置七件（read/grep/find/ls/bash/edit/write） | Pi 自带 | 见第 3 节矩阵 | 视具体工具 | 本机文件系统 | 已上线 |
 
-状态取值：「已上线」为现状。「规划中」指契约已定稿、代码尚未落地，逐工具小节即实现应遵循的规格；引用它们描述现状前，先确认对应扩展文件是否存在。「二期议」表示方向认可但前置条件未满足（见 §4.1.6）。四个只读取证工具同属一个自包含扩展 `intent-search.ts`（照 intent-card-recent.ts 的 fetch+env 模式），落地时同批加进 `INTENT_ALLOWED_TOOLS` 并把状态改为已上线。
+状态取值：「已上线」为现状。「规划中」指契约已定稿、代码尚未落地，逐工具小节即实现应遵循的规格；引用它们描述现状前，先确认对应扩展文件是否存在。「二期议」表示方向认可但前置条件未满足（见 §4.1.6）。四件只读取证工具由自包含扩展 `intent-search.ts` 实现（fetch+env，模式同 intent-card-recent.ts），已进 `INTENT_ALLOWED_TOOLS` 受管安装；App 外分发同理可行，暂未纳入双通道清单。
 
 ## 3. 会话矩阵
 
@@ -50,7 +50,7 @@ Cue 里「agent 能调用的每一个工具」的目录级参考：它是什么�
 | 会话 | 内置工具 | 扩展工具 |
 | --- | --- | --- |
 | Chat | 全量含 bash/edit/write | 上表 chat 全量各工具 |
-| 意图卡片生成会话（session id `intent-card`） | 仅 read / grep / find / ls | `sp_mcp_list_tools`、`sp_mcp_call`、`submit_intent_card`、`get_recent_intent_cards`（与内置四件合成八项白名单，常量 `INTENT_ALLOWED_TOOLS`；规划扩入 §2 状态为「规划中」的五件：四件只读取证工具加 `save_intent_draft`，落地时同批加进该常量） |
+| 意图卡片生成会话（session id `intent-card`） | 仅 read / grep / find / ls | `sp_mcp_list_tools`、`sp_mcp_call`、`submit_intent_card`、`get_recent_intent_cards`、`get_activity_summary`、`search_activity`、`search_memories`、`list_meetings`（与内置四件合成十二项白名单，常量 `INTENT_ALLOWED_TOOLS`；规划扩入 §2 状态为「规划中」的 `save_intent_draft`） |
 | 外部 Pi agent（用户自装） | 该 agent 自己的默认面 | 仅拷入的扩展文件（现例：intent-card-recent.ts） |
 
 白名单机制：会话配置带 `allowedTools` 数组，Pi 只暴露名单内工具。意图会话的隔离边界有两处：专属项目目录 `~/.screenpipe/pi-intent`，以及 bash 与一切写侧工具不进白名单。技能可见面与 Chat 对齐——原「运行前剥离用户技能镜像」一条已于 2026-08-24 作废（pi 自动发现全局技能目录，剥离从未真正生效，裁决记录见 FEATURE_INTENT_CARDS §6），技能正文注入的残余风险由工具白名单兜底。
@@ -78,7 +78,7 @@ Response：每行一张卡的文本列表 `- #<id> [<card_type>/<status>] <proac
 
 错误行为：HTTP 非 2xx 返回状态码与 body 前 400 字符。边界：这是双通道分发单源文件——App 内受管安装与外部分发副本（本机 `~/.pi/agent/extensions/`）必须同步更新；只依赖 fetch 和 env（`SCREENPIPE_PORT`、`SCREENPIPE_LOCAL_API_KEY`），对 App 零进程内依赖。
 
-#### 4.1.2 `get_activity_summary`（规划中）
+#### 4.1.2 `get_activity_summary`
 
 宏观活动摘要，与生成材料预载的 summary 同源，差别在时间窗可自选。用途：怀疑摘要失真、要看子时段粒度、或要窗口之前的连续上下文时换窗重查。是否调用由模型自主判断，材料够用就不必调。
 
@@ -86,12 +86,12 @@ Response：每行一张卡的文本列表 `- #<id> [<card_type>/<status>] <proac
 
 | 字段 | 类型 | 必填 | 含义 |
 | --- | --- | --- | --- |
-| `start_time` | string | 否 | ISO 8601、相对时间（`16h ago`）或本地日历字面量（`today`）；缺省取本次材料窗口起点 |
+| `start_time` | string | 否 | ISO 8601、相对时间（`16h ago`）或本地日历字面量（`today`）；缺省近 24 小时 |
 | `end_time` | string | 否 | 同上；缺省 now |
 
-Response：`/activity-summary` 原样 JSON（apps / windows / key_texts / audio 与 data_status 字段）。错误行为照 §9.3 纪律返回状态码与原因。边界：日历字面量按用户本地时区解释，禁止在模型侧换算 UTC 午夜；本工具不做裁剪，窗口大小由调用方控制。
+引擎侧两侧均必填，缺省值由 wrapper 兜底注入。Response：`/activity-summary` 原样 JSON（apps / windows / key_texts / audio 与 data_status 字段），wrapper 截至前 12,000 字符。错误行为照 §9.3 纪律返回状态码与原因。边界：日历字面量按用户本地时区解释，禁止在模型侧换算 UTC 午夜；窗口大小由调用方控制。
 
-#### 4.1.3 `search_activity`（规划中）
+#### 4.1.3 `search_activity`
 
 原文级查证入口：verbatim 文本、OCR、音频转录、指定 app 或窗口的精确匹配。摘要说「用户在用 X」，出卡前用本工具确认 X 里具体发生了什么。
 
@@ -108,11 +108,11 @@ Response：`/activity-summary` 原样 JSON（apps / windows / key_texts / audio 
 | `limit` | integer | 否 | 夹取 1–20，翻页用 offset |
 | `offset` | integer | 否 | 缺省 0 |
 
-三条纪律焊死在 wrapper 里，模型不可绕过：fields 列预设白名单（type / app_name / text / timestamp / frame_id）、max_content_length 中段截断、start_time 强制必填。这是把 screenpipe-api skill 的上下文保护规则从「靠模型自觉」升级成「代码保证」，也是包工具相对塞 skill 的核心收益。
+三条纪律焊死在 wrapper 里，模型不可绕过：fields 列预设白名单（type / app_name / window_name / text / transcription / timestamp）、max_content_length=400 中段截断、start_time 强制必填。这是把 screenpipe-api skill 的上下文保护规则从「靠模型自觉」升级成「代码保证」，也是包工具相对塞 skill 的核心收益。
 
-Response：`{ data: [...], pagination }`，每行只含白名单列。空结果的返回体要提示回退 get_activity_summary 核对 data_status，不得据此直接断言「没有数据」。
+Response：逐行 `- [type] app | timestamp | text`，整体截至前 12,000 字符。空结果的返回体要提示回退 get_activity_summary 核对 data_status，不得据此直接断言「没有数据」。
 
-#### 4.1.4 `search_memories`（规划中）
+#### 4.1.4 `search_memories`
 
 查长期记忆库：偏好、历史决策、项目背景，信号密度高于原始事件流。出卡前先查一遍，避免推荐用户早已决定过的事，同时给卡片补个性化依据。
 
@@ -128,7 +128,7 @@ Response：`{ data: [...], pagination }`，每行只含白名单列。空结果�
 
 边界：只包 GET；POST/PUT/DELETE 一概不进任何白名单——无人值守会话不得写记忆库。
 
-#### 4.1.5 `list_meetings`（规划中）
+#### 4.1.5 `list_meetings`
 
 会议清单查询。摘要里会议信息被压缩，需要参会人与时段细节时用它展开。
 
@@ -324,11 +324,11 @@ read / grep / find / ls / bash / edit / write 由 Pi 自带，schema 归 Pi 上�
 
 ## 6. Skills 目录
 
-Skill 教模型怎么用能力，本身不注册工具、不发请求、不能绕过白名单；模型要用 Skill 讲的能力，仍需会话里有 bash 或对应正式 Tool。当前基线三件：`screenpipe-api`（本地数据查询与媒体分析规则）、`screenpipe-cli`、`render-html-report`。用户自装 skills 以目录镜像方式进 chat 会话；意图生成会话的技能可见面与 Chat 对齐（2026-08-24 起，镜像剥离作废）。注意一个能力落差：screenpipe-api / screenpipe-cli 教的 curl 与命令执行在意图会话没有落地工具（无 bash、无发请求通道），这些技能在那里只是索引占位；对应的查证能力正以扩展工具形式补齐（§4.1）。各 Skill 正文见 `crates/screenpipe-core/assets/skills/*/SKILL.md`，本文不复述。
+Skill 教模型怎么用能力，本身不注册工具、不发请求、不能绕过白名单；模型要用 Skill 讲的能力，仍需会话里有 bash 或对应正式 Tool。当前基线三件：`screenpipe-api`（本地数据查询与媒体分析规则）、`screenpipe-cli`、`render-html-report`。用户自装 skills 以目录镜像方式进 chat 会话；意图生成会话的技能可见面与 Chat 对齐（2026-08-24 起，镜像剥离作废）。注意一个能力落差：screenpipe-api / screenpipe-cli 教的 curl 与命令执行在意图会话没有落地工具（无 bash、无发请求通道），这些技能在那里只是索引占位；对应的查证能力已以扩展工具形式补齐（§4.1 数据查证类）。各 Skill 正文见 `crates/screenpipe-core/assets/skills/*/SKILL.md`，本文不复述。
 
 ## 7. Agent 侧 HTTP 路由（集成必需子集）
 
-鉴权统一为 `Authorization: Bearer <key>`，key 来自 `SCREENPIPE_LOCAL_API_KEY`（旧名 `SCREENPIPE_API_AUTH_KEY` 将弃用）；引擎全量路由的字段级规范在 `GET :3030/openapi.json` / `/openapi.yaml`，本文不复刻。`/activity-summary`、`/search`、`/memories`、`/meetings` 将成为 §4.1 数据查证类规划中工具的后端，落地时字段级细节以 openapi 为准并回填本节。
+鉴权统一为 `Authorization: Bearer <key>`，key 来自 `SCREENPIPE_LOCAL_API_KEY`（旧名 `SCREENPIPE_API_AUTH_KEY` 将弃用）；引擎全量路由的字段级规范在 `GET :3030/openapi.json` / `/openapi.yaml`，本文不复刻。`/activity-summary`、`/search`、`/memories`、`/meetings` 是 §4.1 数据查证类各工具的后端；字段级细节以 openapi 为准。
 
 ### `GET /intent-cards/recent`
 

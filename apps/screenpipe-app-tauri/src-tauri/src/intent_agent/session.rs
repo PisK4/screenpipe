@@ -29,9 +29,10 @@ pub const INTENT_TOOL_NAME: &str = "submit_intent_card";
 /// Read-side tool from intent-card-recent.ts: recent cards for soft dedup.
 pub const INTENT_RECENT_TOOL_NAME: &str = "get_recent_intent_cards";
 /// Read-side allowlist (D6, revised): chat's built-in tools minus bash and
-/// the write side (edit/write), plus the MCP bridge tools and the structured
-/// card-submit tool from the intent-card extension.
-pub const INTENT_ALLOWED_TOOLS: [&str; 8] = [
+/// the write side (edit/write), plus the MCP bridge tools, the structured
+/// card-submit tool from the intent-card extension, and the four local
+/// verification tools from intent-search.ts.
+pub const INTENT_ALLOWED_TOOLS: [&str; 12] = [
     "read",
     "grep",
     "find",
@@ -40,19 +41,30 @@ pub const INTENT_ALLOWED_TOOLS: [&str; 8] = [
     "sp_mcp_call",
     INTENT_TOOL_NAME,
     INTENT_RECENT_TOOL_NAME,
+    "get_activity_summary",
+    "search_activity",
+    "search_memories",
+    "list_meetings",
 ];
 
 /// Managed extension files installed into the session's exclusive project
 /// dir (same mechanism as the chat-side extensions in `pi.rs`):
 /// - `intent-card.ts`: submit contract (`submit_intent_card`);
 /// - `intent-card-recent.ts`: read side (`get_recent_intent_cards`), also
-///   distributed standalone to external Pi agents.
-const INTENT_EXTENSION_FILES: [&str; 2] = ["intent-card.ts", "intent-card-recent.ts"];
+///   distributed standalone to external Pi agents;
+/// - `intent-search.ts`: local verification tools (activity summary, raw
+///   search, memories, meetings).
+const INTENT_EXTENSION_FILES: [&str; 3] = [
+    "intent-card.ts",
+    "intent-card-recent.ts",
+    "intent-search.ts",
+];
 
 fn intent_extension_source(file: &str) -> &'static str {
     match file {
         "intent-card.ts" => include_str!("../../assets/extensions/intent-card.ts"),
         "intent-card-recent.ts" => include_str!("../../assets/extensions/intent-card-recent.ts"),
+        "intent-search.ts" => include_str!("../../assets/extensions/intent-search.ts"),
         _ => unreachable!("INTENT_EXTENSION_FILES is exhaustive"),
     }
 }
