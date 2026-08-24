@@ -810,12 +810,109 @@ impl PiExecutor {
     /// [`Self::USER_SKILL_MARKER`], be deleted by a later sync. The desktop
     /// importer already rejects these names; this guards any folder that reaches
     /// the store another way.
-    const BASELINE_SKILL_NAMES: [&'static str; 4] = [
+    const BASELINE_SKILL_NAMES: [&'static str; 5] = [
         "screenpipe-api",
         "screenpipe-cli",
         "screenpipe-team",
         "render-html-report",
+        "cue-tools",
     ];
+
+    /// Root of the Cue-authored skills store:
+    /// `<data_dir>/agent/skills/<name>/`. Everything the host manages —
+    /// baseline doctrine, the seed-once `cue-tools` skill, and mirrors of
+    /// user-imported store skills — materializes here, and native Pi sessions
+    /// load it via explicit `--skill` args together with `--no-skills`
+    /// (auto-discovery off), so `~/.agents/skills` and other global surfaces
+    /// never leak into Cue sessions.
+    pub fn cue_agent_skills_dir() -> PathBuf {
+        crate::paths::default_screenpipe_data_dir().join("agent").join("skills")
+    }
+
+    /// Materialize every host-managed skill under
+    /// [`Self::cue_agent_skills_dir`] and return all skill dirs for explicit
+    /// `--skill` passing.
+    ///
+    /// Three ownership regimes share the root (documented in the generated
+    /// README.md):
+    /// - baseline three (`screenpipe-api` / `-cli` / `render-html-report`):
+    ///   overwritten from embedded assets on every call;
+    /// - `cue-tools`: seeded ONCE — after that the file on disk is
+    ///   authoritative and user-editable; deleting it reseeds;
+    /// - store mirrors (`USER_SKILL_MARKER`): refreshed from
+    ///   `<data_dir>/skills/` and garbage-collected by
+    ///   [`Self::sync_user_skills_from`] as usual.
+    pub fn ensure_cue_agent_skills() -> Result<Vec<PathBuf>> {
+        let root = Self::cue_agent_skills_dir();
+        let store = crate::paths::default_screenpipe_data_dir().join("skills");
+        Self::ensure_cue_agent_skills_at(&root, &store)
+    }
+
+    /// Implementation of [`Self::ensure_cue_agent_skills`] with explicit
+    /// paths, so it is unit-testable without touching the real data dir.
+    fn ensure_cue_agent_skills_at(root: &Path, store: &Path) -> Result<Vec<PathBuf>> {
+        std::fs::create_dir_all(root)?;
+
+        // Ownership map for anyone browsing the directory.
+        let readme = root.join("README.md");
+        std::fs::write(
+            &readme,
+            "screenpipe-managed skills root.\n\
+             - screenpipe-api / screenpipe-cli / render-html-report:\n\
+               overwritten by Cue on every run — edits here will not stick;\n\
+             - cue-tools: seeded once, then yours to edit (delete to reseed);\n\
+             - any dir with a .screenpipe-managed marker: mirror of a skill\n\
+               imported in Settings → Skills — edit or delete it there.\n",
+        )?;
+
+        // Baseline: overwrite every time (same content policy as the legacy
+        // project-dir installer).
+        let baseline: &[(&str, &str)] = &[
+            ("screenpipe-api", include_str!("../../assets/skills/screenpipe-api/SKILL.md")),
+            ("screenpipe-cli", include_str!("../../assets/skills/screenpipe-cli/SKILL.md")),
+            (
+                "render-html-report",
+                include_str!("../../assets/skills/render-html-report/SKILL.md"),
+            ),
+        ];
+        for (name, content) in baseline {
+            let dir = root.join(name);
+            std::fs::create_dir_all(&dir)?;
+            std::fs::write(dir.join("SKILL.md"), content)?;
+        }
+
+        // cue-tools: seed once. The embedded copy is factory default; the
+        // on-disk file wins afterwards so iteration does not need rebuilds.
+        let tools_dir = root.join("cue-tools");
+        if !tools_dir.join("SKILL.md").exists() {
+            std::fs::create_dir_all(&tools_dir)?;
+            std::fs::write(
+                tools_dir.join("SKILL.md"),
+                include_str!("../../assets/skills/cue-tools/SKILL.md"),
+            )?;
+            debug!("cue-tools skill seeded at {:?}", tools_dir);
+        }
+
+        // Mirror user-imported store skills into the same root (marker-stamped,
+        // self-cleaning). Store entries can never shadow baseline/cue-tools.
+        if let Err(e) = Self::sync_user_skills_from(store, root) {
+            warn!("failed to sync user skills into agent root: {}", e);
+        }
+
+        // Enumerate for explicit --skill passing.
+        let mut dirs = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(&root) {
+            for entry in entries.flatten() {
+                let dir = entry.path();
+                if dir.is_dir() && dir.join("SKILL.md").exists() {
+                    dirs.push(dir);
+                }
+            }
+        }
+        dirs.sort();
+        Ok(dirs)
+    }
+
 
     /// Mirror the user's imported skills from the global store
     /// (`<data_dir>/skills/<name>/`) into `project_dir/.pi/skills/` so every
@@ -830,13 +927,15 @@ impl PiExecutor {
     /// it can never break a session.
     pub fn sync_user_skills(project_dir: &Path) -> Result<()> {
         let store = crate::paths::default_screenpipe_data_dir().join("skills");
-        Self::sync_user_skills_from(&store, project_dir)
+        let dest_root = project_dir.join(".pi").join("skills");
+        Self::sync_user_skills_from(&store, &dest_root)
     }
 
-    /// Implementation of [`Self::sync_user_skills`] with the store path passed
-    /// in, so it can be unit-tested without touching the real data dir.
-    fn sync_user_skills_from(store: &Path, project_dir: &Path) -> Result<()> {
-        let dest_root = project_dir.join(".pi").join("skills");
+    /// Implementation of [`Self::sync_user_skills`] with both paths passed
+    /// in, so it can target any destination root (legacy project dirs and the
+    /// central agent-skills root alike) and be unit-tested without touching
+    /// the real data dir.
+    fn sync_user_skills_from(store: &Path, dest_root: &Path) -> Result<()> {
 
         // Copy/refresh every store skill (a folder containing SKILL.md).
         let mut store_keys: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -4494,7 +4593,7 @@ mod tests {
         std::fs::create_dir_all(store.join("screenpipe-api")).unwrap();
         std::fs::write(store.join("screenpipe-api").join("SKILL.md"), "evil").unwrap();
 
-        PiExecutor::sync_user_skills_from(&store, &project).unwrap();
+        PiExecutor::sync_user_skills_from(&store, &skills).unwrap();
 
         // Mirrored with a marker.
         assert!(skills.join("foo").join("SKILL.md").exists());
@@ -4517,12 +4616,65 @@ mod tests {
 
         // Remove from store, sync again → our mirror is gone, baseline stays.
         std::fs::remove_dir_all(store.join("foo")).unwrap();
-        PiExecutor::sync_user_skills_from(&store, &project).unwrap();
+        PiExecutor::sync_user_skills_from(&store, &skills).unwrap();
         assert!(!skills.join("foo").exists());
         assert!(skills.join("screenpipe-api").join("SKILL.md").exists());
 
         // Missing store dir is a no-op, not an error.
-        PiExecutor::sync_user_skills_from(&tmp.path().join("nope"), &project).unwrap();
+        PiExecutor::sync_user_skills_from(&tmp.path().join("nope"), &skills).unwrap();
+    }
+
+    /// `ensure_cue_agent_skills_at` materializes baseline + cue-tools + store
+    /// mirrors into one root: baseline overwritten every call, cue-tools
+    /// seeded once (on-disk edits survive), store skills mirrored and GC'd.
+    #[test]
+    fn ensure_cue_agent_skills_materializes_and_seeds_once() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path().join("agent").join("skills");
+        let store = tmp.path().join("skills");
+
+        std::fs::create_dir_all(store.join("my-skill")).unwrap();
+        std::fs::write(
+            store.join("my-skill").join("SKILL.md"),
+            "---\nname: my-skill\n---\nv1",
+        )
+        .unwrap();
+
+        // First run: everything materialized.
+        let dirs = PiExecutor::ensure_cue_agent_skills_at(&root, &store).unwrap();
+        for name in [
+            "screenpipe-api",
+            "screenpipe-cli",
+            "render-html-report",
+            "cue-tools",
+            "my-skill",
+        ] {
+            assert!(root.join(name).join("SKILL.md").exists(), "missing {name}");
+        }
+        assert!(root.join("README.md").exists());
+        assert!(dirs.contains(&root.join("cue-tools")));
+
+        // Seed-once: user edit survives a re-run.
+        std::fs::write(root.join("cue-tools").join("SKILL.md"), "user edition").unwrap();
+        PiExecutor::ensure_cue_agent_skills_at(&root, &store).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(root.join("cue-tools").join("SKILL.md")).unwrap(),
+            "user edition"
+        );
+
+        // Baseline overwrite: hand edit does NOT survive.
+        std::fs::write(root.join("screenpipe-api").join("SKILL.md"), "hand edit").unwrap();
+        PiExecutor::ensure_cue_agent_skills_at(&root, &store).unwrap();
+        assert_ne!(
+            std::fs::read_to_string(root.join("screenpipe-api").join("SKILL.md")).unwrap(),
+            "hand edit"
+        );
+
+        // Store mirror GCs on removal; enumeration follows.
+        std::fs::remove_dir_all(store.join("my-skill")).unwrap();
+        let dirs = PiExecutor::ensure_cue_agent_skills_at(&root, &store).unwrap();
+        assert!(!root.join("my-skill").exists());
+        assert!(!dirs.contains(&root.join("my-skill")));
     }
 
     /// Verifies that `from_utf8_lossy` handles invalid UTF-8 gracefully.

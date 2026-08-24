@@ -1,7 +1,7 @@
 # Cue Tools 参考
 
-<!-- doc-covers: apps/screenpipe-app-tauri/src-tauri/assets/extensions/web-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/mcp-bridge.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/save-artifact.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/live-views.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/connection-gate.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card-recent.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-draft.ts, crates/screenpipe-core/assets/extensions/sub-agent.ts, crates/screenpipe-engine/src/routes/intent_cards.rs, crates/screenpipe-db/src/db/intent_drafts.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/session.rs -->
-<!-- doc-verified: f084a2118（分支 feat/intent-agent-prompt-fix） -->
+<!-- doc-covers: apps/screenpipe-app-tauri/src-tauri/assets/extensions/web-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/mcp-bridge.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/save-artifact.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/live-views.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/connection-gate.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card-recent.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-draft.ts, crates/screenpipe-core/assets/extensions/sub-agent.ts, crates/screenpipe-engine/src/routes/intent_cards.rs, crates/screenpipe-db/src/db/intent_drafts.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/session.rs, crates/screenpipe-core/src/agents/pi.rs（§6.1 技能装载） -->
+<!-- doc-verified: PENDING -->
 
 ## 1. 这份文档管什么
 
@@ -326,7 +326,23 @@ read / grep / find / ls / bash / edit / write 由 Pi 自带，schema 归 Pi 上�
 
 ## 6. Skills 目录
 
-Skill 教模型怎么用能力，本身不注册工具、不发请求、不能绕过白名单；模型要用 Skill 讲的能力，仍需会话里有 bash 或对应正式 Tool。当前基线三件：`screenpipe-api`（本地数据查询与媒体分析规则）、`screenpipe-cli`、`render-html-report`。用户自装 skills 以目录镜像方式进 chat 会话；意图生成会话的技能可见面与 Chat 对齐（2026-08-24 起，镜像剥离作废）。注意一个能力落差：screenpipe-api / screenpipe-cli 教的 curl 与命令执行在意图会话没有落地工具（无 bash、无发请求通道），这些技能在那里只是索引占位；对应的查证能力已以扩展工具形式补齐（§4.1 数据查证类）。各 Skill 正文见 `crates/screenpipe-core/assets/skills/*/SKILL.md`，本文不复述。
+Skill 教模型怎么用能力，本身不注册工具、不发请求、不能绕过白名单；模型要用 Skill 讲的能力，仍需会话里有 bash 或对应正式 Tool。
+
+### 6.1 加载机制（2026-08-24 起）
+
+App 侧原生 Pi 会话（Chat 与意图生成同一条 spawn 路径）以 `--no-skills` 关闭 pi 的自动发现——否则 `~/.agents/skills` 与各级祖先目录的 `.agents/skills` 会无条件涌入会话；随后以显式 `--skill <dir>` 传入受管清单。清单由 `PiExecutor::ensure_cue_agent_skills()` 物化到统一根 **`~/.cue/agent/skills/`**，三种所有权并存（根下 README 同步说明）：
+
+| 归属 | 成员 | 写入策略 |
+| --- | --- | --- |
+| 基线教义 | `screenpipe-api` / `screenpipe-cli` / `render-html-report` | 每次运行从内嵌资产覆盖 |
+| Cue 学说 | `cue-tools` | 仅播种一次；之后磁盘文件为准，用户可直接编辑，删除即重新播种 |
+| 用户自装镜像 | 带 `.screenpipe-managed` 标记的其余目录 | 从 `<data_dir>/skills/`（Settings → Skills）镜像，随 store 增删自动同步与回收 |
+
+store 镜像永不遮蔽基线名与 cue-tools（导入端拒绝 + 同步端双重防护）。装载失败时降级为不传 flag（保持旧行为），不阻塞会话。ACP 分支与 core 执行器 pipes 路径本轮未接入：pipes 仍走项目级过滤安装 + 自动发现，行为不变。
+
+### 6.2 cue-tools 与基线内容
+
+当前基线三件：`screenpipe-api`、`screenpipe-cli`、`render-html-report`；第四件 `cue-tools` 是跨工具使用学说（分工地图、通用纪律、按能力组的角色边界），chat 与意图生成共用一份，不承载任何工具契约。注意一个能力落差：screenpipe-api / screenpipe-cli 教的 curl 与命令执行在意图会话没有落地工具（无 bash、无发请求通道），这些技能在那里只是索引占位；对应的查证能力已以扩展工具形式补齐（§4.1 数据查证类）。各 Skill 正文见 `crates/screenpipe-core/assets/skills/*/SKILL.md`，本文不复述。
 
 ## 7. Agent 侧 HTTP 路由（集成必需子集）
 
@@ -401,4 +417,5 @@ list 响应 `{ data: [{ id, name, url, enabled }] }`；tools 响应 `{ data: { t
 | 动白名单机制 | 第 3 节矩阵与 CAPABILITY_SURFACE 的隔离论述 |
 | 引擎路由参数变更 | openapi 自动跟随；仅当该路由是工具后端时同步本文对应行 |
 | 改跨工具使用学说 | cue-tools skill（本文不复述学说内容，只管契约） |
+| 动技能装载机制（§6.1） | 所有权表与 `~/.cue/agent/skills` 根语义；若 pipes / ACP 分支接入或退出，同步本节降级说明 |
 | 规划中工具落地实现 | 总表与小节去掉「规划中」标记；新扩展文件名加进 doc-covers 并刷新 doc-verified |

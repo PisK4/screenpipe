@@ -8,7 +8,7 @@
 
 use screenpipe_core::agents::pi::{
     apply_custom_provider_compat, screenpipe_cloud_models, PI_AI_PACKAGE, PI_NAMESPACE_DIR,
-    PI_PACKAGE, SCREENPIPE_API_URL,
+    PI_PACKAGE, SCREENPIPE_API_URL, PiExecutor,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -2820,6 +2820,19 @@ pub async fn pi_start_inner(
                 "Injected Enterprise team skill for native Pi session from {:?}",
                 skill_path
             );
+        }
+        // Managed skills: turn off auto-discovery (which would flood sessions
+        // with ~/.agents/skills and every ancestor .agents/skills) and pass an
+        // explicit allowlist instead — baseline doctrine + cue-tools + store
+        // mirrors, all materialized under <data_dir>/agent/skills.
+        match PiExecutor::ensure_cue_agent_skills() {
+            Ok(skill_dirs) => {
+                command.arg("--no-skills");
+                for dir in &skill_dirs {
+                    command.arg("--skill").arg(dir);
+                }
+            }
+            Err(e) => warn!("failed to materialize agent skills: {}", e),
         }
         if extension_safe_mode {
             warn!(

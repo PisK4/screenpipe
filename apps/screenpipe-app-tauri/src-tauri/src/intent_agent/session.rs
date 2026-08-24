@@ -5,9 +5,10 @@
 //! Pi session orchestration for intent-card generation (D6).
 //!
 //! One dedicated session id (`intent-card`) in an exclusive project dir
-//! (`~/.screenpipe/pi-intent`) and a read-only tool allowlist. Skill
-//! visibility matches Chat: pi discovers global skills regardless of cwd, so
-//! the boundary is the TOOL allowlist (no bash/edit/write), not skill hiding. The final report is collected in-process from `agent_event`
+//! (`~/.cue/pi-intent`) and a read-only tool allowlist. Skill
+//! visibility is an explicit allowlist: sessions start with `--no-skills` plus
+//! the managed skills under `~/.cue/agent/skills` passed via `--skill`, so
+//! global auto-discovery never leaks in; the boundary is also the TOOL allowlist (no bash/edit/write), not skill hiding. The final report is collected in-process from `agent_event`
 //! broadcasts — the stdout reader hot path is untouched. The session is
 //! stopped after every run so resources stay predictable; spawn frequency is
 //! bounded by the gate anyway.
