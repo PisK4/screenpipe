@@ -1,7 +1,7 @@
 # Cue Tools 参考
 
 <!-- doc-covers: apps/screenpipe-app-tauri/src-tauri/assets/extensions/web-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/mcp-bridge.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/save-artifact.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/live-views.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/connection-gate.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card-recent.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-draft.ts, crates/screenpipe-core/assets/extensions/sub-agent.ts, crates/screenpipe-engine/src/routes/intent_cards.rs, crates/screenpipe-db/src/db/intent_drafts.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/session.rs, crates/screenpipe-core/src/agents/pi.rs（§6.1 技能装载） -->
-<!-- doc-verified: 84e7d116f（分支 feat/intent-agent-prompt-fix） -->
+<!-- doc-verified: cc5881bf4（分支 feat/intent-agent-prompt-fix） -->
 
 ## 1. 这份文档管什么
 
