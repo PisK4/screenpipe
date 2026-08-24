@@ -35,6 +35,7 @@ Cue 里「agent 能调用的每一个工具」的目录级参考：它是什么�
 | `screenpipe_list_connections` | connection-gate.ts | chat 全量 | 读 | 本地 `/connections` | 已上线 |
 | `screenpipe_connect_app` | connection-gate.ts | chat 全量 | 发起用户授权流程（阻塞等待） | 授权 UI + 连接刷新 | 已上线 |
 | `submit_intent_card` | intent-card.ts | 仅意图生成会话 | 受控交卡出口 | 无网络调用，宿主从 transcript 提取 | 已上线 |
+| `save_intent_draft` | intent-draft.ts | 仅意图生成会话 | 非终态存档 | 本地 `/intent-cards/drafts`（规划路由） | **规划中** |
 | `save_artifact` | save-artifact.ts | chat 全量 | 写入 Artifacts 库 | 本地 `/artifacts/register` | 已上线 |
 | `screenpipe_live_view` | live-views.ts | chat 全量 | 读 / 写 Live View 定义 | 本地 live-views 路由族 | 已上线 |
 | `screenpipe_live_view_propose` | live-views.ts | chat 全量 | 提议变更，schema 内校验 | 无网络调用，返回提案文本 | 已上线 |
@@ -49,7 +50,7 @@ Cue 里「agent 能调用的每一个工具」的目录级参考：它是什么�
 | 会话 | 内置工具 | 扩展工具 |
 | --- | --- | --- |
 | Chat | 全量含 bash/edit/write | 上表 chat 全量各工具 |
-| 意图卡片生成会话（session id `intent-card`） | 仅 read / grep / find / ls | `sp_mcp_list_tools`、`sp_mcp_call`、`submit_intent_card`、`get_recent_intent_cards`（与内置四件合成八项白名单，常量 `INTENT_ALLOWED_TOOLS`；规划扩入 §2 状态为「规划中」的四件只读取证工具，落地时同批加进该常量） |
+| 意图卡片生成会话（session id `intent-card`） | 仅 read / grep / find / ls | `sp_mcp_list_tools`、`sp_mcp_call`、`submit_intent_card`、`get_recent_intent_cards`（与内置四件合成八项白名单，常量 `INTENT_ALLOWED_TOOLS`；规划扩入 §2 状态为「规划中」的五件：四件只读取证工具加 `save_intent_draft`，落地时同批加进该常量） |
 | 外部 Pi agent（用户自装） | 该 agent 自己的默认面 | 仅拷入的扩展文件（现例：intent-card-recent.ts） |
 
 白名单机制：会话配置带 `allowedTools` 数组，Pi 只暴露名单内工具。意图会话的隔离边界有两处：专属项目目录 `~/.screenpipe/pi-intent`，以及 bash 与一切写侧工具不进白名单。技能可见面与 Chat 对齐——原「运行前剥离用户技能镜像」一条已于 2026-08-24 作废（pi 自动发现全局技能目录，剥离从未真正生效，裁决记录见 FEATURE_INTENT_CARDS §6），技能正文注入的残余风险由工具白名单兜底。
@@ -239,7 +240,26 @@ card_type 语义：read_only=只读操作建议（查询、汇总、打开查看
 
 Response：execute 回执 `Intent card submitted.`——真正的载荷由宿主从会话 transcript 的最后一个 submit_intent_card 工具调用里提取（见 FEATURE_INTENT_CARDS.md 第 5 节）。此工具仅在 App 内意图会话安装，不经 HTTP，外部分发版不含。
 
-#### 4.3.2 `save_artifact`
+#### 4.3.2 `save_intent_draft`（规划中）
+
+交卡之外的第三态出口。交卡语义三分后各管一段：submit_intent_card=已熟交付；本工具=信号真实但未熟，把追踪线索存档，下个心跳拉出来接着跑；insufficient_material=没有值得追踪的信号。参数 upsert：给 `draft_id` 即更新既有草稿，缺省新建。
+
+参数：
+
+| 字段 | 类型 | 必填 | 含义 |
+| --- | --- | --- | --- |
+| `draft_id` | integer | 否 | 更新指定草稿；缺省新建 |
+| `gist` | string | 是 | 一句话：在追踪什么 |
+| `evidence_so_far` | string | 是 | 已观察到的材料要点 |
+| `ripe_when` | string | 是 | 成熟条件：出现什么就升级为卡 |
+
+Response：`Draft saved (#<id>).` 或更新回执；活跃草稿数达上限时拒绝新建并附「先收敛或废弃」的指引。错误行为照 §9.3 纪律。
+
+边界与宿主侧纪律：草稿持久化在引擎侧 SQLite（intent_cards 表扩展 status=draft 或独立表），不经 transcript 提取——跨心跳续写要求它独立于单次会话存在，App 重启不丢。防拖延循环三条：活跃草稿数超上限（配置项 `intent_draft_max_active`，缺省 3）拒绝新建；存活超时（配置项 `intent_draft_ttl_hours`，缺省 48，对齐卡片过期钟）强制二选一——升级交卡或废弃；同内容原样续写连续超限同样强制收敛。
+
+落地时的联动调整：runner 材料注入「未定稿草稿」一节（gist / evidence_so_far / ripe_when / 已续写次数），有活跃草稿时 spawn 会话的门槛降低（续写比冷启动便宜且价值确定）；get_recent_intent_cards 响应增加 drafts 节，判重语义区分两种抑制——「已有同主题草稿→更新那一份」与「已发过同类卡→不再产出」；生命周期状态机 draft → updated* → submitted | discarded | expired 记入 FEATURE_INTENT_CARDS.md。
+
+#### 4.3.3 `save_artifact`
 
 把面向用户的最终产出（笔记、报告、摘要、清单、导出、代码文件）登记进 Artifacts 库。更新已有 artifact 也用它（同路径 upsert，不产生重复）。
 
@@ -255,7 +275,7 @@ Response：`Saved "<title>" to Artifacts (<output_path>)`。
 
 错误行为：非 2xx 返回状态码与错误体。边界：仅文本类（md/html/json/txt/csv/tsv/ts 等，映射为 kind）；二进制注册是后续能力。写入走会话级临时目录再注册，注册后删临时文件；重复保存同名文件产生同一规范路径，天然 upsert。
 
-#### 4.3.3 `screenpipe_live_view`
+#### 4.3.4 `screenpipe_live_view`
 
 对 Live View 仪表盘做五种操作，由 `action` 分派。
 
@@ -273,7 +293,7 @@ Response：随 action 不同——list 为紧凑摘要数组；get 为完整定�
 
 错误行为：业务校验失败抛出明确消息（如 `viewId is required for this action`、revision 非负整数校验），以可重试的工具错误回给模型。
 
-#### 4.3.4 `screenpipe_live_view_propose`
+#### 4.3.5 `screenpipe_live_view_propose`
 
 提议 Live View 变更。契约写在 schema 里，违反处作为可重试错误返回，不被 App 静默纠正。
 
