@@ -31,7 +31,14 @@ Cue 里「agent 能调用的每一个工具」的目录级参考：它是什么�
 | `screenpipe_connect_app` | connection-gate.ts | chat 全量 | 发起用户授权流程（阻塞等待） | 授权 UI + 连接刷新 |
 | `submit_intent_card` | intent-card.ts | 仅意图生成会话 | 受控交卡出口 | 无网络调用，宿主从 transcript 提取 |
 | `get_recent_intent_cards` | intent-card-recent.ts | intent 白名单；可独立分发 | 只读 | 本地 `/intent-cards/recent` |
+| `get_activity_summary`† | intent-search.ts | intent 白名单 | 只读 | 本地 `/activity-summary` |
+| `search_activity`† | intent-search.ts | intent 白名单 | 只读 | 本地 `/search` |
+| `search_memories`† | intent-search.ts | intent 白名单 | 只读 | 本地 `/memories`（仅 GET） |
+| `list_meetings`† | intent-search.ts | intent 白名单 | 只读 | 本地 `/meetings` |
+| `query_data`‡ | 待定 | intent 白名单 | 只读（wrapper 强制） | 本地 `/raw_sql` |
 | Pi 内置七件（read/grep/find/ls/bash/edit/write） | Pi 自带 | 见第 3 节矩阵 | 视具体工具 | 本机文件系统 |
+
+「规划中」条目指契约已定稿、代码尚未落地的工具，逐工具小节即实现应遵循的规格；引用它们描述现状前，先确认对应扩展文件是否存在。四个只读取证工具同属一个自包含扩展 `intent-search.ts`（照 intent-card-recent.ts 的 fetch+env 模式），落地时同批加进 `INTENT_ALLOWED_TOOLS`。`query_data` 为二期议：引擎对 `/raw_sql` 的只读约束目前是纪律约定而非强制，须由 wrapper 强制 SELECT-only、注入 LIMIT 并拒绝多语句后才可进白名单，此前不实现。
 
 ## 3. 会话矩阵
 
@@ -40,10 +47,10 @@ Cue 里「agent 能调用的每一个工具」的目录级参考：它是什么�
 | 会话 | 内置工具 | 扩展工具 |
 | --- | --- | --- |
 | Chat | 全量含 bash/edit/write | 上表 chat 全量各工具 |
-| 意图卡片生成会话（session id `intent-card`） | 仅 read / grep / find / ls | `sp_mcp_list_tools`、`sp_mcp_call`、`submit_intent_card`、`get_recent_intent_cards`（八项白名单，常量 `INTENT_ALLOWED_TOOLS`） |
+| 意图卡片生成会话（session id `intent-card`） | 仅 read / grep / find / ls | `sp_mcp_list_tools`、`sp_mcp_call`、`submit_intent_card`、`get_recent_intent_cards`（与内置四件合成八项白名单，常量 `INTENT_ALLOWED_TOOLS`；规划扩入 §2 标「规划中」的四件只读取证工具，落地时同批加进该常量） |
 | 外部 Pi agent（用户自装） | 该 agent 自己的默认面 | 仅拷入的扩展文件（现例：intent-card-recent.ts） |
 
-白名单机制：会话配置带 `allowedTools` 数组，Pi 只暴露名单内工具。意图会话另有两条隔离纪律：专属项目目录 `~/.screenpipe/pi-intent`，运行前清除带 `.screenpipe-managed` marker 的用户技能镜像（防无人值守定时任务执行任意导入指令）；bash 与一切写侧工具不进白名单。
+白名单机制：会话配置带 `allowedTools` 数组，Pi 只暴露名单内工具。意图会话的隔离边界有两处：专属项目目录 `~/.screenpipe/pi-intent`，以及 bash 与一切写侧工具不进白名单。技能可见面与 Chat 对齐——原「运行前剥离用户技能镜像」一条已于 2026-08-24 作废（pi 自动发现全局技能目录，剥离从未真正生效，裁决记录见 FEATURE_INTENT_CARDS §6），技能正文注入的残余风险由工具白名单兜底。
 
 ## 4. 逐工具参考
 
@@ -172,23 +179,22 @@ Response：JSON 文本 `{ status: connected | declined | failed, connectionId, n
 
 ### 4.9 `submit_intent_card`
 
-意图卡片生成的唯一交卡出口。参数 schema 内嵌完整卡片契约（oneOf 两分支），pi 在协议层做编译期校验，非法调用在 execute 之前被拒并把错误回灌给模型自纠。
+意图卡片生成的唯一交卡出口。参数 schema 是单层平面 object：此前的 oneOf 两分支由 pi 协议层 TypeBox 校验先行拦截，非法调用到不了 execute 也带不出修正指引，故两种载荷的互斥与完整性检查全部下沉到 execute 内自检，非法时抛出可修正的错误文本回灌模型重试。
 
-参数（oneOf 二选一）：
-
-分支一，普通卡：
+参数：
 
 | 字段 | 类型 | 必填 | 含义 |
 | --- | --- | --- | --- |
-| `v` | integer，恒为 1 | 是 | 契约版本 |
-| `card_type` | enum：light / side_effect / read_only | 是 | 卡片类型 |
-| `proactive_view` | string | 否 | 给用户看的一句话引子 |
+| `v` | integer | 卡载荷必填 | 契约版本，恒为数字 1 |
+| `card_type` | enum：light / side_effect / read_only | 卡载荷必填 | 卡片类型，语义见下 |
+| `proactive_view` | string | 否 | 给用户看的一句话引子，中文 |
 | `recommended_index` | integer ≥0 | 否 | 推荐方案下标 |
-| `plans` | array 1–3 项 | 是 | 方案列表，每项 `{title*, summary*, consequence?}` |
+| `plans` | array 1–3 项 | 卡载荷必填 | 方案列表，每项 `{title*, summary*, consequence?}` |
+| `insufficient_material` | boolean | 材料不足形态必填 | 恒为 true，与卡载荷互斥 |
 
-分支二，材料不足：`{"insufficient_material": true}`。
+card_type 语义：read_only=只读操作建议（查询、汇总、打开查看某内容）；side_effect=改变系统状态的建议（改设置、启动自动化），必须给 consequence；light=一句话轻提示，不带 plans。light 与 plans 互斥由 execute 强制，违反会被打回并附二选一的改法。
 
-Response：execute 只回执 `Intent card submitted.`——真正的载荷由宿主从会话 transcript 的最后一个 submit_intent_card 工具调用里提取（见 FEATURE_INTENT_CARDS.md 第 5 节）。此工具仅在 App 内意图会话安装，不经 HTTP，外部分发版不含。
+Response：execute 回执 `Intent card submitted.`——真正的载荷由宿主从会话 transcript 的最后一个 submit_intent_card 工具调用里提取（见 FEATURE_INTENT_CARDS.md 第 5 节）。此工具仅在 App 内意图会话安装，不经 HTTP，外部分发版不含。
 
 ### 4.10 `get_recent_intent_cards`
 
@@ -205,9 +211,72 @@ Response：每行一张卡的文本列表 `- #<id> [<card_type>/<status>] <proac
 
 错误行为：HTTP 非 2xx 返回状态码与 body 前 400 字符。边界：这是双通道分发单源文件——App 内受管安装与外部分发副本（本机 `~/.pi/agent/extensions/`）必须同步更新；只依赖 fetch 和 env（`SCREENPIPE_PORT`、`SCREENPIPE_LOCAL_API_KEY`），对 App 零进程内依赖。
 
-### 4.11 Pi 内置工具与会话矩阵
+### 4.11 `get_activity_summary`（规划中）
 
-read / grep / find / ls / bash / edit / write 由 Pi 自带，schema 归 Pi 上游文档，此处不复刻。要点在可见性：chat 会话默认全开（含 bash 与写侧）；意图生成会话刻意只留四件只读件；bash 在无人值守会话中等于周期性任意执行能力，收窄决策见 FEATURE_AGENT_CAPABILITY_SURFACE.md。
+宏观活动摘要，与生成材料预载的 summary 同源，差别在时间窗可自选。用途：怀疑摘要失真、要看子时段粒度、或要窗口之前的连续上下文时换窗重查。是否调用由模型自主判断，材料够用就不必调。
+
+参数：
+
+| 字段 | 类型 | 必填 | 含义 |
+| --- | --- | --- | --- |
+| `start_time` | string | 否 | ISO 8601、相对时间（`16h ago`）或本地日历字面量（`today`）；缺省取本次材料窗口起点 |
+| `end_time` | string | 否 | 同上；缺省 now |
+
+Response：`/activity-summary` 原样 JSON（apps / windows / key_texts / audio 与 data_status 字段）。错误行为照 §9.3 纪律返回状态码与原因。边界：日历字面量按用户本地时区解释，禁止在模型侧换算 UTC 午夜；本工具不做裁剪，窗口大小由调用方控制。
+
+### 4.12 `search_activity`（规划中）
+
+原文级查证入口：verbatim 文本、OCR、音频转录、指定 app 或窗口的精确匹配。摘要说「用户在用 X」，出卡前用本工具确认 X 里具体发生了什么。
+
+参数：
+
+| 字段 | 类型 | 必填 | 含义 |
+| --- | --- | --- | --- |
+| `q` | string | 否 | 关键词；音频转录噪声大，搜说话内容慎用 |
+| `content_type` | enum | 否 | all（默认）/ accessibility / audio / ocr / input |
+| `start_time` | string | 是 | 时间格式同 §4.11；必填是为防无界查询超时 |
+| `end_time` | string | 否 | 缺省 now |
+| `app_name` | string | 否 | 应用名子串 |
+| `window_name` | string | 否 | 窗口标题子串 |
+| `limit` | integer | 否 | 夹取 1–20，翻页用 offset |
+| `offset` | integer | 否 | 缺省 0 |
+
+三条纪律焊死在 wrapper 里，模型不可绕过：fields 列预设白名单（type / app_name / text / timestamp / frame_id）、max_content_length 中段截断、start_time 强制必填。这是把 screenpipe-api skill 的上下文保护规则从「靠模型自觉」升级成「代码保证」，也是包工具相对塞 skill 的核心收益。
+
+Response：`{ data: [...], pagination }`，每行只含白名单列。空结果的返回体要提示回退 get_activity_summary 核对 data_status，不得据此直接断言「没有数据」。
+
+### 4.13 `search_memories`（规划中）
+
+查长期记忆库：偏好、历史决策、项目背景，信号密度高于原始事件流。出卡前先查一遍，避免推荐用户早已决定过的事，同时给卡片补个性化依据。
+
+参数：
+
+| 字段 | 类型 | 必填 | 含义 |
+| --- | --- | --- | --- |
+| `q` | string | 否 | FTS 检索词 |
+| `tags` | string | 否 | 逗号分隔，条目须携带全部标签 |
+| `min_importance` | number | 否 | 重要度下限，0–1 |
+| `start_time` / `end_time` | string | 否 | 时间格式同 §4.11 |
+| `limit` | integer | 否 | 上限夹取 |
+
+边界：只包 GET；POST/PUT/DELETE 一概不进任何白名单——无人值守会话不得写记忆库。
+
+### 4.14 `list_meetings`（规划中）
+
+会议清单查询。摘要里会议信息被压缩，需要参会人与时段细节时用它展开。
+
+参数：
+
+| 字段 | 类型 | 必填 | 含义 |
+| --- | --- | --- | --- |
+| `start_time` / `end_time` | string | 否 | 缺省最近 24 小时 |
+| `limit` | integer | 否 | 上限夹取 |
+
+Response：`/meetings` 清单 JSON。错误行为照 §9.3 纪律。
+
+### 4.15 Pi 内置工具与会话矩阵
+
+read / grep / find / ls / bash / edit / write 由 Pi 自带，schema 归 Pi 上游文档，此处不复刻。要点在可见性：chat 会话默认全开（含 bash 与写侧）；意图生成会话刻意收窄为只读内置件加白名单扩展工具；bash 在无人值守会话中等于周期性任意执行能力，收窄决策见 FEATURE_AGENT_CAPABILITY_SURFACE.md。
 
 ## 5. 特殊机制：sub-agent
 
@@ -215,11 +284,11 @@ read / grep / find / ls / bash / edit / write 由 Pi 自带，schema 归 Pi 上�
 
 ## 6. Skills 目录
 
-Skill 教模型怎么用能力，本身不注册工具、不发请求、不能绕过白名单；模型要用 Skill 讲的能力，仍需会话里有 bash 或对应正式 Tool。当前基线三件：`screenpipe-api`（本地数据查询与媒体分析规则）、`screenpipe-cli`、`render-html-report`。用户自装 skills 以目录镜像方式进 chat 会话；意图生成会话每次运行前剥离镜像只留基线。各 Skill 正文见 `crates/screenpipe-core/assets/skills/*/SKILL.md`，本文不复述。
+Skill 教模型怎么用能力，本身不注册工具、不发请求、不能绕过白名单；模型要用 Skill 讲的能力，仍需会话里有 bash 或对应正式 Tool。当前基线三件：`screenpipe-api`（本地数据查询与媒体分析规则）、`screenpipe-cli`、`render-html-report`。用户自装 skills 以目录镜像方式进 chat 会话；意图生成会话的技能可见面与 Chat 对齐（2026-08-24 起，镜像剥离作废）。注意一个能力落差：screenpipe-api / screenpipe-cli 教的 curl 与命令执行在意图会话没有落地工具（无 bash、无发请求通道），这些技能在那里只是索引占位；对应的查证能力正以扩展工具形式补齐（§4.11–§4.14）。各 Skill 正文见 `crates/screenpipe-core/assets/skills/*/SKILL.md`，本文不复述。
 
 ## 7. Agent 侧 HTTP 路由（集成必需子集）
 
-鉴权统一为 `Authorization: Bearer <key>`，key 来自 `SCREENPIPE_LOCAL_API_KEY`（旧名 `SCREENPIPE_API_AUTH_KEY` 将弃用）；引擎全量路由的字段级规范在 `GET :3030/openapi.json` / `/openapi.yaml`，本文不复刻。
+鉴权统一为 `Authorization: Bearer <key>`，key 来自 `SCREENPIPE_LOCAL_API_KEY`（旧名 `SCREENPIPE_API_AUTH_KEY` 将弃用）；引擎全量路由的字段级规范在 `GET :3030/openapi.json` / `/openapi.yaml`，本文不复刻。`/activity-summary`、`/search`、`/memories`、`/meetings` 将成为 §4.11–§4.14 规划中工具的后端，落地时字段级细节以 openapi 为准并回填本节。
 
 ### `GET /intent-cards/recent`
 
@@ -285,3 +354,4 @@ list 响应 `{ data: [{ id, name, url, enabled }] }`；tools 响应 `{ data: { t
 | 改双通道分发文件（intent-card-recent.ts） | 受管源与全部外部分发副本（至少 `~/.pi/agent/extensions/`） |
 | 动白名单机制 | 第 3 节矩阵与 CAPABILITY_SURFACE 的隔离论述 |
 | 引擎路由参数变更 | openapi 自动跟随；仅当该路由是工具后端时同步本文对应行 |
+| 规划中工具落地实现 | 总表与小节去掉「规划中」标记；新扩展文件名加进 doc-covers 并刷新 doc-verified |
