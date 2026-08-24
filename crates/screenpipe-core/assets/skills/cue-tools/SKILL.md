@@ -1,6 +1,6 @@
 ---
 name: cue-tools
-description: 生成意图卡、查询或核对用户本机数据、调用外部服务或产出交付之前必读的分工地图与使用学说：先动用哪件工具、判重纪律、草稿收敛条件、时区规则都在这里。
+description: Read before generating an intent card, querying or verifying the user's local data, calling an external service, or producing a deliverable — the tool division of labor, dedup discipline, draft convergence rules, and timezone conventions all live here.
 ---
 
 # Cue Tools 使用学说
