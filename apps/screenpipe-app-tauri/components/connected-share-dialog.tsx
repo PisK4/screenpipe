@@ -937,7 +937,7 @@ export function ConnectedShareDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-h-[calc(100vh-2rem)] max-w-lg gap-4 overflow-y-auto rounded-none [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/60"
+        className="max-h-[calc(100vh-2rem)] max-w-lg gap-4 overflow-y-auto rounded-[10px] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/60"
         data-testid="connected-share-dialog"
       >
         <DialogHeader>
@@ -978,7 +978,7 @@ export function ConnectedShareDialog({
               type="button"
               variant="ghost"
               size="sm"
-              className="h-7 rounded-none px-2"
+              className="h-7 rounded-lg px-2"
               onClick={() => setConnectionsRefresh((value) => value + 1)}
             >
               <RefreshCw className="mr-1 h-3 w-3" /> retry
@@ -1182,7 +1182,7 @@ export function ConnectedShareDialog({
                     setActionError(null);
                   }}
                 >
-                  <SelectTrigger className="h-9 rounded-none text-xs">
+                  <SelectTrigger className="h-9 rounded-lg text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1208,7 +1208,7 @@ export function ConnectedShareDialog({
                   setActionError(null);
                 }}
               >
-                <SelectTrigger className="h-9 rounded-none text-xs">
+                <SelectTrigger className="h-9 rounded-lg text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1260,7 +1260,7 @@ export function ConnectedShareDialog({
                   setActionError(null);
                 }}
               >
-                <SelectTrigger className="h-9 rounded-none text-xs">
+                <SelectTrigger className="h-9 rounded-lg text-xs">
                   <SelectValue
                     placeholder={
                       linearTeamsLoading ? "loading teams" : "choose team"
@@ -1304,7 +1304,7 @@ export function ConnectedShareDialog({
                   setReceipt(null);
                   setActionError(null);
                 }}
-                className="h-9 rounded-none text-xs"
+                className="h-9 rounded-lg text-xs"
               />
             </div>
           </div>
@@ -1387,7 +1387,7 @@ export function ConnectedShareDialog({
                   setReceipt(null);
                   setActionError(null);
                 }}
-                className="min-h-48 rounded-none border-border font-mono text-xs focus-visible:border-foreground focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/60"
+                className="min-h-48 rounded-lg border-border font-mono text-xs focus-visible:border-foreground focus-visible:ring-0 focus-visible:ring-offset-0 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/60"
               />
             </div>
           </SummaryRow>
@@ -1459,7 +1459,7 @@ export function ConnectedShareDialog({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 rounded-none px-2"
+                className="h-7 rounded-lg px-2"
                 onClick={() => void openExternal(receipt.url as string)}
               >
                 open <ExternalLink className="ml-1 h-3 w-3" />
@@ -1472,14 +1472,14 @@ export function ConnectedShareDialog({
           <Button
             type="button"
             variant="ghost"
-            className="rounded-none"
+            className="rounded-lg"
             onClick={() => onOpenChange(false)}
           >
             close
           </Button>
           <Button
             type="button"
-            className="rounded-none"
+            className="rounded-lg"
             data-testid="connected-share-confirm"
             disabled={!canSubmit || sending}
             onClick={() => void submit()}

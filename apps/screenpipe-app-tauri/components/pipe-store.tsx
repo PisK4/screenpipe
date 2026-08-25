@@ -991,7 +991,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
               key={c}
               onClick={() => setCategory(c)}
               className={cn(
-                "px-3 py-1.5 rounded-none text-xs font-medium transition-colors duration-150 whitespace-nowrap",
+                "px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 whitespace-nowrap",
                 category === c
                   ? "bg-foreground text-background"
                   : "bg-muted text-muted-foreground hover:text-foreground"
@@ -1010,7 +1010,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
             <Card key={i} className="overflow-hidden">
               <CardContent className="p-5 space-y-3">
                 <div className="flex items-center gap-3">
-                  <Skeleton className="h-10 w-10 rounded-none" />
+                  <Skeleton className="h-10 w-10" />
                   <div className="space-y-1.5 flex-1">
                     <Skeleton className="h-4 w-2/3" />
                     <Skeleton className="h-3 w-1/3" />
@@ -1087,7 +1087,7 @@ function DiscoverView({ onInstalled }: { onInstalled?: () => void }) {
               </span>
             </DialogDescription>
           </DialogHeader>
-          <div className="flex items-start gap-2 p-3 rounded-none bg-muted border border-border">
+          <div className="flex items-start gap-2 p-3 rounded-[10px] bg-muted border border-border">
             <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
             <p className="text-sm text-muted-foreground">
               {t("pipesStore.updateConfirm.warning")}
@@ -1147,11 +1147,11 @@ function PipeCard({
     <div
       data-testid={`pipe-card-${pipe.slug}`}
       onClick={onClick}
-      className="border border-border bg-card hover:bg-accent/50 transition-colors duration-150 rounded-none p-5 cursor-pointer group flex flex-col"
+      className="border border-border bg-card hover:bg-accent/50 transition-colors duration-150 rounded-[10px] p-5 cursor-pointer group flex flex-col"
     >
       {/* Header: icon + action */}
       <div className="flex items-start justify-between gap-3">
-        <div className="text-xl bg-muted rounded-none h-10 w-10 flex items-center justify-center flex-shrink-0">
+        <div className="text-xl bg-muted rounded-lg h-10 w-10 flex items-center justify-center flex-shrink-0">
           {pipe.icon || "🔧"}
         </div>
         <Button
@@ -1159,7 +1159,7 @@ function PipeCard({
           data-testid="pipe-install-btn"
           variant={isInstalled && !hasUpdate ? "outline" : "default"}
           className={cn(
-            "h-7 px-3 text-xs font-semibold rounded-none uppercase tracking-wide flex-shrink-0",
+            "h-7 px-3 text-xs font-semibold rounded-lg uppercase tracking-wide flex-shrink-0",
             isInstalled && !hasUpdate && "pointer-events-none"
           )}
           disabled={installing || (isInstalled && !hasUpdate)}
@@ -1323,7 +1323,7 @@ function PipeDetailPanel({
     <div className="space-y-8">
       {/* Hero header */}
       <div className="flex items-start gap-4">
-        <div className="text-4xl bg-muted rounded-none h-16 w-16 flex items-center justify-center flex-shrink-0">
+        <div className="text-4xl bg-muted rounded-lg h-16 w-16 flex items-center justify-center flex-shrink-0">
           {pipe.icon || "🔧"}
         </div>
         <div className="min-w-0 flex-1">
@@ -1341,7 +1341,7 @@ function PipeDetailPanel({
                 {pipe.category ? (
                   <>
                     <span className="text-xs text-muted-foreground/50">·</span>
-                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5 font-normal rounded-none">
+                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5 font-normal">
                       {pipe.category}
                     </Badge>
                   </>
@@ -1363,7 +1363,7 @@ function PipeDetailPanel({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-9 px-4 text-sm font-semibold rounded-none uppercase tracking-wide"
+                className="h-9 px-4 text-sm font-semibold rounded-lg uppercase tracking-wide"
                 onClick={() => {
                   const pipeSource = pipe.source || "";
                   navigateHomeAndPrefill({
@@ -1393,7 +1393,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-9 px-4 text-sm font-semibold rounded-none uppercase tracking-wide"
+                  className="h-9 px-4 text-sm font-semibold rounded-lg uppercase tracking-wide"
                   onClick={() => void openUrl(updateContactHref)}
                 >
                   <ExternalLink className="h-4 w-4 mr-1.5" />
@@ -1404,7 +1404,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
                 <Button
                   size="sm"
                   variant="destructive"
-                  className="h-9 px-4 text-sm font-semibold rounded-none uppercase tracking-wide"
+                  className="h-9 px-4 text-sm font-semibold rounded-lg uppercase tracking-wide"
                   disabled={unpublishing}
                   onClick={() => onUnpublish(pipe.slug)}
                 >
@@ -1422,7 +1422,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
                 size="sm"
                 variant={isInstalled && !hasUpdate ? "outline" : "default"}
                 className={cn(
-                  "h-9 px-5 text-sm font-semibold rounded-none uppercase tracking-wide flex-shrink-0",
+                  "h-9 px-5 text-sm font-semibold rounded-lg uppercase tracking-wide flex-shrink-0",
                   isInstalled && !hasUpdate && "pointer-events-none"
                 )}
                 disabled={
@@ -1459,7 +1459,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
           {t("pipesStore.detail.readmeHeading")}
         </h4>
-        <div className="border border-border rounded-none p-6">
+        <div className="border border-border rounded-[10px] p-6">
           {readmeContent ? (
             <MemoizedReactMarkdown
               remarkPlugins={[remarkGfm]}
@@ -1490,7 +1490,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
         <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
           {t("pipesStore.detail.permissionsHeading")}
         </h4>
-        <div className="border border-border rounded-none p-5 space-y-3">
+        <div className="border border-border rounded-[10px] p-5 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
             {PERMISSION_LABELS.map((perm) => {
               const status = getPermissionStatus(pipe.permissions, perm.key);
@@ -1531,7 +1531,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
 
         {/* Unrestricted warning */}
         {unrestricted && (
-          <div className="border border-foreground bg-muted/50 rounded-none p-4 space-y-2">
+          <div className="border border-foreground bg-muted/50 rounded-[10px] p-4 space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium text-foreground">
               <AlertTriangle className="h-4 w-4" />
               {t("pipesStore.warn.unrestricted")}
@@ -1562,6 +1562,7 @@ if the pipe's final user-facing file lives outside the pipe's own \`./output/\` 
           {t("pipesStore.detail.sourceHeading")}
         </button>
         {sourceExpanded && pipe.source ? (
+          // intentional square
           <div className="border border-border rounded-none overflow-hidden">
             <pre className="p-4 text-xs leading-relaxed whitespace-pre-wrap font-mono max-h-80 overflow-y-auto bg-muted/50">
               {pipe.source}
@@ -1587,7 +1588,7 @@ export function PermissionsReview({
 
   return (
     <div className="space-y-3">
-      <div className="border border-border rounded-none p-4 space-y-2">
+      <div className="border border-border rounded-[10px] p-4 space-y-2">
         <div className="flex items-center gap-1.5 text-sm font-medium">
           <Shield className="h-4 w-4" />
           {t("pipesStore.pr.dataAccess")}
@@ -1618,7 +1619,7 @@ export function PermissionsReview({
       </div>
 
       {unrestricted && (
-        <div className="border border-foreground bg-muted/50 rounded-none p-4">
+        <div className="border border-foreground bg-muted/50 rounded-[10px] p-4">
           <div className="flex items-center gap-2 text-xs font-medium text-foreground">
             <AlertTriangle className="h-3.5 w-3.5" />
             {t("pipesStore.pr.unrestrictedAll")}
@@ -1682,7 +1683,7 @@ export function InstallRiskSummary({
         {accessLabels.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {accessLabels.map((label) => (
-              <Badge key={label} variant="secondary" className="rounded-none text-[10px] lowercase">
+              <Badge key={label} variant="secondary" className="text-[10px] lowercase">
                 {label}
               </Badge>
             ))}

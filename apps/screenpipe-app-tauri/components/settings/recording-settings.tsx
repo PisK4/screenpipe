@@ -779,7 +779,7 @@ function BackgroundTranscriptionDialog({
                 Audio chunks waiting for background transcription reconciliation.
               </DialogDescription>
             </div>
-            <Badge variant="outline" className="mt-0.5 shrink-0 rounded-none font-mono text-[10px]">
+            <Badge variant="outline" className="mt-0.5 shrink-0 font-mono text-[10px]">
               worker {workerState}
             </Badge>
           </div>
@@ -834,7 +834,7 @@ function BackgroundTranscriptionDialog({
                 {quietItems.length.toLocaleString()}
               </span>
             </Button>
-            <Badge variant="secondary" className="h-8 shrink-0 rounded-none px-2 font-mono text-[10px]">
+            <Badge variant="secondary" className="h-8 shrink-0 px-2 font-mono text-[10px]">
               {filteredItems.length.toLocaleString()} shown
             </Badge>
             <Button

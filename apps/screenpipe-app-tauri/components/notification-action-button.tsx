@@ -95,7 +95,7 @@ export function NotificationActionButton({
         {isTruncated && (
           <TooltipContent
             side="top"
-            className="max-w-[calc(100vw-16px)] rounded-none border-black/15 bg-white/95 px-2 py-1 font-mono text-[10px] text-black/75 shadow-md"
+            className="max-w-[calc(100vw-16px)] rounded-lg border-black/15 bg-white/95 px-2 py-1 font-mono text-[10px] text-black/75 shadow-md"
           >
             {label}
           </TooltipContent>

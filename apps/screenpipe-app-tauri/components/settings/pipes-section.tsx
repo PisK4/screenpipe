@@ -607,7 +607,7 @@ function PipeConnectionPicker({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="w-[360px] max-w-[calc(100vw-2rem)] rounded-none border-border p-0 shadow-none"
+        className="w-[360px] max-w-[calc(100vw-2rem)] rounded-[10px] border-border p-0 shadow-none"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <div className="border-b border-border p-2">
@@ -618,7 +618,7 @@ function PipeConnectionPicker({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="search connections..."
-              className="h-8 rounded-none pl-8 text-xs"
+              className="h-8 rounded-lg pl-8 text-xs"
               spellCheck={false}
             />
           </div>
@@ -2982,7 +2982,7 @@ export function PipesSection() {
                       {enterpriseManaged && (
                         <Badge
                           variant="outline"
-                          className="h-5 shrink-0 gap-1 rounded-none text-[10px]"
+                          className="h-5 shrink-0 gap-1 text-[10px]"
                           title={`organization managed v${parseEnterpriseManagedVersion(pipe.raw_content)} — configuration is enforced by your administrator`}
                         >
                           <Lock className="h-2.5 w-2.5" /> managed
@@ -3023,7 +3023,7 @@ export function PipesSection() {
                       {pipe.config.history && (
                         <Badge
                           variant="outline"
-                          className="h-5 shrink-0 rounded-none text-[10px] text-muted-foreground"
+                          className="h-5 shrink-0 text-[10px] text-muted-foreground"
                           title="future runs remember prior context and update one chat"
                         >
                           one chat
@@ -3087,7 +3087,7 @@ export function PipesSection() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-9 gap-2 rounded-none px-3 font-mono text-xs uppercase"
+                            className="h-9 gap-2 rounded-lg px-3 font-mono text-xs uppercase"
                             onClick={() => stopPipe(pipe.config.name)}
                             disabled={stoppingPipe === pipe.config.name}
                             title="stop scheduled task"
@@ -3105,7 +3105,7 @@ export function PipesSection() {
                             variant={hasMissingConnections ? "outline" : "default"}
                             size="sm"
                             className={cn(
-                              "h-9 gap-2 rounded-none px-3 font-mono text-xs uppercase",
+                              "h-9 gap-2 rounded-lg px-3 font-mono text-xs uppercase",
                               hasMissingConnections && "text-destructive",
                             )}
                             onClick={() => {
@@ -3349,11 +3349,11 @@ export function PipesSection() {
                   })()}
                   <div className="px-5 pt-4 pb-6">
                     <Tabs defaultValue="config" className="w-full">
-                      <TabsList className="mb-2 h-9 w-full items-stretch justify-start gap-4 rounded-none border-b bg-transparent p-0">
-                        <TabsTrigger value="config" className="-mb-px rounded-none border-b-2 border-transparent px-3 text-xs uppercase tracking-wider data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                      <TabsList className="mb-2 h-9 w-full items-stretch justify-start gap-4 rounded-none border-b bg-transparent p-0"> {/* intentional square */}
+                        <TabsTrigger value="config" className="-mb-px rounded-lg border-b-2 border-transparent px-3 text-xs uppercase tracking-wider data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none">
                           config
                         </TabsTrigger>
-                        <TabsTrigger value="runs" className="-mb-px rounded-none border-b-2 border-transparent px-3 text-xs uppercase tracking-wider data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none">
+                        <TabsTrigger value="runs" className="-mb-px rounded-lg border-b-2 border-transparent px-3 text-xs uppercase tracking-wider data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none">
                           runs{(pipe.execution_count ?? executions.length) > 0
                             ? ` (${pipe.execution_count ?? executions.length})`
                             : ""}
@@ -3361,7 +3361,7 @@ export function PipesSection() {
                         <TabsTrigger
                           value="advanced"
                           data-testid={`pipe-advanced-tab-${pipe.config.name}`}
-                          className="-mb-px rounded-none border-b-2 border-transparent px-3 text-xs uppercase tracking-wider data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                          className="-mb-px rounded-lg border-b-2 border-transparent px-3 text-xs uppercase tracking-wider data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                         >
                           advanced
                         </TabsTrigger>
@@ -3952,7 +3952,7 @@ export function PipesSection() {
                         onChange={(e) => handlePipeEdit(pipe.config.name, e.target.value)}
                         readOnly={isReadOnlyPipe(pipe)}
                         className={cn(
-                          "h-72 rounded-none border-0 font-mono text-xs focus-visible:ring-0",
+                          "h-72 rounded-lg border-0 font-mono text-xs focus-visible:ring-0",
                           isReadOnlyPipe(pipe) && "opacity-70 cursor-not-allowed"
                         )}
                         autoCorrect="off"

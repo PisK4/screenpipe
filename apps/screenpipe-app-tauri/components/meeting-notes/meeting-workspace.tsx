@@ -27,7 +27,7 @@ export const MEETING_READING_COLUMN_CLASS = "w-full";
 // had accumulated several bordered 36px squares that each read as important as
 // the title or the primary action, which is what made the surface feel busy.
 export const MEETING_QUIET_CONTROL_CLASS =
-  "rounded-none border-0 bg-transparent text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground focus-visible:text-foreground";
+  "rounded-lg border-0 bg-transparent text-muted-foreground transition-colors hover:bg-transparent hover:text-foreground focus-visible:text-foreground";
 
 // Actions that sit on the tab rule share the tabs' own geometry so the row
 // reads as one band instead of a strip of floating boxes. Shared with the note

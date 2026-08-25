@@ -124,7 +124,7 @@ export function LiveViewLineChart({
               key={`${point.timestamp}:${point.label}:${index}`}
               type="button"
               aria-label={`${point.timestamp || point.label}: ${formatValue(point.value)}`}
-              className="absolute z-[1] h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-none outline-none focus-visible:ring-1 focus-visible:ring-foreground focus-visible:ring-offset-2"
+              className="absolute z-[1] h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-lg outline-none focus-visible:ring-1 focus-visible:ring-foreground focus-visible:ring-offset-2"
               style={{ left: `${coordinate.x}%`, top: `${coordinate.y}%` }}
               onFocus={() => setActiveIndex(index)}
               onBlur={() => setActiveIndex(null)}

@@ -268,7 +268,7 @@ export function SpeakerAssignPopover({
 					</span>
 				)}
 			</PopoverTrigger>
-			<PopoverContent className="w-80 p-3 z-[9999] border border-border rounded-none shadow-none" align="start">
+			<PopoverContent className="w-80 p-3 z-[9999] border border-border rounded-[10px] shadow-none" align="start">
 				<div className="space-y-3">
 					<div className="text-sm font-medium lowercase">assign speaker</div>
 

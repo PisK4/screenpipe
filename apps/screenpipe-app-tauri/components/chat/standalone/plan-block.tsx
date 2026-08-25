@@ -40,7 +40,7 @@ export function PlanBlock({ entries }: { entries: PlanEntries }) {
       data-testid="chat-plan-block"
       data-plan-total={total}
       data-plan-completed={completed}
-      className="my-2 rounded-none border border-border bg-muted/30 px-3 py-2"
+      className="my-2 rounded-[10px] border border-border bg-muted/30 px-3 py-2"
     >
       <div className="mb-1.5 flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
         <span>{t("chat.plan.title")}</span>

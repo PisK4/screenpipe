@@ -78,7 +78,7 @@ export function UsagePopover() {
         align="end"
         side="top"
         sideOffset={6}
-        className="w-[min(360px,calc(100vw-24px))] rounded-none border-border p-3.5 shadow-lg shadow-black/5"
+        className="w-[min(360px,calc(100vw-24px))] rounded-[10px] border-border p-3.5 shadow-lg shadow-black/5"
         data-testid="usage-popover-content"
       >
         <UsageLimitsPanel

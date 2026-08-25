@@ -1140,7 +1140,7 @@ function HomeContent() {
         <>
           <span
             aria-hidden="true"
-            className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-red-500"
+            className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-failure-base"
           />
           <span className="sr-only">{t("shell.meetingRecordingActive")}</span>
         </>
@@ -1324,7 +1324,7 @@ function HomeContent() {
                       <>
                         <span
                           aria-hidden="true"
-                          className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-red-500 ring-2 ring-background"
+                          className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-failure-base ring-2 ring-background"
                         />
                         <span className="sr-only">{t("shell.meetingRecordingActive")}</span>
                       </>
@@ -1500,6 +1500,7 @@ function HomeContent() {
               nowrap, so that's the FULL untruncated text width), and in a
               narrow window with the sidebar open the whole pane gets
               clipped at the right window edge instead of truncating. */}
+          {/* intentional square: translucent pane sits full-bleed against the window */}
           <div className={cn("flex-1 min-w-0 flex flex-col h-full bg-background min-h-0 relative", isTranslucent ? "rounded-none" : "rounded-tr-lg")} data-testid="home-page">
             {/* ALWAYS-MOUNTED chat layer.
                 Hidden via CSS (display:none) when the user is on a non-chat

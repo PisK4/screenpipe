@@ -82,7 +82,7 @@ export function IntentWorkbench({ reloadKey }: { reloadKey: number }) {
             <Skeleton
               key={row}
               className={cn(
-                "mb-4 h-16 rounded-none",
+                "mb-4 h-16",
                 row === 1 ? "w-5/6" : "w-full",
               )}
             />

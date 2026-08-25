@@ -1654,7 +1654,7 @@ export function CollapsedChatSidebarButton({
         side="right"
         align="start"
         sideOffset={8}
-        className="w-64 p-0 rounded-none shadow-none"
+        className="w-64 p-0 rounded-[10px] shadow-none"
       >
         {isLoadingChats ? (
           <div className="py-1" aria-busy="true" data-testid="collapsed-chat-sidebar-skeleton">
@@ -1670,25 +1670,25 @@ export function CollapsedChatSidebarButton({
             onValueChange={(v) => setTab(v as typeof tab)}
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-3 h-8 rounded-none bg-transparent border-b border-border p-0">
+            <TabsList className="grid w-full grid-cols-3 h-8 rounded-lg bg-transparent border-b border-border p-0">
               <TabsTrigger
                 value="pinned"
                 disabled={pinned.length === 0}
-                className="relative h-8 rounded-none bg-transparent px-2 text-[10px] uppercase tracking-wider shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:bottom-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-foreground"
+                className="relative h-8 rounded-lg bg-transparent px-2 text-[10px] uppercase tracking-wider shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:bottom-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-foreground"
               >
                 {t("shell.section.pinned")}
               </TabsTrigger>
               <TabsTrigger
                 value="recents"
                 disabled={recents.length === 0}
-                className="relative h-8 rounded-none bg-transparent px-2 text-[10px] uppercase tracking-wider shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:bottom-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-foreground"
+                className="relative h-8 rounded-lg bg-transparent px-2 text-[10px] uppercase tracking-wider shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:bottom-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-foreground"
               >
                 {t("shell.section.recents")}
               </TabsTrigger>
               <TabsTrigger
                 value="archived"
                 disabled={archived.length === 0}
-                className="relative h-8 rounded-none bg-transparent px-2 text-[10px] uppercase tracking-wider shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:bottom-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-foreground"
+                className="relative h-8 rounded-lg bg-transparent px-2 text-[10px] uppercase tracking-wider shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:bottom-0 data-[state=active]:after:h-0.5 data-[state=active]:after:bg-foreground"
               >
                 {t("shell.section.archived")}
               </TabsTrigger>
@@ -2260,8 +2260,8 @@ function RowMenuItems({
   const P = ROW_MENU_PARTS[variant];
   const { isMac } = usePlatform();
   const t = useT();
-  const itemCls = "text-[11px] h-[30px] px-2 gap-2 rounded-none focus:bg-muted/30";
-  const groupItemCls = "min-w-0 text-[11px] h-[30px] px-2 rounded-none whitespace-nowrap focus:bg-muted/30";
+  const itemCls = "text-[11px] h-[30px] px-2 gap-2 rounded-lg focus:bg-muted/30";
+  const groupItemCls = "min-w-0 text-[11px] h-[30px] px-2 rounded-lg whitespace-nowrap focus:bg-muted/30";
   const shortcutCls = "text-[10px] tracking-normal text-muted-foreground/55";
   return (
     <>
@@ -2299,7 +2299,7 @@ function RowMenuItems({
             {t("shell.menu.moveToGroup")}
           </P.SubTrigger>
           <P.SubContent
-            className="w-[196px] rounded-none border border-border bg-background p-0 shadow-none overflow-hidden"
+            className="w-[196px] rounded-[10px] border border-border bg-background p-0 shadow-none overflow-hidden"
             data-testid={`chat-row-move-to-group-menu-${session.id}`}
           >
             {availableMoveGroups.length > 0 && (
@@ -2388,7 +2388,7 @@ function RowMenuItems({
       <P.Separator className="my-1 bg-border/70" />
       <P.Item
         data-shortcut="d"
-        className="text-[11px] h-[30px] px-2 gap-2 rounded-none text-destructive focus:text-destructive focus:bg-destructive/10"
+        className="text-[11px] h-[30px] px-2 gap-2 rounded-lg text-destructive focus:text-destructive focus:bg-destructive/10"
         onSelect={(e: Event) => {
           e.stopPropagation();
           onDeleteRequest(session.id);
@@ -2588,7 +2588,7 @@ export function SidebarChatRow({
               side="bottom"
               sideOffset={4}
               collisionPadding={8}
-              className="w-[156px] p-1 rounded-none border border-border bg-background shadow-none"
+              className="w-[156px] p-1 rounded-[10px] border border-border bg-background shadow-none"
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
               onKeyDown={handleRowMenuShortcut}
@@ -2602,7 +2602,7 @@ export function SidebarChatRow({
       </ContextMenuTrigger>
       {canShowActions && (
         <ContextMenuContent
-          className="w-[156px] p-1 rounded-none border border-border bg-background shadow-none"
+          className="w-[156px] p-1 rounded-[10px] border border-border bg-background shadow-none"
           onKeyDown={handleRowMenuShortcut}
         >
           <RowMenuItems variant="context" session={session} {...rowMenuActions} />

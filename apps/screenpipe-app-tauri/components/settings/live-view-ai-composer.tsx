@@ -212,10 +212,10 @@ export function LiveViewAiComposer({
           maxLength={1_500}
           className={
             compact
-              ? `resize-none rounded-none border-0 px-4 text-sm shadow-none transition-[min-height] duration-150 focus-visible:ring-0 ${
+              ? `resize-none rounded-lg border-0 px-4 text-sm shadow-none transition-[min-height] duration-150 focus-visible:ring-0 ${
                   compactExpanded ? "min-h-16 py-3" : "h-10 min-h-10 py-2.5"
                 }`
-              : "min-h-16 resize-none rounded-none border-0 px-4 py-3 text-sm shadow-none focus-visible:ring-0"
+              : "min-h-16 resize-none rounded-lg border-0 px-4 py-3 text-sm shadow-none focus-visible:ring-0"
           }
           placeholder={
             hostedUsageExhausted
@@ -241,7 +241,7 @@ export function LiveViewAiComposer({
               data-testid="live-view-ai-upgrade"
               type="button"
               size="sm"
-              className="h-10 shrink-0 rounded-none px-3 text-xs"
+              className="h-10 shrink-0 rounded-lg px-3 text-xs"
               onClick={() =>
                 void openBusinessUpgradeSurface("live-view-ai-composer")
               }
@@ -253,7 +253,7 @@ export function LiveViewAiComposer({
               data-testid="live-view-ai-generate"
               type="button"
               size="icon"
-              className="h-10 w-10 shrink-0 rounded-none"
+              className="h-10 w-10 shrink-0 rounded-lg"
               aria-label={actionLabel}
               title={actionLabel}
               disabled={busy ? !onCancel : !canSubmit}
@@ -287,7 +287,7 @@ export function LiveViewAiComposer({
             showModelOnly
             showLoginCta
             containerClassName="w-auto min-w-36"
-            triggerClassName="h-8 rounded-none"
+            triggerClassName="h-8 rounded-lg"
           />
           {prompt.trim() && (
             <span
@@ -310,7 +310,7 @@ export function LiveViewAiComposer({
               showModelOnly
               showLoginCta
               containerClassName="w-auto min-w-36"
-              triggerClassName="h-8 rounded-none"
+              triggerClassName="h-8 rounded-lg"
             />
             {prompt.trim() && (
               <span
@@ -326,7 +326,7 @@ export function LiveViewAiComposer({
               data-testid="live-view-ai-upgrade"
               type="button"
               size="sm"
-              className="h-8 rounded-none"
+              className="h-8 rounded-lg"
               onClick={() =>
                 void openBusinessUpgradeSurface("live-view-ai-composer")
               }
@@ -338,7 +338,7 @@ export function LiveViewAiComposer({
               data-testid="live-view-ai-generate"
               type="button"
               size="sm"
-              className="h-8 rounded-none"
+              className="h-8 rounded-lg"
               disabled={busy ? !onCancel : !canSubmit}
               onClick={busy ? onCancel : () => void submit()}
             >

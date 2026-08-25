@@ -56,8 +56,8 @@ describe("secondary control treatment", () => {
     );
   });
 
-  it("keeps the app's square geometry", () => {
-    expect(MEETING_QUIET_CONTROL_CLASS).toMatch(/\brounded-none\b/);
+  it("uses the app's control geometry", () => {
+    expect(MEETING_QUIET_CONTROL_CLASS).toMatch(/\brounded-lg\b/);
   });
 });
 

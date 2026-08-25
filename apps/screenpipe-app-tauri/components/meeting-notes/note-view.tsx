@@ -2130,7 +2130,7 @@ export function NoteView({
                       onClick={() => void handleStopClick()}
                       disabled={stopping || savingBeforeStop}
                       aria-label={stopActionLabel}
-                      className="h-9 gap-2 rounded-none px-3 font-mono text-[10px] uppercase tracking-[0.1em] disabled:border-border disabled:bg-muted/40 disabled:text-muted-foreground disabled:opacity-100"
+                      className="h-9 gap-2 rounded-lg px-3 font-mono text-[10px] uppercase tracking-[0.1em] disabled:border-border disabled:bg-muted/40 disabled:text-muted-foreground disabled:opacity-100"
                     >
                       {stopping || savingBeforeStop ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -2169,7 +2169,7 @@ function MeetingControlTooltip({
       <TooltipTrigger asChild>
         <span className="inline-flex">{children}</span>
       </TooltipTrigger>
-      <TooltipContent side="top" className="rounded-none font-mono text-xs">
+      <TooltipContent side="top" className="rounded-[10px] font-mono text-xs">
         {label}
       </TooltipContent>
     </Tooltip>
@@ -2221,7 +2221,7 @@ function AudioHealthButton({
           variant="ghost"
           size="sm"
           className={cn(
-            "relative h-7 w-7 rounded-none p-0",
+            "relative h-7 w-7 rounded-lg p-0",
             open && "invisible",
           )}
           title={t("meetingNotes.noteView.audioHealth")}
@@ -2426,7 +2426,7 @@ function InactivityResumeBanner({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 rounded-none px-2 text-muted-foreground hover:text-foreground"
+          className="h-8 rounded-lg px-2 text-muted-foreground hover:text-foreground"
           onClick={onDismiss}
         >
           {t("meetingNotes.noteView.inactivityDismiss")}
@@ -2435,7 +2435,7 @@ function InactivityResumeBanner({
           type="button"
           variant="secondary"
           size="sm"
-          className="h-8 rounded-none px-3"
+          className="h-8 rounded-lg px-3"
           onClick={onResume}
           disabled={resuming}
         >
@@ -2449,7 +2449,7 @@ function InactivityResumeBanner({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 w-8 rounded-none p-0 text-muted-foreground hover:text-foreground sm:hidden"
+          className="h-8 w-8 rounded-lg p-0 text-muted-foreground hover:text-foreground sm:hidden"
           onClick={onDismiss}
           aria-label={t("meetingNotes.noteView.dismissInactivityAria")}
         >
@@ -2493,7 +2493,7 @@ function LiveCaptureIssueBanner({
           type="button"
           variant="secondary"
           size="sm"
-          className="h-8 shrink-0 rounded-none px-3"
+          className="h-8 shrink-0 rounded-lg px-3"
           onClick={onResumeInput}
           disabled={resuming}
         >

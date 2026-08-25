@@ -235,7 +235,7 @@ function CloudReferralCard() {
           <Gift className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-semibold">refer a friend</h3>
         </div>
-        <Badge variant="secondary" className="rounded-none font-mono text-xs">
+        <Badge variant="secondary" className="font-mono text-xs">
           {referral.redemptions} / {referral.maxRedemptions} used
         </Badge>
       </div>

@@ -296,7 +296,7 @@ function NativeCalendarConnect({
             ? t("meetingNotes.calendarConnect.connected")
             : t("meetingNotes.calendarConnect.notConnected")}
         </div>
-        <Button onClick={connect} disabled={busy} className="rounded-none">
+        <Button onClick={connect} disabled={busy} className="rounded-lg">
           {busy ? (
             <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
           ) : (
@@ -349,7 +349,7 @@ function GoogleCalendarConnect({
       <p className="text-sm text-muted-foreground">
         {t("meetingNotes.calendarConnect.googleIntro")}
       </p>
-      <Button onClick={connect} disabled={busy} className="w-full rounded-none">
+      <Button onClick={connect} disabled={busy} className="w-full rounded-lg">
         {busy ? (
           <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
         ) : (
@@ -437,19 +437,19 @@ function IcsCalendarConnect({
             setStatusText(null);
           }}
           placeholder={t("meetingNotes.calendarConnect.icsUrlPlaceholder")}
-          className="rounded-none"
+          className="rounded-lg"
         />
         <Input
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder={t("meetingNotes.calendarConnect.icsNamePlaceholder")}
-          className="rounded-none"
+          className="rounded-lg"
         />
       </div>
       <Button
         onClick={addFeed}
         disabled={busy || !url.trim()}
-        className="w-full rounded-none"
+        className="w-full rounded-lg"
       >
         {busy ? (
           <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />

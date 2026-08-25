@@ -1449,7 +1449,7 @@ export function BrainSection() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="w-56 rounded-none"
+        className="w-56 rounded-[10px]"
         data-testid="brain-view-menu"
       >
         {brainViewOptions.map(({ value, label, count, Icon }) => (

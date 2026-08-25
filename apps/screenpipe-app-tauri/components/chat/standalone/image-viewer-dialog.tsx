@@ -22,7 +22,7 @@ export function ImageViewerDialog({ imageViewer, onChange }: ImageViewerDialogPr
     <Dialog open={!!imageViewer} onOpenChange={(open) => !open && onChange(null)}>
       <DialogContent
         hideCloseButton
-        className="fixed inset-0 z-50 max-w-none w-full h-full !left-0 !top-0 !translate-x-0 !translate-y-0 rounded-none border-0 bg-muted/95 p-0 flex flex-col gap-0"
+        className="fixed inset-0 z-50 max-w-none w-full h-full !left-0 !top-0 !translate-x-0 !translate-y-0 rounded-none border-0 bg-muted/95 p-0 flex flex-col gap-0" // intentional square: full-screen image viewer overlay
       >
         {imageViewer && (
           <>

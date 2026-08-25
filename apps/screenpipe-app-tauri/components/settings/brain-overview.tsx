@@ -2677,7 +2677,7 @@ export function BrainOverview({
         <Button
           variant="outline"
           size="sm"
-          className="rounded-none"
+          className="rounded-lg"
           onClick={() => void load()}
         >
           {t("brain.overview.retry")}
@@ -2775,7 +2775,7 @@ export function BrainOverview({
               <Button
                 variant="ghost"
                 size="sm"
-                className="rounded-none"
+                className="rounded-lg"
                 disabled={saving}
                 onClick={() => {
                   setDraft(null);
@@ -2790,7 +2790,7 @@ export function BrainOverview({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="rounded-none"
+                  className="rounded-lg"
                   disabled={saving}
                   onClick={() => {
                     setAiPreview(false);
@@ -2809,7 +2809,7 @@ export function BrainOverview({
                 }
                 size="sm"
                 variant={replacingDashboard ? "destructive" : "default"}
-                className="rounded-none"
+                className="rounded-lg"
                 disabled={
                   saving ||
                   !draft.title.trim() ||
@@ -2854,7 +2854,7 @@ export function BrainOverview({
                   data-testid="overview-preview-name"
                   value={draft.title}
                   maxLength={120}
-                  className="mt-2 h-9 rounded-none"
+                  className="mt-2 h-9 rounded-lg"
                   onChange={(event) =>
                     setDraft({ ...draft, title: event.target.value })
                   }
@@ -2975,7 +2975,7 @@ export function BrainOverview({
           open={replaceConfirmationOpen}
           onOpenChange={setReplaceConfirmationOpen}
         >
-          <AlertDialogContent className="rounded-none">
+          <AlertDialogContent className="rounded-[10px]">
             <AlertDialogHeader>
               <AlertDialogTitle>
                 {t("brain.overview.replaceDialogTitle", {
@@ -3118,7 +3118,7 @@ export function BrainOverview({
                 data-testid="overview-undo"
                 variant="outline"
                 size="icon"
-                className="h-9 w-9 shrink-0 rounded-none"
+                className="h-9 w-9 shrink-0 rounded-lg"
                 aria-label={t("brain.overview.undoAria")}
                 title={t("brain.overview.undoTitle", {
                   shortcut: isMac ? "⌘Z" : "Ctrl+Z",
@@ -3165,7 +3165,7 @@ export function BrainOverview({
                 data-testid="overview-refresh-data"
                 variant="outline"
                 size="icon"
-                className="h-9 w-9 shrink-0 rounded-none"
+                className="h-9 w-9 shrink-0 rounded-lg"
                 aria-label={t(
                   refreshIsActive
                     ? "brain.overview.loadingData"
@@ -3191,7 +3191,7 @@ export function BrainOverview({
                 data-testid="overview-send"
                 variant="outline"
                 size="sm"
-                className="h-9 flex-1 rounded-none px-3 sm:flex-none"
+                className="h-9 flex-1 rounded-lg px-3 sm:flex-none"
                 disabled={dashboardBusy}
                 onClick={() => setShareOpen(true)}
               >
@@ -3255,7 +3255,7 @@ export function BrainOverview({
               aria-label={t("brain.overview.closeTemplates")}
               variant="ghost"
               size="icon"
-              className="absolute right-2 top-2 h-8 w-8 rounded-none"
+              className="absolute right-2 top-2 h-8 w-8 rounded-lg"
               onClick={() => setTemplateGalleryOpen(false)}
             >
               <X className="h-3.5 w-3.5" />
@@ -3298,7 +3298,7 @@ export function BrainOverview({
                 data-testid="live-view-ai-accept-all"
                 size="sm"
                 variant="ghost"
-                className="h-7 rounded-none px-2"
+                className="h-7 rounded-lg px-2"
                 disabled={saving}
                 title={t("brain.overview.acceptAllTitle")}
                 onClick={() => void acceptAllAiProposals()}
@@ -3309,7 +3309,7 @@ export function BrainOverview({
                 data-testid="live-view-ai-reject-all"
                 size="sm"
                 variant="ghost"
-                className="h-7 rounded-none px-2"
+                className="h-7 rounded-lg px-2"
                 disabled={saving}
                 title={t("brain.overview.rejectAllTitle")}
                 onClick={discardAiProposals}
@@ -3319,7 +3319,7 @@ export function BrainOverview({
               <Button
                 data-testid="live-view-ai-apply-accepted"
                 size="sm"
-                className="h-7 rounded-none px-2"
+                className="h-7 rounded-lg px-2"
                 disabled={
                   saving ||
                   aiBlockProposals.some(
@@ -3334,7 +3334,7 @@ export function BrainOverview({
                 data-testid="live-view-ai-discard"
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 rounded-none"
+                className="h-7 w-7 rounded-lg"
                 aria-label={t("brain.overview.discardAllAria")}
                 onClick={discardAiProposals}
               >

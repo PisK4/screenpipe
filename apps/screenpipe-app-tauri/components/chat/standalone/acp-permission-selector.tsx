@@ -246,7 +246,7 @@ export function AcpPermissionSelector({
           variant="ghost"
           size="sm"
           className={cn(
-            "h-7 max-w-[150px] shrink-0 gap-1.5 rounded-none px-2 text-xs",
+            "h-7 max-w-[150px] shrink-0 gap-1.5 rounded-lg px-2 text-xs",
             selected.warning
               ? "text-amber-600 hover:bg-amber-500/10 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
               : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
@@ -267,7 +267,7 @@ export function AcpPermissionSelector({
         align="start"
         side="top"
         sideOffset={6}
-        className="w-[360px] space-y-1 rounded-none p-2"
+        className="w-[360px] space-y-1 rounded-[10px] p-2"
         data-testid="acp-permission-popover"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
@@ -290,7 +290,7 @@ export function AcpPermissionSelector({
               disabled={pendingValue !== null}
               onClick={() => void apply(mode)}
               className={cn(
-                "flex w-full items-start gap-3 rounded-none border border-transparent px-2 py-2.5 text-left transition-colors duration-150",
+                "flex w-full items-start gap-3 rounded-lg border border-transparent px-2 py-2.5 text-left transition-colors duration-150",
                 "hover:border-border hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1",
                 isSelected && "border-border bg-muted/30",
                 pendingValue !== null && "opacity-70",

@@ -157,7 +157,7 @@ export function BusinessUpgradeCard({
 
   return (
     <Card
-      className="overflow-hidden rounded-none border-border shadow-none"
+      className="overflow-hidden rounded-[10px] border-border shadow-none"
       data-testid="business-upgrade-card"
     >
       <div className="border-b border-border px-6 py-5">
@@ -257,7 +257,7 @@ export function BusinessUpgradeCard({
               : `${selectedCharge} is charged today in Stripe checkout, then renews ${interval === "year" ? "yearly" : "monthly"}`}
           </div>
           <Button
-            className="h-11 w-full rounded-none bg-foreground font-mono text-xs uppercase tracking-wide text-background hover:bg-background hover:text-foreground"
+            className="h-11 w-full rounded-lg bg-foreground font-mono text-xs uppercase tracking-wide text-background hover:bg-background hover:text-foreground"
             data-testid="account-upgrade-business-button"
             disabled={busy || !selectedAvailable}
             onClick={() =>

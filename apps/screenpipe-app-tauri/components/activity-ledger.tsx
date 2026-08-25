@@ -721,7 +721,7 @@ function ActivityLedgerSkeleton({ label }: { label: string }) {
     >
       <span className="sr-only">{label}</span>
       <div className="border-b border-foreground/20 pb-3">
-        <Skeleton className="h-7 w-40 rounded-none" />
+        <Skeleton className="h-7 w-40" />
       </div>
 
       {["first", "second", "third"].map((row, index) => (
@@ -730,19 +730,19 @@ function ActivityLedgerSkeleton({ label }: { label: string }) {
           className="grid gap-3 border-b border-border py-6 last:border-b-0 sm:grid-cols-[112px_1fr]"
           data-testid="activity-ledger-skeleton-row"
         >
-          <Skeleton className="h-3 w-16 rounded-none" />
+          <Skeleton className="h-3 w-16" />
           <div className="min-w-0">
             <Skeleton
               className={cn(
-                "h-5 rounded-none",
+                "h-5",
                 index === 1 ? "w-1/2" : "w-2/3",
               )}
             />
             <div className="mt-2 space-y-2">
-              <Skeleton className="h-3.5 w-full max-w-2xl rounded-none" />
+              <Skeleton className="h-3.5 w-full max-w-2xl" />
               <Skeleton
                 className={cn(
-                  "h-3.5 max-w-2xl rounded-none",
+                  "h-3.5 max-w-2xl",
                   index === 2 ? "w-3/5" : "w-4/5",
                 )}
               />
@@ -750,11 +750,11 @@ function ActivityLedgerSkeleton({ label }: { label: string }) {
             <div className="mt-4 flex items-center gap-3">
               <div className="flex items-center gap-1.5">
                 {[0, 1, 2].map((artifact) => (
-                  <Skeleton key={artifact} className="h-7 w-7 rounded-none" />
+                  <Skeleton key={artifact} className="h-7 w-7" />
                 ))}
               </div>
-              <Skeleton className="h-2.5 w-14 rounded-none" />
-              <Skeleton className="h-2.5 w-9 rounded-none" />
+              <Skeleton className="h-2.5 w-14" />
+              <Skeleton className="h-2.5 w-9" />
             </div>
           </div>
         </div>
@@ -1402,7 +1402,7 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                 }}
               >
                 <SelectTrigger
-                  className="h-9 w-[150px] rounded-none text-xs"
+                  className="h-9 w-[150px] rounded-lg text-xs"
                   data-testid="activity-range"
                   aria-label={t("activity.aria.timeRange")}
                 >
@@ -1470,7 +1470,7 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="h-9 justify-start rounded-none border-border bg-background px-3 font-mono text-xs font-normal normal-case tracking-normal"
+                    className="h-9 justify-start rounded-lg border-border bg-background px-3 font-mono text-xs font-normal normal-case tracking-normal"
                     aria-label={t("activity.aria.chooseDateRange")}
                   >
                     <CalendarDays className="mr-2 h-3.5 w-3.5" />
@@ -1482,7 +1482,7 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                 </PopoverTrigger>
                 <PopoverContent
                   align="end"
-                  className="w-auto rounded-none border-border p-0 shadow-lg shadow-black/5"
+                  className="w-auto rounded-[10px] border-border p-0 shadow-lg shadow-black/5"
                 >
                   <Calendar
                     mode="range"
@@ -1504,7 +1504,7 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                     className="p-3"
                     classNames={{
                       cell: "h-9 w-9 p-0 text-center text-sm relative [&:has([aria-selected])]:bg-accent focus-within:relative focus-within:z-20",
-                      day: "h-9 w-9 rounded-none p-0 font-normal aria-selected:opacity-100",
+                      day: "h-9 w-9 rounded-lg p-0 font-normal aria-selected:opacity-100",
                       day_selected:
                         "bg-foreground text-background hover:bg-foreground hover:text-background focus:bg-foreground focus:text-background",
                       day_range_middle:
@@ -1653,7 +1653,7 @@ Re-query Screenpipe only inside the cited time range and use the cited frames an
                   <Button
                     type="button"
                     variant="outline"
-                    className="h-10 rounded-none px-5 uppercase tracking-wide"
+                    className="h-10 rounded-lg px-5 uppercase tracking-wide"
                     onClick={addRecentActivity}
                     disabled={recentActivityDisabled}
                   >
