@@ -259,7 +259,9 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
     let (cfg, source) = supply::resolve_chain(slot, mirror);
     let used_model = cfg.model.clone(); // cfg moves into the session
 
-    // 6-7. Session → parse → insert → emit+notify (DedupHit stays silent, D9).
+    // 6-7. Session → per-payload parse → insert → emit+notify (DedupHit stays
+    // silent, D9). Interim wiring until the runner reduction lands: every
+    // submission is parsed and inserted in call order.
     let record = match session::run_intent_session(
         app,
         cfg,
@@ -268,45 +270,65 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
     )
     .await
     {
-        Ok(raw) => match parse::parse_model_output(&raw) {
-            Ok(ModelOutcome::InsufficientMaterial) => LastGenerationStatus {
-                at: now,
-                ok: true,
-                detail: Some("material insufficient".into()),
-                source: source.into(),
-            },
-            Ok(ModelOutcome::Card(c)) => {
-                let date = chrono::Local::now().format("%Y-%m-%d").to_string();
-                let id = db
-                    .insert_intent_card(&NewIntentCard {
-                        origin: "proactive".into(),
-                        card_type: c.card_type.clone(),
-                        title: c.title.clone(),
-                        proactive_view: Some(c.proactive_view.clone()),
-                        dedup_key: gate::dedup_key(&c.card_type, &dominant),
-                        local_date: date,
-                        plans_json: serde_json::to_string(&c)
-                            .unwrap_or_else(|_| r#"{"v":1}"#.into()),
-                        model_id: Some(used_model),
-                    })
-                    .await
-                    .map_err(|e| e.to_string())?;
-                events::emit_intent_card_created(app, id);
-                notify_new_card(app, id, &c).await?;
+        Ok(report) => {
+            let mut last_err: Option<String> = None;
+            let mut inserted_any = false;
+            for raw in &report.submissions {
+                match parse::parse_model_output(raw) {
+                    Ok(ModelOutcome::Card(card)) => {
+                        let date = chrono::Local::now().format("%Y-%m-%d").to_string();
+                        let id = db
+                            .insert_intent_card(&NewIntentCard {
+                                origin: "proactive".into(),
+                                card_type: card.card_type.clone(),
+                                title: card.title.clone(),
+                                proactive_view: Some(card.proactive_view.clone()),
+                                dedup_key: gate::dedup_key(&card.card_type, &dominant),
+                                local_date: date,
+                                plans_json: serde_json::to_string(&card)
+                                    .unwrap_or_else(|_| r#"{"v":1}"#.into()),
+                                model_id: Some(used_model.clone()),
+                            })
+                            .await
+                            .map_err(|e| e.to_string())?;
+                        events::emit_intent_card_created(app, id);
+                        notify_new_card(app, id, &card).await?;
+                        inserted_any = true;
+                    }
+                    Ok(ModelOutcome::InsufficientMaterial) => {}
+                    Err(e) => last_err = Some(e),
+                }
+            }
+            if inserted_any {
                 LastGenerationStatus {
                     at: now,
                     ok: true,
                     detail: None,
                     source: source.into(),
                 }
+            } else if report.draft_ops > 0 {
+                LastGenerationStatus {
+                    at: now,
+                    ok: true,
+                    detail: Some("draft progress".into()),
+                    source: source.into(),
+                }
+            } else if let Some(e) = last_err {
+                LastGenerationStatus {
+                    at: now,
+                    ok: false,
+                    detail: Some(e),
+                    source: source.into(),
+                }
+            } else {
+                LastGenerationStatus {
+                    at: now,
+                    ok: true,
+                    detail: Some("material insufficient".into()),
+                    source: source.into(),
+                }
             }
-            Err(e) => LastGenerationStatus {
-                at: now,
-                ok: false,
-                detail: Some(e),
-                source: source.into(),
-            },
-        },
+        }
         Err(e) => LastGenerationStatus {
             at: now,
             ok: false,

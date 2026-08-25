@@ -29,6 +29,9 @@ pub const SESSION_TIMEOUT_SECS: u64 = 240;
 pub const INTENT_TOOL_NAME: &str = "submit_intent_card";
 /// Read-side tool from intent-card-recent.ts: recent cards for soft dedup.
 pub const INTENT_RECENT_TOOL_NAME: &str = "get_recent_intent_cards";
+/// Draft-archive tool from intent-draft.ts. Call counts distinguish a beat
+/// that worked on drafts from plain material insufficiency when no card lands.
+pub const DRAFT_TOOL_NAME: &str = "save_intent_draft";
 /// Read-side allowlist (D6, revised): chat's built-in tools minus bash and
 /// the write side (edit/write), plus the MCP bridge tools, the structured
 /// card-submit tool from the intent-card extension, the four local
@@ -47,7 +50,7 @@ pub const INTENT_ALLOWED_TOOLS: [&str; 13] = [
     "search_activity",
     "search_memories",
     "list_meetings",
-    "save_intent_draft",
+    DRAFT_TOOL_NAME,
 ];
 
 /// Managed extension files installed into the session's exclusive project
@@ -107,14 +110,27 @@ pub fn ensure_intent_card_extension(dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Run one intent generation session, returning the model's final report
-/// text (the input to `parse::parse_model_output`).
+/// What the host collected out of one finished session: every structured
+/// submission in call order plus how many draft bookkeeping calls ran.
+/// Multi-card beats submit once per card.
+#[derive(Debug, Default)]
+pub struct SessionReport {
+    /// Raw JSON payload strings from each `submit_intent_card` call, in call
+    /// order; a tool-less session degrades to its final text as the single
+    /// entry (parse.rs still rejects non-JSON text).
+    pub submissions: Vec<String>,
+    /// Number of `save_intent_draft` calls observed in the same session.
+    pub draft_ops: usize,
+}
+
+/// Run one intent generation session, returning everything the model
+/// submitted (the input to the runner's reduction).
 pub async fn run_intent_session(
     app: &AppHandle,
     base_config: crate::pi::PiProviderConfig,
     system_prompt: String,
     user_message: String,
-) -> Result<String, String> {
+) -> Result<SessionReport, String> {
     let dir = intent_project_dir();
     std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create intent dir: {e}"))?;
     ensure_intent_card_extension(&dir)?;
@@ -143,7 +159,7 @@ pub async fn run_intent_session(
     // failure diagnostics: "stalled after N chars" reads very differently
     // from "never produced output" when classifying a dead beat.
     let collector: Arc<Mutex<SessionCollector>> = Arc::default();
-    let (done_tx, done_rx) = tokio::sync::oneshot::channel::<String>();
+    let (done_tx, done_rx) = tokio::sync::oneshot::channel::<SessionReport>();
     let done_tx = Arc::new(Mutex::new(Some(done_tx)));
     let sid = INTENT_SESSION_ID.to_string();
     let listener = {
@@ -166,22 +182,29 @@ pub async fn run_intent_session(
                 && event["willRetry"] != serde_json::json!(true)
             {
                 let mut buf = collector.lock().unwrap();
-                // Structured path first: the contract is a submit_intent_card
-                // tool call, and its arguments are the parseable payload. The
-                // text paths remain as fallback for sessions that never call
-                // the tool (parse.rs still rejects non-JSON text).
-                let final_text = structured_card_from_agent_end(event)
-                    .or_else(|| {
-                        (!buf.text.trim().is_empty()).then(|| buf.text.clone())
-                    })
-                    .or_else(|| {
-                        let t = text_from_agent_end_messages(event);
-                        (!t.trim().is_empty()).then_some(t)
-                    })
-                    .unwrap_or_default();
-                buf.final_text = Some(final_text.clone());
+                // Structured path first: one submit_intent_card call per card.
+                // The text paths remain as fallback for sessions that never
+                // call the tool.
+                let mut submissions = collect_submit_payloads(event);
+                if submissions.is_empty() {
+                    let fallback = (!buf.text.trim().is_empty())
+                        .then(|| buf.text.clone())
+                        .or_else(|| {
+                            let t = text_from_agent_end_messages(event);
+                            (!t.trim().is_empty()).then_some(t)
+                        })
+                        .unwrap_or_default();
+                    if !fallback.is_empty() {
+                        submissions.push(fallback);
+                    }
+                }
+                buf.final_text = submissions.last().cloned();
+                let report = SessionReport {
+                    draft_ops: count_draft_ops(event),
+                    submissions,
+                };
                 if let Some(tx) = done_tx.lock().unwrap().take() {
-                    let _ = tx.send(final_text);
+                    let _ = tx.send(report);
                 }
                 return;
             }
@@ -223,7 +246,7 @@ pub async fn run_intent_session(
         )
         .await
         {
-            Ok(Ok(text)) if !text.trim().is_empty() => Ok(text),
+            Ok(Ok(report)) if !report.submissions.is_empty() => Ok(report),
             // Failure visibility (A3): the detail lands in the heartbeat log
             // and the settings-page last-generation record. Delta counters
             // separate "endpoint stalled mid-stream" from "never produced
@@ -290,28 +313,47 @@ fn text_from_agent_end_messages(event: &serde_json::Value) -> String {
     out
 }
 
-/// Extract the structured card payload from `agent_end`'s messages array:
-/// the last assistant toolCall block named [`INTENT_TOOL_NAME`], serialized
-/// back to a JSON string for `parse::parse_model_output`. Block shape per
-/// pi-ai's `ToolCall`: `{ type, id, name, arguments }`.
-fn structured_card_from_agent_end(event: &serde_json::Value) -> Option<String> {
-    let messages = event["messages"].as_array()?;
-    let mut found: Option<&serde_json::Value> = None;
-    for message in messages {
-        if message["role"] != serde_json::json!("assistant") {
-            continue;
-        }
-        if let Some(blocks) = message["content"].as_array() {
-            for block in blocks {
-                if block["type"] == serde_json::json!("toolCall")
-                    && block["name"] == serde_json::json!(INTENT_TOOL_NAME)
-                {
-                    found = block.get("arguments");
+/// Collect every assistant toolCall block named `tool_name` from
+/// `agent_end`'s messages array, in call order. Block shape per pi-ai's
+/// `ToolCall`: `{ type, id, name, arguments }`.
+fn collect_tool_arguments<'a>(
+    event: &'a serde_json::Value,
+    tool_name: &str,
+) -> Vec<&'a serde_json::Value> {
+    let mut found = Vec::new();
+    if let Some(messages) = event["messages"].as_array() {
+        for message in messages {
+            if message["role"] != serde_json::json!("assistant") {
+                continue;
+            }
+            if let Some(blocks) = message["content"].as_array() {
+                for block in blocks {
+                    if block["type"] == serde_json::json!("toolCall")
+                        && block["name"] == serde_json::json!(tool_name)
+                    {
+                        if let Some(args) = block.get("arguments") {
+                            found.push(args);
+                        }
+                    }
                 }
             }
         }
     }
-    found.map(|args| serde_json::to_string(args).unwrap_or_default())
+    found
+}
+
+/// Every `submit_intent_card` payload as a JSON string, in call order —
+/// multi-card beats submit once per card.
+fn collect_submit_payloads(event: &serde_json::Value) -> Vec<String> {
+    collect_tool_arguments(event, INTENT_TOOL_NAME)
+        .into_iter()
+        .map(|args| serde_json::to_string(args).unwrap_or_default())
+        .collect()
+}
+
+/// Number of `save_intent_draft` calls in the same session.
+fn count_draft_ops(event: &serde_json::Value) -> usize {
+    collect_tool_arguments(event, DRAFT_TOOL_NAME).len()
 }
 
 #[cfg(test)]
@@ -365,43 +407,59 @@ mod tests {
                 ]}
             ]
         });
-        let raw = structured_card_from_agent_end(&event).unwrap();
+        let payloads = collect_submit_payloads(&event);
+        assert_eq!(payloads.len(), 1);
         // Must round-trip through parse_model_output untouched.
         assert!(matches!(
-            super::super::parse::parse_model_output(&raw).unwrap(),
+            super::super::parse::parse_model_output(&payloads[0]).unwrap(),
             super::super::parse::ModelOutcome::Card(_)
         ));
     }
 
     #[test]
-    fn structured_card_extraction_takes_the_last_call_and_ignores_other_tools() {
-        let first = serde_json::json!({ "insufficient_material": true });
-        let second = serde_json::json!({
-            "v": 1, "card_type": "read_only", "proactive_view": "p",
-            "recommended_index": 0,
-            "plans": [{ "title": "a", "summary": "b" }]
-        });
+    fn structured_collection_keeps_every_submit_in_call_order() {
+        let insufficient = serde_json::json!({ "insufficient_material": true });
+        let card_a = serde_json::json!({ "v": 1, "title": "甲", "card_type": "read_only",
+            "proactive_view": "p", "recommended_index": 0,
+            "plans": [{ "title": "a", "summary": "b" }] });
+        let card_b = serde_json::json!({ "v": 1, "title": "乙", "card_type": "light",
+            "proactive_view": "q", "recommended_index": 0,
+            "plans": [{ "title": "a", "summary": "b" }] });
         let event = serde_json::json!({
             "messages": [
                 { "role": "assistant", "content": [
-                    { "type": "toolCall", "name": INTENT_TOOL_NAME, "arguments": first }
+                    { "type": "toolCall", "name": INTENT_TOOL_NAME, "arguments": insufficient },
+                    { "type": "toolCall", "name": INTENT_TOOL_NAME, "arguments": card_a }
                 ]},
                 { "role": "assistant", "content": [
                     { "type": "text", "text": "plain text answer" },
-                    { "type": "toolCall", "name": INTENT_TOOL_NAME, "arguments": second }
+                    { "type": "toolCall", "name": INTENT_TOOL_NAME, "arguments": card_b }
                 ]}
             ]
         });
-        let raw = structured_card_from_agent_end(&event).unwrap();
-        assert!(raw.contains("read_only"));
-        assert!(structured_card_from_agent_end(&serde_json::json!({
-            "messages": [
-                { "role": "assistant", "content": [
-                    { "type": "toolCall", "name": "bash", "arguments": {"cmd": "ls"} }
-                ]}
-            ]
+        let payloads = collect_submit_payloads(&event);
+        assert_eq!(payloads.len(), 3);
+        assert!(payloads[0].contains("insufficient_material"));
+        assert!(payloads[1].contains("甲"));
+        assert!(payloads[2].contains("乙"));
+        assert!(collect_submit_payloads(&serde_json::json!({
+            "messages": [{ "role": "assistant", "content": [
+                { "type": "toolCall", "name": "bash", "arguments": {"cmd": "ls"} }
+            ]}]
         }))
-        .is_none());
+        .is_empty());
+    }
+
+    #[test]
+    fn draft_ops_counted_from_save_calls_only() {
+        let event = serde_json::json!({
+            "messages": [{ "role": "assistant", "content": [
+                { "type": "toolCall", "name": DRAFT_TOOL_NAME, "arguments": {"gist": "g"} },
+                { "type": "toolCall", "name": INTENT_TOOL_NAME, "arguments": {"insufficient_material": true} },
+                { "type": "toolCall", "name": DRAFT_TOOL_NAME, "arguments": {"gist": "h"} }
+            ]}]
+        });
+        assert_eq!(count_draft_ops(&event), 2);
     }
 
     #[test]
