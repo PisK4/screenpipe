@@ -13,9 +13,9 @@ use sqlx::Row;
 
 use super::DatabaseManager;
 
-/// Max concurrently active drafts. Creating beyond this is rejected (409 at
-/// the route) with guidance to converge or discard first.
-pub const INTENT_DRAFT_MAX_ACTIVE: i64 = 3;
+/// User-facing budget for concurrently tracked signals. Creating beyond this
+/// is rejected (409 at the route) with guidance to converge or discard first.
+pub const INTENT_DRAFT_MAX_ACTIVE: i64 = 10;
 
 /// Draft lifetime since creation. Overdue active rows are settled by
 /// [`DatabaseManager::intent_expire_due_drafts`] on every heartbeat tick;
@@ -85,7 +85,9 @@ impl DatabaseManager {
         Ok(result)
     }
 
-    /// Active drafts within `ttl_secs`, oldest first — continuation order.
+    /// Active drafts within `ttl_secs`, most recent activity first — the
+    /// heartbeat materials show the freshest few and agents page through the
+    /// rest via the read-side draft tool.
     pub async fn intent_list_active_drafts(
         &self,
         ttl_secs: i64,
@@ -93,7 +95,7 @@ impl DatabaseManager {
         let rows = sqlx::query(
             "SELECT id, gist, evidence_so_far, ripe_when, renew_count, created_at, updated_at \
              FROM intent_drafts WHERE status = 'active' \
-             AND created_at > unixepoch() - ?1 ORDER BY created_at ASC, id ASC",
+             AND created_at > unixepoch() - ?1 ORDER BY updated_at DESC, id DESC",
         )
         .bind(ttl_secs)
         .fetch_all(&self.pool)
@@ -229,5 +231,27 @@ mod tests {
         db.intent_upsert_draft(None, "new", "e", "r").await.unwrap();
         assert_eq!(db.intent_expire_due_drafts(ttl()).await.unwrap(), 0);
         assert_eq!(db.intent_list_active_drafts(ttl()).await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn active_drafts_list_newest_activity_first_and_cap_is_ten() {
+        let db = test_db().await;
+        db.intent_upsert_draft(None, "旧", "e", "r").await.unwrap();
+        let old_id = db
+            .intent_upsert_draft(None, "旧", "e", "r")
+            .await
+            .unwrap()
+            .0;
+        tokio::time::sleep(std::time::Duration::from_millis(1100)).await; // unixepoch 秒级分辨率
+        db.intent_upsert_draft(None, "新", "e", "r").await.unwrap();
+        // 续写旧的，把它顶到最新（同样需要跨过一秒边界）
+        tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+        db.intent_upsert_draft(Some(old_id), "旧-续", "e2", "r2")
+            .await
+            .unwrap();
+        let rows = db.intent_list_active_drafts(ttl()).await.unwrap();
+        assert_eq!(rows.len(), 3, "配额上限是 10，三张活跃草稿必须全部在列");
+        assert_eq!(rows[0].gist, "旧-续", "最近有活动的草稿必须排最前");
+        assert_eq!(rows[1].gist, "新");
     }
 }
