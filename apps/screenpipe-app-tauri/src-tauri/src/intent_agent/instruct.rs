@@ -107,22 +107,25 @@ fn shrink_other_arrays(obj: &mut serde_json::Map<String, serde_json::Value>) {
 
 /// Static system prompt for the intent-card session. Injected via pi's
 /// `--system-prompt` (REPLACE, see pi.rs) so the built-in English coding
-/// persona never reaches an unattended analysis run. Tool usage detail
-/// lives in each tool's description/schema; this file only carries role,
-/// boundary, dedup rule, and pointers. Contract literals here
-/// (`submit_intent_card`, `{"insufficient_material": true}`) must stay in
-/// sync with `parse::parse_model_output` and intent-card.ts.
-/// Note: pi's buildSystemPrompt appends the `<available_skills>` index and
-/// context files AFTER even a replaced prompt (customPrompt branch), so
-/// skill discovery survives replacement — verified against pi dist source.
+/// persona never reaches an unattended analysis run; pi appends the
+/// `<available_skills>` index AFTER even a replaced prompt, which is what
+/// makes the mandatory cue-tools read below resolvable. The full generation
+/// procedure, quality bar, and draft discipline live in the cue-tools skill —
+/// this prompt only carries role, boundary, and the non-negotiable contract
+/// pointers. Contract literals here (`submit_intent_card`,
+/// `{"insufficient_material": true}`) must stay in sync with
+/// `parse::parse_model_output` and intent-card.ts.
 pub fn build_system_prompt() -> String {
-    r#"你是一个运行在用户 macOS 本机上的无人值守意图卡片生成器。每次运行你会收到一份首条消息里的本机活动材料；你要么产出一张有依据的新意图卡片，要么判定材料不足。
+    r#"你是一个运行在用户 macOS 本机上的无人值守 Intent card Agent。每次运行你会收到一份首条消息里的本机活动材料；你要么产出有依据的新意图卡片（一拍至多两张、意图互异），要么判定材料不足。
 
 边界：你只有只读能力（查看本机文件、查询本地数据）。没有写侧能力，也不要尝试。
 
+开始分析前，先用 read 工具完整读取 cue-tools 技能文件（路径见 <available_skills> 索引）。完整的生成流程、出卡门槛四要件、草稿纪律与工具分工以该文件为准，对本任务强制适用。
+
 规则：
-- 结论必须通过调用 submit_intent_card 工具提交，不要把结论写成普通文字；载荷结构以该工具的参数说明为准。
-- 材料不足、或与[RECENT_CARDS]中某张卡意图相同或高度相近（尤其那张状态是 rejected，说明用户已拒绝过同类建议）时，提交 {"insufficient_material": true}，不要出卡，不要编造。
+- 结论必须通过调用 submit_intent_card 工具逐张提交，一拍至多两张；不要把结论写成普通文字，载荷结构以该工具的参数说明为准。
+- 出卡有门槛：对象要具体（指名到 app/文档/人/项目），信号要够强，下一步要明确，要说得出用户的摩擦和这张卡帮他解决的收益。四条缺任何一条，或与 [RECENT_CARDS] 中某张卡意图相同或高度相近（尤其那张状态是 rejected）时，提交 {"insufficient_material": true}。宁可不出卡，不要编造。
+- 观察未熟但值得追踪时，先存草稿（save_intent_draft），不要硬凑成卡。
 - 需要核对更早的卡片历史时，可调用 get_recent_intent_cards 工具。
 - 卡片文案用中文，贴合用户的语言习惯。"#
         .to_string()
@@ -137,26 +140,19 @@ pub fn build_user_payload(input: &GenerationInput) -> String {
         .unwrap_or_else(|_| "{}".into());
     let recent_text =
         serde_json::to_string(&input.recent_cards).unwrap_or_else(|_| "[]".into());
-    let drafts_text =
-        serde_json::to_string(&input.open_drafts).unwrap_or_else(|_| "[]".into());
-    let drafts_section = if input.open_drafts.as_array().map(|a| a.is_empty()).unwrap_or(true) {
-        "[OPEN_DRAFTS]none".to_string()
-    } else {
-        format!(
-            "[OPEN_DRAFTS]{drafts}\n\
-             有活跃草稿时优先续写对应 draft_id（save_intent_draft），不要新建平行草稿；\
-             renew_count≥3 或 ripe_when 已满足的必须收敛：升级交卡或判定不再值得追踪。",
-            drafts = drafts_text
-        )
-    };
+    let drafts_section = format!(
+        "[OPEN_DRAFTS]{}",
+        serde_json::to_string(&input.open_drafts)
+            .unwrap_or_else(|_| r#"{"active_total":0,"shown":[]}"#.into())
+    );
     format!(
         "[CURRENT_TIME]{now}\n\
          [MATERIAL_WINDOW]{start} to {end} (UTC), app_switches={sw}, frame_changes={fc}\n\
          [ACTIVITY_SUMMARY]{summary}\n\
          [RECENT_CARDS]{recent}\n\
          {drafts_section}\n\
-         [TASK]分析以上材料，产出一张新的意图卡片，或判定材料不足。\
-         通过调用 submit_intent_card 工具提交结论；材料不足或判重命中时提交 {{\"insufficient_material\": true}}。",
+         [TASK]分析以上材料，产出至多两张意图互异的新卡片，把未熟的观察存为草稿，或判定材料不足。\
+         结论通过调用 submit_intent_card 工具逐张提交；材料不足或判重命中时提交 {{\"insufficient_material\": true}}。",
         now = input.local_now_text,
         start = input.window_start_text,
         end = input.window_end_text,
@@ -188,6 +184,9 @@ mod tests {
         }
         assert!(prompt.contains("无人值守"), "persona must state unattended nature");
         assert!(prompt.contains("只读"), "persona must state read-only boundary");
+        // cue-tools 强制读指令与多卡上限是 prompt 的两个新锚点。
+        assert!(prompt.contains("cue-tools"));
+        assert!(prompt.contains("至多两张"));
     }
 
     #[test]
@@ -239,8 +238,8 @@ mod tests {
             activity_summary: big,
             recent_cards: serde_json::json!([{ "id": 4, "status": "rejected" }]),
             open_drafts: serde_json::json!([
-                { "id": 7, "gist": "追踪排障", "renew_count": 3,
-                  "evidence_so_far": "Xcode 两小时", "ripe_when": "出现报错原文" }
+                { "draft_id": 7, "gist": "追踪排障",
+                  "ripe_when": "出现报错原文", "updated": "2026-08-24 14:30" }
             ]),
             signals: super::super::WindowSignals { app_switches: 22, frame_changes: 51 },
         };
@@ -258,25 +257,23 @@ mod tests {
         assert!(payload.contains("[CURRENT_TIME]2026-08-24 14:32"));
         assert!(payload.contains("app_switches=22"));
 
-        // Draft continuation section: non-empty drafts carry the converge
-        // rule; the payload must stay bounded with them embedded.
-        assert!(payload.contains("renew_count≥3"), "converge rule must ride along");
+        // Draft continuation section: gists stay visible for continuity.
         assert!(payload.contains("追踪排障"));
     }
 
     #[test]
-    fn empty_drafts_render_as_none() {
+    fn empty_drafts_render_as_empty_object() {
         let input = GenerationInput {
             local_now_text: "2026-08-24 12:00 (UTC+00:00)".into(),
             window_start_text: "2026-08-23T00:00:00+00:00".into(),
             window_end_text: "2026-08-23T01:00:00+00:00".into(),
             activity_summary: serde_json::json!({}),
             recent_cards: serde_json::json!([]),
-            open_drafts: serde_json::json!([]),
+            open_drafts: serde_json::json!({ "active_total": 0, "shown": [] }),
             signals: super::super::WindowSignals { app_switches: 0, frame_changes: 0 },
         };
         let payload = build_user_payload(&input);
-        assert!(payload.contains("[OPEN_DRAFTS]none"));
+        assert!(payload.contains(r#"[OPEN_DRAFTS]{"active_total":0,"shown":[]}"#));
         assert!(!payload.contains("renew_count"), "no converge rule without drafts");
     }
 }

@@ -147,6 +147,79 @@ pub async fn notify_new_card(
     Ok(())
 }
 
+/// Per-beat card ceiling, including cards promoted from drafts.
+pub(crate) const MAX_CARDS_PER_TICK: usize = 2;
+
+/// How many drafts ride the generation materials at most.
+const MAX_DRAFTS_SHOWN: usize = 3;
+
+#[derive(Debug, Default)]
+struct ReducedSubmissions {
+    cards: Vec<parse::GeneratedCard>,
+    insufficient_declared: bool,
+    duplicate_titles_dropped: usize,
+    dropped_over_cap: usize,
+    errors: Vec<String>,
+}
+
+/// Reduce ordered submissions into cards plus flags. Identical titles within
+/// one beat collapse to the first occurrence (the dedup key is far too coarse
+/// for intra-beat work); over-cap cards are counted and dropped; a trailing
+/// insufficient declaration is recorded but never masks already-parsed cards.
+fn reduce_submissions(submissions: &[String], max_cards: usize) -> ReducedSubmissions {
+    let mut out = ReducedSubmissions::default();
+    let mut seen_titles = std::collections::HashSet::new();
+    for raw in submissions {
+        match parse::parse_model_output(raw) {
+            Ok(ModelOutcome::InsufficientMaterial) => out.insufficient_declared = true,
+            Ok(ModelOutcome::Card(card)) => {
+                if !seen_titles.insert(card.title.clone()) {
+                    out.duplicate_titles_dropped += 1;
+                } else if out.cards.len() < max_cards {
+                    out.cards.push(card);
+                } else {
+                    out.dropped_over_cap += 1;
+                }
+            }
+            Err(e) => out.errors.push(e),
+        }
+    }
+    out
+}
+
+fn format_local_hm(unix_secs: i64) -> String {
+    use chrono::TimeZone;
+    chrono::Local
+        .timestamp_opt(unix_secs, 0)
+        .single()
+        .map(|t| t.format("%Y-%m-%d %H:%M").to_string())
+        .unwrap_or_default()
+}
+
+/// Lean draft projection for the generation materials: at most the three most
+/// recently touched drafts, each carrying only its id, gist and ripen
+/// condition; the total tells the model how many more the draft-read tool can
+/// fetch. Evidence stays behind the tool so the section stays small.
+fn open_drafts_section(summaries: &[screenpipe_db::IntentDraftSummary]) -> serde_json::Value {
+    // Newest activity first regardless of caller ordering; a stable sort keeps
+    // equal timestamps in their arrival order.
+    let mut ordered: Vec<&screenpipe_db::IntentDraftSummary> = summaries.iter().collect();
+    ordered.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    let shown: Vec<serde_json::Value> = ordered
+        .into_iter()
+        .take(MAX_DRAFTS_SHOWN)
+        .map(|d| {
+            serde_json::json!({
+                "draft_id": d.id,
+                "gist": d.gist,
+                "ripe_when": d.ripe_when,
+                "updated": format_local_hm(d.updated_at),
+            })
+        })
+        .collect();
+    serde_json::json!({ "active_total": summaries.len(), "shown": shown })
+}
+
 /// One heartbeat beat. `Ok(None)` = gate stayed closed.
 pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGenerationStatus>, String> {
     let db = {
@@ -234,12 +307,13 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
     );
     // Draft continuation: active drafts ride the materials so the model
     // renews, converges, or drops them instead of starting parallel threads.
+    // Lean projection: only a count header plus the three freshest, evidence
+    // stays behind the read-side draft tool.
     let open_drafts = db
         .intent_list_active_drafts(cfg.draft_ttl_secs)
         .await
         .map_err(|e| e.to_string())?;
-    let open_drafts_json =
-        serde_json::to_value(&open_drafts).unwrap_or(serde_json::Value::Array(vec![]));
+    let open_drafts_json = open_drafts_section(&open_drafts);
     let input = GenerationInput {
         local_now_text: chrono::Local::now().format("%Y-%m-%d %H:%M (UTC%:z)").to_string(),
         window_start_text: start_dt.to_rfc3339(),
@@ -259,7 +333,8 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
     let (cfg, source) = supply::resolve_chain(slot, mirror);
     let used_model = cfg.model.clone(); // cfg moves into the session
 
-    // 6-7. Session → parse → insert → emit+notify (DedupHit stays silent, D9).
+    // 6-7. Session → per-payload parse → insert loop → emit+notify. Outcome
+    // precedence: cards win; then draft progress; then explicit insufficiency.
     let record = match session::run_intent_session(
         app,
         cfg,
@@ -268,45 +343,75 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
     )
     .await
     {
-        Ok(raw) => match parse::parse_model_output(&raw) {
-            Ok(ModelOutcome::InsufficientMaterial) => LastGenerationStatus {
-                at: now,
-                ok: true,
-                detail: Some("material insufficient".into()),
-                source: source.into(),
-            },
-            Ok(ModelOutcome::Card(c)) => {
+        Ok(report) => {
+            let reduced = reduce_submissions(&report.submissions, MAX_CARDS_PER_TICK);
+            if reduced.duplicate_titles_dropped > 0 || reduced.dropped_over_cap > 0 {
+                tracing::info!(
+                    duplicates = reduced.duplicate_titles_dropped,
+                    over_cap = reduced.dropped_over_cap,
+                    "intent submissions trimmed"
+                );
+            }
+            if !reduced.errors.is_empty() {
+                tracing::warn!(errors = ?reduced.errors, "intent submissions failed to parse");
+            }
+            if !reduced.cards.is_empty() {
                 let date = chrono::Local::now().format("%Y-%m-%d").to_string();
-                let id = db
-                    .insert_intent_card(&NewIntentCard {
-                        origin: "proactive".into(),
-                        card_type: c.card_type.clone(),
-                        title: c.title.clone(),
-                        proactive_view: Some(c.proactive_view.clone()),
-                        dedup_key: gate::dedup_key(&c.card_type, &dominant),
-                        local_date: date,
-                        plans_json: serde_json::to_string(&c)
-                            .unwrap_or_else(|_| r#"{"v":1}"#.into()),
-                        model_id: Some(used_model),
-                    })
-                    .await
-                    .map_err(|e| e.to_string())?;
-                events::emit_intent_card_created(app, id);
-                notify_new_card(app, id, &c).await?;
+                for card in &reduced.cards {
+                    let id = db
+                        .insert_intent_card(&NewIntentCard {
+                            origin: "proactive".into(),
+                            card_type: card.card_type.clone(),
+                            title: card.title.clone(),
+                            proactive_view: Some(card.proactive_view.clone()),
+                            dedup_key: gate::dedup_key(&card.card_type, &dominant),
+                            local_date: date.clone(),
+                            plans_json: serde_json::to_string(card)
+                                .unwrap_or_else(|_| r#"{"v":1}"#.into()),
+                            model_id: Some(used_model.clone()),
+                        })
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    events::emit_intent_card_created(app, id);
+                    notify_new_card(app, id, card).await?;
+                }
                 LastGenerationStatus {
                     at: now,
                     ok: true,
-                    detail: None,
+                    detail: (reduced.cards.len() != 1)
+                        .then(|| format!("{} cards", reduced.cards.len())),
+                    source: source.into(),
+                }
+            } else if report.draft_ops > 0 {
+                LastGenerationStatus {
+                    at: now,
+                    ok: true,
+                    detail: Some(format!("{} draft op(s), no card", report.draft_ops)),
+                    source: source.into(),
+                }
+            } else if reduced.insufficient_declared {
+                LastGenerationStatus {
+                    at: now,
+                    ok: true,
+                    detail: Some("material insufficient".into()),
+                    source: source.into(),
+                }
+            } else if let Some(e) = reduced.errors.first().cloned() {
+                LastGenerationStatus {
+                    at: now,
+                    ok: false,
+                    detail: Some(e),
+                    source: source.into(),
+                }
+            } else {
+                LastGenerationStatus {
+                    at: now,
+                    ok: false,
+                    detail: Some("empty session report".into()),
                     source: source.into(),
                 }
             }
-            Err(e) => LastGenerationStatus {
-                at: now,
-                ok: false,
-                detail: Some(e),
-                source: source.into(),
-            },
-        },
+        }
         Err(e) => LastGenerationStatus {
             at: now,
             ok: false,
@@ -318,4 +423,74 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
     // 8. Every outcome updates the attempt anchor (D9 backoff semantics).
     write_last_generation(app, &record).await;
     Ok(Some(record))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn card(title: &str) -> String {
+        serde_json::json!({ "v": 1, "title": title, "card_type": "read_only",
+            "proactive_view": "p", "recommended_index": 0,
+            "plans": [{ "title": "t", "summary": "s" }] }).to_string()
+    }
+
+    #[test]
+    fn reduce_keeps_cards_ignores_late_insufficient_and_collapses_dup_titles() {
+        let subs = vec![
+            card("A"),
+            r#"{"insufficient_material": true}"#.to_string(),
+            card("A"), // 同名折叠
+            card("B"),
+            card("C"), // 超上限丢弃
+        ];
+        let r = reduce_submissions(&subs, 2);
+        assert_eq!(
+            r.cards.iter().map(|c| c.title.as_str()).collect::<Vec<_>>(),
+            ["A", "B"]
+        );
+        assert!(r.insufficient_declared);
+        assert_eq!(r.duplicate_titles_dropped, 1);
+        assert_eq!(r.dropped_over_cap, 1);
+        assert!(r.errors.is_empty());
+    }
+
+    #[test]
+    fn reduce_collects_parse_errors_without_aborting() {
+        let subs = vec!["not json".to_string(), card("A")];
+        let r = reduce_submissions(&subs, 2);
+        assert_eq!(r.cards.len(), 1);
+        assert_eq!(r.errors.len(), 1);
+    }
+
+    #[test]
+    fn open_drafts_section_projects_three_fields_plus_total() {
+        let rows = (0..5)
+            .map(|i| screenpipe_db::IntentDraftSummary {
+                id: i,
+                gist: format!("g{i}"),
+                evidence_so_far: "e".into(),
+                ripe_when: "r".into(),
+                renew_count: 0,
+                created_at: 0,
+                updated_at: 1_756_000_000 + i,
+            })
+            .collect::<Vec<_>>();
+        let v = open_drafts_section(&rows);
+        assert_eq!(v["active_total"], 5);
+        let shown = v["shown"].as_array().unwrap();
+        assert_eq!(shown.len(), 3, "最多展示三条");
+        assert_eq!(shown[0]["draft_id"], 4, "updated_at 最大者排首");
+        assert!(shown[0]["updated"].as_str().unwrap().contains(':'));
+        assert!(
+            shown[0].get("evidence_so_far").is_none(),
+            "瘦身投影不得携带 evidence"
+        );
+    }
+
+    #[test]
+    fn open_drafts_section_empty_shape() {
+        let v = open_drafts_section(&[]);
+        assert_eq!(v, serde_json::json!({ "active_total": 0, "shown": [] }));
+    }
 }

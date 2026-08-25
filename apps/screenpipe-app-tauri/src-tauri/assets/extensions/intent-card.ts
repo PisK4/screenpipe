@@ -54,10 +54,12 @@ export default function (pi: ExtensionAPI) {
       "The only exit for submitting an intent card. Once analysis is done you MUST call this tool; never write the conclusion as plain text."
       + "title (required): your own one-line summary of the card — it becomes the card's display name and the dedup context for future runs."
       + "Two mutually exclusive forms: a proposal card passes {v:1, card_type, proactive_view, recommended_index, plans} (plans is 1-3 objects of {title, summary, consequence?});"
-      + " insufficient material passes only {insufficient_material:true}."
+      + " insufficient material passes only {insufficient_material:true}"
+      + " — and once a card has been submitted, do not send insufficient_material."
       + "card_type is one of three: read_only = suggestion that only reads (query, summarize, open for viewing); side_effect = suggestion that changes system state (settings, automations), consequence is REQUIRED;"
       + " light = one-line observation needing no user decision, in which case do NOT pass plans."
-      + "Whenever plans is present, card_type must be read_only or side_effect, never light.",
+      + "Whenever plans is present, card_type must be read_only or side_effect, never light."
+      + " One session may submit up to 2 cards; each call must carry a distinct intent — never resubmit the same card.",
     parameters: submitParams,
 
     async execute(_toolCallId: string, args: any) {
