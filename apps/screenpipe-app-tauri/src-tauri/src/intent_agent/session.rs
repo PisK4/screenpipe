@@ -32,12 +32,15 @@ pub const INTENT_RECENT_TOOL_NAME: &str = "get_recent_intent_cards";
 /// Draft-archive tool from intent-draft.ts. Call counts distinguish a beat
 /// that worked on drafts from plain material insufficiency when no card lands.
 pub const DRAFT_TOOL_NAME: &str = "save_intent_draft";
+/// Draft read-back tool from intent-draft.ts: full active-draft detail for
+/// renewals and for paging past the lean [OPEN_DRAFTS] projection.
+pub const DRAFT_READ_TOOL_NAME: &str = "get_intent_draft";
 /// Read-side allowlist (D6, revised): chat's built-in tools minus bash and
 /// the write side (edit/write), plus the MCP bridge tools, the structured
 /// card-submit tool from the intent-card extension, the four local
-/// verification tools from intent-search.ts, and the draft-archive tool
+/// verification tools from intent-search.ts, and the draft archive/read tools
 /// from intent-draft.ts.
-pub const INTENT_ALLOWED_TOOLS: [&str; 13] = [
+pub const INTENT_ALLOWED_TOOLS: [&str; 14] = [
     "read",
     "grep",
     "find",
@@ -51,6 +54,7 @@ pub const INTENT_ALLOWED_TOOLS: [&str; 13] = [
     "search_memories",
     "list_meetings",
     DRAFT_TOOL_NAME,
+    DRAFT_READ_TOOL_NAME,
 ];
 
 /// Managed extension files installed into the session's exclusive project
