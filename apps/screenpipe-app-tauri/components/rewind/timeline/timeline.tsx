@@ -253,12 +253,21 @@ function appNameToHue(name: string): number {
 	return Math.abs(hash) % 360;
 }
 
+// cue soft-light: quantize any name onto the eight --usage-* categorical hues
+// so timeline dots/bars stay on the brand data palette (see DESIGN.md) instead
+// of arbitrary hash hues.
+const USAGE_HUES = [211, 263, 146, 43, 212, 335, 182, 26]; // system, tools, rules, skills, subagents, memory, timeline, other
+function appNameToUsageHue(name: string): number {
+	return USAGE_HUES[appNameToHue(name) % USAGE_HUES.length];
+}
+
 // Color for filter dots — identifiable but not loud
 function appNameToColor(name: string, alpha?: number): string {
+	const hue = appNameToUsageHue(name);
 	if (alpha !== undefined) {
-		return `hsla(${appNameToHue(name)}, 40%, 55%, ${alpha})`;
+		return `hsla(${hue}, 45%, 52%, ${alpha})`;
 	}
-	return `hsl(${appNameToHue(name)}, 40%, 55%)`;
+	return `hsl(${hue}, 45%, 52%)`;
 }
 
 // Second, independent hash so two names whose hues land close together still
@@ -277,7 +286,7 @@ function appNameToBarColor(name: string): string {
 	const h2 = appNameToHash2(name);
 	const sat = 34 + (h2 % 20); // 34–53%
 	const light = 60 + (Math.floor(h2 / 20) % 14); // 60–73%
-	return `hsl(${appNameToHue(name)}, ${sat}%, ${light}%)`;
+	return `hsl(${appNameToUsageHue(name)}, ${sat}%, ${light}%)`;
 }
 
 /**

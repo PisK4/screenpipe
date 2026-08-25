@@ -189,6 +189,18 @@ module.exports = {
 		  "unknown-soft": "hsl(var(--unknown-soft))",
 		  "unknown-soft-border": "hsl(var(--unknown-soft-border))",
 		  "unknown-on-soft": "hsl(var(--unknown-on-soft))",
+
+		  // usage chart palette (categorical data colors, theme-aware)
+		  // dataviz note: 8-slot palettes can't pass all-pairs CVD; charts using
+		  // these carry direct labels as the secondary encoding (see DESIGN.md)
+		  "usage-system": "hsl(var(--usage-system))",
+		  "usage-tools": "hsl(var(--usage-tools))",
+		  "usage-rules": "hsl(var(--usage-rules))",
+		  "usage-skills": "hsl(var(--usage-skills))",
+		  "usage-subagents": "hsl(var(--usage-subagents))",
+		  "usage-memory": "hsl(var(--usage-memory))",
+		  "usage-timeline": "hsl(var(--usage-timeline))",
+		  "usage-other": "hsl(var(--usage-other))",
 		},
 		borderRadius: {
 		  lg: "var(--radius)",
