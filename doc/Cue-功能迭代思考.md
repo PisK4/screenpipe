@@ -2,20 +2,9 @@
 
 
 
-工具重构
-
-1. `save_intent_draft` 我觉得保存后需要在 draft 中追加创建/更新 draft 的时间, 存 UTC 格式时间, 带时区, 供后续 agent 更新 draft 时参考
-2. 新增 `update_intent_draft` ? 或者可复用`save_intent_draft` 
-3. 新增 tool:  `get_intent_darft`  入参 limit, 可返回draft 详情, 供 agent 更新 draft
-4. 在 intent card 心跳窗口中, 在 user message 中追加最新 3 条 draft, 追加内容为: draft_id/gist/ripe_when
-5. 需要在 skill : cue-tools 中更新状况
-
-
-
-&nbsp;
-
 1. 有 bug, 上一轮加 title 的的本意是加一个卡片的 title, 能在前端从上到下展示 title, proactive_view, plans 让用户快速理解到意图卡片的重点, 但误把 title 加到 plans 中, 参考:
-  ```
+
+   ```
    {
      "card_type": "read_only",
      "plans": [
@@ -36,16 +25,28 @@
      "recommended_index": 0,
      "v": 1
    }
-  ```
+   ```
 
    改完之后要在前端工作台中将意图卡片的 title 也显示出来, 另外报一个前端已存在很久的 bug: 选中某个 plan, 这个 plan 最左的白点没有变实心, 选中自选方案应该默认开始编辑, 最左的白点也要变实心, 这个 bug 可以一并修复
+
 2. x-preview-f-free 端点不可靠, 这个先不认为是模型问题, 需要先调研: 是否是当前系统问题, 如缺乏心跳重试机制, 出一个报告给我
 3. 我看到 agent 经常用 search_activity, 但都没有匹配结果, 或者返回垃圾 OCR result 乱码，最重一轮 ≈40 行, 这个要找一下原因到底是什么这个你需要出一个报告给我
-4. System prompt 需要优化
-  1. 角色改名: 意图卡片生成器 -&gt; Intent card Agent
-  2. 上一个 优化迭代版本集成 cue tool skill，让 Agent 知道它有哪些工具可以用。但是我们始终没有解释生成意图卡片的完整流程是怎样的, 当前 System Prompt 里面只告诉 Agent 它可以 submit 意图卡片以及拒绝。并没有告诉他怎么样去储存草稿, 我觉得需要把整一个流程理一理，写在 cue tool skill 的**## 2. 角色边界** 中 (其实还有另外的考量，就是外部的 Agent 激活这个 skill 后也能使用我们公开的接口，能够去生成卡片, 不一定在我们系统中)
-  3. 可以参考 @repos-external/screenpipe/apps/screenpipe-app-tauri/src-tauri/src/pi.rs 判定is_local_model 然后注入 api_hint, 提醒 Intent card Agent 需要从 skill 中找到自己角色完整工作流程 (可以同时读 cue-tools + screenpipe-api ? 你可以评估一下)
-  4. 当前指引做的不好, 没有一个次 loop Agent 去尝试存草稿
+
+
+
+
+
+
+
+1. System prompt 需要优化
+   1. 角色改名: 意图卡片生成器 -> Intent card Agent
+   2. 上一个 优化迭代版本集成 cue tool skill，让 Agent 知道它有哪些工具可以用。但是我们始终没有解释生成意图卡片的完整流程是怎样的, 当前 System Prompt 里面只告诉 Agent 它可以 submit 意图卡片以及拒绝。并没有告诉他怎么样去储存草稿, 我觉得需要把整一个流程理一理，写在 cue tool skill 的**## 2. 角色边界** 中 (其实还有另外的考量，就是外部的 Agent 激活这个 skill 后也能使用我们公开的接口，能够去生成卡片, 不一定在我们系统中)
+   3. 可以参考 @repos-external/screenpipe/apps/screenpipe-app-tauri/src-tauri/src/pi.rs 判定is_local_model 然后注入 api_hint, 提醒 Intent card Agent 需要从 skill 中找到自己角色完整工作流程 (可以同时读 cue-tools + screenpipe-api ? 你可以评估一下)
+   4. 当前指引做的不好, 没有一个次 loop Agent 去尝试存草稿
+
+
+
+
 
 @repos-external/screenpipe/
 
@@ -74,26 +75,28 @@ System prompt 需要优化
 1. 角色改名: 意图卡片生成器 -> Intent card Agent
 2. 上一个 优化迭代版本集成 cue tool skill，让 Agent 知道它有哪些工具可以用。但是我们始终没有解释生成意图卡片的完整流程是怎样的, 当前 System Prompt 里面只告诉 Agent 它可以 submit 意图卡片以及拒绝。并没有告诉他怎么样去储存草稿, 我觉得需要把整一个流程理一理，写在 cue tool skill 的**## 2. 角色边界** 中 (其实还有另外的考量，就是外部的 Agent 激活这个 skill 后也能使用我们公开的接口，能够去生成卡片, 不一定在我们系统中)
 3. 可以参考 @repos-external/screenpipe/apps/screenpipe-app-tauri/src-tauri/src/pi.rs 判定is_local_model 然后注入 api_hint, 提醒 Intent card Agent 需要从 skill 中找到自己角色完整工作流程 (可以同时读 cue-tools + screenpipe-api ? 你可以评估一下)
-4. 当前指引做的不好, 没有一个次 loop Agent 去尝试存草稿
+4. 当前指引做的不好, Agent 没有一次 loop 去尝试存草稿
 ```
 
 
 
-&nbsp;
 
-&nbsp;
+
+
 
 Intent card
 
 1. 将当前系统中所有的 Tools 用法写入 Skill: `cue-tools`
 2. 将 `cue-tools` 塞进 Cue 中的 Agent, 提醒 Agent 根据当前场景阅读 skill, 但不同 Agent 的 tool 调用侧重点不一样(差异化 System Prompt)
-  1. Intent card Generator: 主力使用 intent 系列工具
-  2. chat agent: 主力使用 screenpipe 系列工具
+   1. Intent card Generator: 主力使用 intent 系列工具
+   2. chat agent: 主力使用 screenpipe 系列工具
 3. 之后如果工具有迭代的话，我们只需要维护: Skill: `cue-tools`
+
+
 
 新增一个 Intent 系列工具:
 
 1. submit_intent_card_draft(名字还没想好)
-  1. 这个工具是可以提供给 Intent Card Generator, 生成卡片不再是二元式的，要么直接提交生成，要么拒绝。而是告诉 Generator，如果当前的任务有持续性的倾向，可以先将当前的草稿存档, 在下一个心跳轮次，我们可以拉出来再跑一次
+   1. 这个工具是可以提供给 Intent Card Generator, 生成卡片不再是二元式的，要么直接提交生成，要么拒绝。而是告诉 Generator，如果当前的任务有持续性的倾向，可以先将当前的草稿存档, 在下一个心跳轮次，我们可以拉出来再跑一次
 
 另外如果多了这个工具的话，我初步评估，我们提早给它准备好的一些预处理数据，以及我们之前提供的去获取最近的意图卡片的工具，也要相对调整
