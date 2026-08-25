@@ -42,9 +42,16 @@ P1 每次 tick 的固定顺序：
 4. 数增量信号过门槛；
 5. GET activity-summary（ISO 8601 参数）＋ 预载近 48h 卡片清单（软去重材料，见第 4 节）；
 6. 解析供给三级链（slot → mirror → builtin，见第 7 节）;
-7. 起 Pi 会话（240 秒超时，用完即停），模型经 `submit_intent_card` 工具调用交卡；
-8. 解析载荷、入库、emit 事件、发面板提醒；
+7. 起 Pi 会话（240 秒超时，用完即停），模型经 `submit_intent_card` 工具逐张交卡，一拍至多两张；
+8. 按提交顺序归约全部载荷（同名折叠、超上限丢弃）、入库、emit 事件、发面板提醒；tick 状态四分类见下；
 9. 成败写入 `intent_last_generation` 供设置页展示。任何一步失败记 tracing，循环不退出，下一拍同级重试。
+
+tick 状态四分类（优先级从高到低）：
+
+1. **cards**：落库 ≥1 张卡。detail 仅在张数 ≠1 时写 `"<n> cards"`；
+2. **draft-progress**：零卡但会话里有 `save_intent_draft` 操作。detail 形如 `"<n> draft op(s), no card"`；
+3. **insufficient**：零卡零草稿操作且模型显式声明材料不足。detail 为 `"material insufficient"`；
+4. **failed**：解析错误或空报告。detail 带首个解析错误或 `"empty session report"`。
 
 P2 是唯一能改卡片状态的通道：前端按钮只调 command，SQL 层带 WHERE status 守卫，模型侧没有任何路径能写 status。Pi 会话产出的只是工具调用参数，写库永远在 Rust 侧确定性代码手里。
 
@@ -83,11 +90,15 @@ proposed 与 shown 分开，是为了让过期时钟从「用户有机会看到�
 
 状态四值 `active → submitted | discarded | expired`：
 
-1. `upsert`：新建或按 id 续写（renew_count +1）；活跃数达上限（`INTENT_DRAFT_MAX_ACTIVE=3`）由 POST 路由拒绝；
+1. `upsert`：新建或按 id 续写（renew_count +1）；活跃数达上限（`INTENT_DRAFT_MAX_ACTIVE=10`）由 POST 路由以 409 拒绝并引导先收敛或丢弃；
 2. `expire_due`：心跳每拍结算超过 TTL（`INTENT_DRAFT_TTL_SECS=48h`，锚定 created_at）的 active 行；
 3. submitted / discarded 为终态，不可续写复活。
 
-防拖延是宿主职责而非模型自觉：runner 把活跃草稿注入材料 [OPEN_DRAFTS] 节并附收敛规则（renew_count≥3 或 ripe_when 已满足必须升级交卡或放弃）。gate 的 spawn 门槛暂不因活跃草稿降低，先观察真实续写率。
+防拖延是宿主职责而非模型自觉：收敛线为 renew_count 达到 3 或 ripe_when 已满足——必须升级交卡或判定不再值得追踪，不允许无限续写；该规则的权威文本在 cue-tools skill 的草稿纪律节，由 system prompt 的强制读指令兜底。gate 的 spawn 门槛暂不因活跃草稿降低，先观察真实续写率。
+
+### 草稿读侧与材料投影
+
+活跃草稿清单按最近活动排序（`updated_at DESC, id DESC`）。生成材料的 `[OPEN_DRAFTS]` 节是行级 JSON 计数头投影：`{"active_total":N,"shown":[...]}`，`shown` 至多 3 条（最新活动优先），每条固定四字段 `draft_id/gist/ripe_when/updated`（`updated` 为本地绝对时间 YYYY-MM-DD HH:MM）；evidence_so_far 不进材料，模型经 `get_intent_draft` 工具（intent-draft.ts，读 `GET /intent-cards/drafts` 全量活跃清单）取回完整详情后再续写。save 成功回执携带本地化的 updated 时间戳，来自 upsert 响应新增的 `updated_at` 字段。
 
 ### 运行时配置与设定页（2026-08-24）
 
@@ -109,7 +120,7 @@ proposed 与 shown 分开，是为了让过期时钟从「用户有机会看到�
 { "insufficient_material": true }
 ```
 
-Rust 侧从 agent_end 的 messages 数组提取最后一个 `submit_intent_card` 工具调用的 arguments 作为交卡载荷，序列化后流经原 parse 层（D4 版本门：未知版本拒解析、未知字段宽容）。文本路径保留为降级提取，parse 层仍拒非 JSON 文本。
+Rust 侧从 agent_end 的 messages 数组按调用顺序提取全部 `submit_intent_card` 调用的 arguments 作为交卡载荷，逐个流经原 parse 层（D4 版本门：未知版本拒解析、未知字段宽容）。一拍多卡契约：模型可多次调用该工具，单拍上限 2 张、意图互异；同批同名卡由宿主折叠（只保留首个，见 runner 的归约策略）；已交卡后不得再补发 insufficient_material。无工具调用的会话降级为把最终文本当单一载荷，parse 层仍拒非 JSON 文本。
 
 ## 6. Intent Agent 运行时
 
@@ -119,7 +130,9 @@ Rust 侧从 agent_end 的 messages 数组提取最后一个 `submit_intent_card`
 
 会话专属项目目录 `~/.screenpipe/pi-intent`，与其他会话互不共享。技能可见面与 Chat 对齐（全局发现 + 基线三件照常安装；2026-08-24 修订 D7——原镜像剥离对 pi 全局技能发现本就无效，轨迹取证见 01a02f23/01a02f15）。隔离边界收敛到工具白名单：bash 与一切写侧工具不进白名单；残余的技能正文注入风险由工具白名单兜底（sp_mcp_call 的外部副作用为已知并接受的残留面）。
 
-工具白名单八项：read / grep / find / ls（本机文件读取）、sp_mcp_list_tools / sp_mcp_call（查询用户注册的 MCP 服务）、submit_intent_card（交卡）、get_recent_intent_cards（近期卡片查询）。会话 transcript 天然留存于 pi-intent 目录，排查某张烂卡能看到完整推理与工具调用过程。
+工具白名单十三项：read / grep / find / ls（本机文件读取）、sp_mcp_list_tools / sp_mcp_call（查询用户注册的 MCP 服务）、submit_intent_card（交卡）、get_recent_intent_cards（近期卡片查询）、get_activity_summary / search_activity / search_memories / list_meetings（本地查证四件）、save_intent_draft / get_intent_draft（草稿写读）。会话 transcript 天然留存于 pi-intent 目录，排查某张烂卡能看到完整推理与工具调用过程。
+
+角色名为 **Intent card Agent**（system prompt REPLACE 文本首句）；完整的生成流程正典——四要件门槛、五步流程、自检问句、默认出口倾斜、草稿纪律——的唯一权威版本在 cue-tools skill 的「角色边界与生成流程」节，由 system prompt 第三段的强制读指令兜底执行；prompt 本体只携带角色、边界与不可让渡的契约指针。
 
 ## 7. 模型供给：三级链与镜像汇点
 
