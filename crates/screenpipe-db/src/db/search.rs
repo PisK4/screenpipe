@@ -793,8 +793,26 @@ impl DatabaseManager {
         // Note: focused and frame_name are not indexed in frames_fts,
         // they are filtered via SQL WHERE clauses instead.
 
-        // Merge text search query into the FTS parts so we query frames_fts once
-        if !query.trim().is_empty() {
+        // Merge text search query into the FTS parts so we query frames_fts once.
+        // CJK queries bypass FTS entirely: frames_fts uses tokenize='unicode61',
+        // which treats a run of contiguous CJK characters as a single token, so
+        // any proper substring of that run can never match. Until the tokenizer
+        // is migrated, fall back to a LIKE '%q%' scan over frames.full_text for
+        // those queries (local DBs are small enough that this is acceptable).
+        let trimmed_query = query.trim();
+        let use_text_like = !trimmed_query.is_empty() && contains_cjk(trimmed_query);
+        let text_like_pattern: Option<String> = if use_text_like {
+            Some(format!(
+                "%{}%",
+                trimmed_query
+                    .replace('\\', "\\\\")
+                    .replace('%', "\\%")
+                    .replace('_', "\\_")
+            ))
+        } else {
+            None
+        };
+        if !trimmed_query.is_empty() && !use_text_like {
             let sanitized = crate::text_normalizer::sanitize_fts5_query(query);
             if !sanitized.is_empty() {
                 frame_fts_parts.push(sanitized);
@@ -827,6 +845,7 @@ impl DatabaseManager {
             {fts_join}
             WHERE 1=1
                 {fts_condition}
+                {text_like_condition}
                 {start_condition}
                 {end_condition}
                 AND (?4 IS NULL OR LENGTH(COALESCE(frames.full_text, '')) >= ?4)
@@ -881,6 +900,11 @@ impl DatabaseManager {
             } else {
                 ""
             },
+            text_like_condition = if text_like_pattern.is_some() {
+                "AND COALESCE(frames.full_text, '') LIKE ?13 ESCAPE '\\'"
+            } else {
+                ""
+            },
             order_dir = match order {
                 Order::Ascending => "ASC",
                 Order::Descending => "DESC",
@@ -892,10 +916,7 @@ impl DatabaseManager {
         // filter via the `json_array_length(?12) = 0` guard above.
         let tags_json = serde_json::to_string(tags).unwrap_or_else(|_| "[]".to_string());
 
-        let query_builder = sqlx::query_as(sqlx::AssertSqlSafe(sql));
-
-        let mut connection = self.acquire_search_read().await?;
-        let raw_results: Vec<OCRResultRaw> = query_builder
+        let query_builder = sqlx::query_as(sqlx::AssertSqlSafe(sql))
             .bind(if has_fts { Some(&fts_query) } else { None })
             .bind(start_time)
             .bind(end_time)
@@ -907,7 +928,15 @@ impl DatabaseManager {
             .bind(frame_name)
             .bind(limit)
             .bind(offset)
-            .bind(&tags_json)
+            .bind(&tags_json);
+        let query_builder = if let Some(pattern) = &text_like_pattern {
+            query_builder.bind(pattern)
+        } else {
+            query_builder
+        };
+
+        let mut connection = self.acquire_search_read().await?;
+        let raw_results: Vec<OCRResultRaw> = query_builder
             .fetch_all(&mut *connection)
             .await?;
         drop(connection);
@@ -2329,5 +2358,107 @@ impl DatabaseManager {
         drop(connection);
 
         Ok(rows)
+    }
+}
+
+/// True if `s` contains any CJK character in the ranges this search layer
+/// treats as un-tokenizable by FTS5 unicode61: CJK Unified Ideographs
+/// (U+4E00–U+9FFF), Extension A (U+3400–U+4DBF), Japanese kana
+/// (U+3040–U+30FF), and Hangul syllables (U+AC00–U+D7AF).
+fn contains_cjk(s: &str) -> bool {
+    s.chars().any(|c| {
+        matches!(c as u32,
+            0x4E00..=0x9FFF | 0x3400..=0x4DBF | 0x3040..=0x30FF | 0xAC00..=0xD7AF)
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ascii_query_does_not_switch_to_like() {
+        assert!(!contains_cjk("hello world"));
+        assert!(!contains_cjk("error 404"));
+        assert!(!contains_cjk(""));
+    }
+
+    #[test]
+    fn han_characters_switch_to_like() {
+        assert!(contains_cjk("会议"));
+        assert!(contains_cjk("search 搜索功能"));
+    }
+
+    #[test]
+    fn kana_and_hangul_switch_to_like() {
+        assert!(contains_cjk("カタカナ"));
+        assert!(contains_cjk("한국어"));
+        // Adjacent-but-out-of-range scripts stay on the FTS path.
+        assert!(!contains_cjk("Ω≈ç√"));
+        assert!(!contains_cjk("ＡＢ")); // fullwidth latin, U+FF21
+    }
+
+    #[tokio::test]
+    async fn cjk_substring_query_matches_via_like() {
+        let db = DatabaseManager::new("sqlite::memory:", Default::default())
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO frames (video_chunk_id, offset_index, timestamp) \
+             VALUES (NULL, 0, '2026-07-09T00:00:00Z')",
+        )
+        .execute(&db.pool)
+        .await
+        .unwrap();
+        sqlx::query("UPDATE frames SET full_text = ?1 WHERE id = 1")
+            .bind("今天下午开了产品评审会议讨论搜索功能")
+            .execute(&db.pool)
+            .await
+            .unwrap();
+
+        // Pre-fix behavior: FTS5 unicode61 cannot match a proper substring of
+        // the contiguous Han run. The LIKE fallback must find it.
+        let results = db
+            .search_ocr("会议", 10, 0, None, None, None, None, None, None, None, None,
+                None, None, None, &[], Order::Descending, false)
+            .await
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].ocr_text.contains("会议"));
+
+        // A substring that does not occur must not match.
+        let miss = db
+            .search_ocr("不存在", 10, 0, None, None, None, None, None, None, None, None,
+                None, None, None, &[], Order::Descending, false)
+            .await
+            .unwrap();
+        assert!(miss.is_empty());
+
+        // English queries must keep using the original FTS path unchanged.
+        sqlx::query("UPDATE frames SET full_text = ?1 WHERE id = 1")
+            .bind("discussed the search feature roadmap today")
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        let english = db
+            .search_ocr("search feature", 10, 0, None, None, None, None, None, None, None, None,
+                None, None, None, &[], Order::Descending, false)
+            .await
+            .unwrap();
+        assert_eq!(english.len(), 1);
+        assert!(english[0].ocr_text.contains("search"));
+
+        // LIKE branch respects limit/offset.
+        sqlx::query("UPDATE frames SET full_text = ?1 WHERE id = 1")
+            .bind("今天下午开了产品评审会议讨论搜索功能")
+            .execute(&db.pool)
+            .await
+            .unwrap();
+        let paged = db
+            .search_ocr("会议", 10, 1, None, None, None, None, None, None, None, None,
+                None, None, None, &[], Order::Descending, false)
+            .await
+            .unwrap();
+        assert!(paged.is_empty());
     }
 }
