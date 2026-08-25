@@ -169,6 +169,8 @@ pub struct UpsertIntentDraftResponse {
     pub renew_count: i64,
     /// Active-draft budget remaining after this write.
     pub active_left: i64,
+    /// Unixepoch seconds; the extension formats it as local wall time.
+    pub updated_at: i64,
 }
 
 /// Create or renew a draft. Creating beyond `INTENT_DRAFT_MAX_ACTIVE` returns
@@ -235,10 +237,30 @@ pub async fn upsert_intent_draft(
         .and_then(|rows| rows.into_iter().find(|r| r.id == id))
         .map(|r| r.renew_count)
         .unwrap_or(0);
+    // Echo the fresh updated_at so the extension can show local wall time.
+    let updated_at = state
+        .db
+        .intent_get_draft(id)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "intent draft readback failed");
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                JsonResponse(json!({"error": "draft missing after write"})),
+            )
+        })?
+        .ok_or_else(|| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                JsonResponse(json!({"error": "draft missing after write"})),
+            )
+        })?
+        .updated_at;
     Ok(JsonResponse(UpsertIntentDraftResponse {
         id,
         created,
         renew_count,
         active_left: active_left.max(0),
+        updated_at,
     }))
 }

@@ -85,6 +85,41 @@ impl DatabaseManager {
         Ok(result)
     }
 
+    pub async fn intent_count_active_drafts(&self, ttl_secs: i64) -> Result<i64, sqlx::Error> {
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM intent_drafts WHERE status = 'active' \
+             AND created_at > unixepoch() - ?1",
+        )
+        .bind(ttl_secs)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(count)
+    }
+
+    /// Fetch one draft row by id, settled or not. The upsert route uses it to
+    /// echo the fresh `updated_at` back to the extension.
+    pub async fn intent_get_draft(
+        &self,
+        id: i64,
+    ) -> Result<Option<IntentDraftSummary>, sqlx::Error> {
+        let row = sqlx::query(
+            "SELECT id, gist, evidence_so_far, ripe_when, renew_count, created_at, updated_at \
+             FROM intent_drafts WHERE id = ?1",
+        )
+        .bind(id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|row| IntentDraftSummary {
+            id: row.get("id"),
+            gist: row.get("gist"),
+            evidence_so_far: row.get("evidence_so_far"),
+            ripe_when: row.get("ripe_when"),
+            renew_count: row.get("renew_count"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }))
+    }
+
     /// Active drafts within `ttl_secs`, most recent activity first — the
     /// heartbeat materials show the freshest few and agents page through the
     /// rest via the read-side draft tool.
@@ -112,17 +147,6 @@ impl DatabaseManager {
                 updated_at: row.get("updated_at"),
             })
             .collect())
-    }
-
-    pub async fn intent_count_active_drafts(&self, ttl_secs: i64) -> Result<i64, sqlx::Error> {
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM intent_drafts WHERE status = 'active' \
-             AND created_at > unixepoch() - ?1",
-        )
-        .bind(ttl_secs)
-        .fetch_one(&self.pool)
-        .await?;
-        Ok(count)
     }
 
     /// Settle overdue active rows (`created_at + ttl <= now`). Called from the
@@ -253,5 +277,14 @@ mod tests {
         assert_eq!(rows.len(), 3, "配额上限是 10，三张活跃草稿必须全部在列");
         assert_eq!(rows[0].gist, "旧-续", "最近有活动的草稿必须排最前");
         assert_eq!(rows[1].gist, "新");
+    }
+
+    #[tokio::test]
+    async fn intent_get_draft_returns_the_row_or_none() {
+        let db = test_db().await;
+        assert!(db.intent_get_draft(999999).await.unwrap().is_none());
+        let (id, _) = db.intent_upsert_draft(None, "g", "e", "r").await.unwrap();
+        let got = db.intent_get_draft(id).await.unwrap().expect("row exists");
+        assert_eq!(got.gist, "g");
     }
 }
