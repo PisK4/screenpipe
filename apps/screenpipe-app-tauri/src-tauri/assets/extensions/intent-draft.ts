@@ -25,6 +25,12 @@ function authHeaders(): Record<string, string> {
   return AUTH_KEY ? { Authorization: `Bearer ${AUTH_KEY}` } : {};
 }
 
+function fmtLocal(unixSecs: number): string {
+  const d = new Date(unixSecs * 1000);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 const draftParams = {
   type: "object",
   required: ["gist", "evidence_so_far", "ripe_when"],
@@ -106,13 +112,14 @@ export default function (pi: ExtensionAPI) {
           created: boolean;
           renew_count: number;
           active_left: number;
+          updated_at: number;
         };
         const verb = body.created ? "saved" : "updated";
         return {
           content: [
             {
               type: "text" as const,
-              text: `Draft #${body.id} ${verb} (renew_count=${body.renew_count}, active budget left: ${body.active_left}).`,
+              text: `Draft #${body.id} ${verb} (renew_count=${body.renew_count}, updated ${fmtLocal(body.updated_at)}, active budget left: ${body.active_left}).`,
             },
           ],
         };
@@ -125,6 +132,51 @@ export default function (pi: ExtensionAPI) {
             },
           ],
         };
+      }
+    },
+  });
+
+  pi.registerTool({
+    name: "get_intent_draft",
+    label: "Get Intent Drafts",
+    description:
+      "Read active intent drafts with full detail (evidence_so_far, renew_count, timestamps), newest activity first."
+      + " Use when the [OPEN_DRAFTS] count header shows more drafts than displayed, or before updating a draft,"
+      + " so the renewal builds on the recorded evidence instead of guessing.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: {
+          type: "integer",
+          minimum: 1,
+          maximum: 10,
+          description: "Max drafts returned. Defaults to 10.",
+        },
+      },
+    },
+    async execute(_toolCallId: string, args: any) {
+      try {
+        const res = await fetch(`${API_BASE}/intent-cards/drafts`, { headers: authHeaders() });
+        const text = await res.text().catch(() => "");
+        if (!res.ok) {
+          return { content: [{ type: "text" as const,
+            text: `get_intent_draft failed (${res.status}): ${text.slice(0, 400)}.` }] };
+        }
+        const body = JSON.parse(text) as { drafts: Array<{
+          id: number; gist: string; evidence_so_far: string;
+          ripe_when: string; renew_count: number; updated_at: number }> };
+        if (!body.drafts.length) {
+          return { content: [{ type: "text" as const, text: "No active drafts." }] };
+        }
+        const limit = Math.min(Math.max(Number(args?.limit) || 10, 1), 10);
+        const lines = body.drafts.slice(0, limit).map((d) =>
+          `#${d.id} [renew ${d.renew_count}] ${d.gist}\n` +
+          `  evidence: ${d.evidence_so_far}\n  ripe_when: ${d.ripe_when}\n  updated: ${fmtLocal(d.updated_at)}`);
+        return { content: [{ type: "text" as const,
+          text: `${body.drafts.length} active draft(s):\n\n${lines.join("\n\n")}` }] };
+      } catch (e: any) {
+        return { content: [{ type: "text" as const,
+          text: `get_intent_draft failed: ${e?.message ?? String(e)}` }] };
       }
     },
   });
