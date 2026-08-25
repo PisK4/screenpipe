@@ -310,4 +310,18 @@ export const settingsMiscZh = {
     lastGenerationNone: "尚未运行",
     saveFailed: "意图模型更新失败",
   },
+  intentSettings: {
+    title: "心跳与生命周期",
+    description:
+      "主动卡片的生成节奏与过期时长。保存后即时生效，无需重启应用；数值会被约束在合理区间。",
+    heartbeat: "心跳间隔（秒）",
+    materialWindow: "材料窗口（小时）",
+    cardTtl: "卡片过期（小时）",
+    draftCap: "活跃草稿上限",
+    draftTtl: "草稿过期（小时）",
+    save: "保存",
+    resetDefaults: "恢复默认",
+    saved: "意图卡片设置已保存",
+    saveFailed: "无法保存意图卡片设置",
+  },
 };

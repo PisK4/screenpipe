@@ -6,6 +6,7 @@
 import React, { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import {
   Brain,
+  Sparkles,
   Video,
   Keyboard,
   User,
@@ -38,6 +39,7 @@ import { AccountSection, searchIndex as accountSearchIndex } from "@/components/
 import ShortcutSection, { searchIndex as shortcutsSearchIndex } from "@/components/settings/shortcut-section";
 import { AIPresets, searchIndex as aiSearchIndex } from "@/components/settings/ai-presets";
 import { AISettings, searchIndex as aiSettingsSearchIndex } from "@/components/settings/ai-settings";
+import { IntentSettings, searchIndex as intentSearchIndex } from "@/components/settings/intent-settings";
 import {
   RecordingSettings,
   audioSearchIndex,
@@ -80,6 +82,7 @@ const ALL_SETTINGS_FIELDS: IndexedSettingsField[] = [
   ...generalSearchIndex.map((f) => ({ ...f, section: "general" })),
   ...aiSearchIndex.map((f) => ({ ...f, section: "ai" })),
   ...aiSettingsSearchIndex.map((f) => ({ ...f, section: "ai-settings" })),
+  ...intentSearchIndex.map((f) => ({ ...f, section: "intent-cards" })),
   ...audioSearchIndex.map((f) => ({ ...f, section: "audio" })),
   ...screenSearchIndex.map((f) => ({ ...f, section: "recording" })),
   ...powerSearchIndex.map((f) => ({ ...f, section: "recording" })),
@@ -208,6 +211,7 @@ function SettingsContent() {
       label: t("settingsNav.groups.ai"),
       items: [
         { id: "ai-settings" as const, label: t("settingsNav.items.aiFeatures"), icon: <SlidersHorizontal className="h-4 w-4" /> },
+        { id: "intent-cards" as const, label: t("settingsNav.items.intentCards"), icon: <Sparkles className="h-4 w-4" /> },
         { id: "ai" as const, label: t("settingsNav.items.modelsKeys"), icon: <Brain className="h-4 w-4" /> },
         { id: "usage" as const, label: t("settingsNav.items.aiCredits"), icon: <BarChart3 className="h-4 w-4" /> },
       ].filter((s) => !isSettingsSectionHidden(s.id)),
@@ -365,6 +369,7 @@ function SettingsContent() {
       case "display":       return <DisplaySection />;
       case "ai":            return <AIPresets />;
       case "ai-settings":   return <AISettings />;
+      case "intent-cards":  return <IntentSettings />;
       case "account":       return <AccountSection />;
       case "recording":     return <RecordingSettings section="screen" />;
       case "audio":         return <RecordingSettings section="audio" />;

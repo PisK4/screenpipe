@@ -54,6 +54,8 @@ Skill 自己不会：
 
 Pi 是否能按照 Skill 调 API，仍取决于这个会话是否获得 `bash` 或对应的正式 Tool。
 
+意图会话（intent-card，见 `doc/FEATURE_INTENT_CARDS.md` §6）的技能面与 Chat 对齐：pi 会自动发现全局技能目录，项目级镜像剥离对它无效（轨迹取证 01a02f23/01a02f15/01a02f91 列出全部 18 个技能；2026-08-24 修订 D7）。该无人值守会话的隔离边界因此完全落在工具白名单上——bash 与一切写侧工具不进白名单；技能正文若被注入引导 `sp_mcp_call` 产生外部副作用，是已知并接受的残留面。
+
 ### 3.2 Extension 注册结构化 Tool
 
 当前 Cue 会向 Pi 安装若干 extension。它们通过 `pi.registerTool()` 注册结构化动作：

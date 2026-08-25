@@ -1,11 +1,17 @@
 # AGENTS.md
 
-
+## 常用 Skill
 在当前项目内创建、修改、重构或删除生产代码前，优先使用以下 skill：
 
 ```text
-/ponytail full <your coding prompt>
+ponytail
 ```
+
+分析 Agent 执行流程, 获取完整 trace: 
+```text
+ata
+```
+
 
 Cue captures accessibility trees (OCR as fallback) and conversations, and
 indexes them locally for AI consumption. It is the context layer for agents.

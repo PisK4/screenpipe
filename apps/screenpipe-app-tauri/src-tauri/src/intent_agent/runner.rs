@@ -23,11 +23,7 @@ use tauri::Manager;
 
 pub async fn start(app: tauri::AppHandle) {
     tokio::time::sleep(std::time::Duration::from_secs(gate::FIRST_RUN_DELAY_SECS)).await;
-    let mut interval = tokio::time::interval(std::time::Duration::from_secs(
-        gate::HEARTBEAT_INTERVAL_SECS,
-    ));
     loop {
-        interval.tick().await;
         match tick(&app).await {
             Ok(Some(record)) => {
                 tracing::info!(
@@ -40,7 +36,28 @@ pub async fn start(app: tauri::AppHandle) {
             Ok(None) => {}
             Err(e) => tracing::warn!("intent heartbeat tick failed: {e}"),
         }
+        // Cadence re-read each beat from the shared intent_settings KV so a
+        // settings-page change lands without an app restart. Recording not
+        // up yet → default cadence; the next beat retries.
+        let interval_secs = read_heartbeat_interval(&app).await;
+        tokio::time::sleep(std::time::Duration::from_secs(interval_secs)).await;
     }
+}
+
+/// Current heartbeat cadence in seconds (config default 900 on any failure).
+async fn read_heartbeat_interval(app: &tauri::AppHandle) -> u64 {
+    let db = {
+        let state = app.state::<crate::recording::RecordingState>();
+        let guard = state.server.lock().await;
+        match guard.as_ref() {
+            Some(server) => server.db.clone(),
+            None => return 900,
+        }
+    };
+    db.intent_load_config()
+        .await
+        .map(|c| c.heartbeat_interval_secs as u64)
+        .unwrap_or(900)
 }
 
 /// Read the last-attempt anchor from settings extra (D9).
@@ -143,18 +160,28 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
     };
 
     let now = chrono::Utc::now().timestamp();
-    // 1. Settle expirations first (T8 决议 3).
+    // Runtime config (shared intent_settings KV): cadence, card TTL, draft
+    // cap/TTL, material window default. Defaults apply on any load failure.
+    let cfg = db.intent_load_config().await.unwrap_or_default();
+    // 1. Settle expirations first (T8 决议 3); drafts settle on their own TTL.
     db.intent_cards_expire_due(now)
         .await
         .map_err(|e| e.to_string())?;
+    let expired_drafts = db
+        .intent_expire_due_drafts(cfg.draft_ttl_secs)
+        .await
+        .map_err(|e| e.to_string())?;
+    if expired_drafts > 0 {
+        tracing::info!(settled = expired_drafts, "intent drafts expired");
+    }
 
     // 2. Material window anchors to the last insert (R2 cap applies).
     let latest = db.intent_latest_created_at().await.map_err(|e| e.to_string())?;
-    let window_start_ts = gate::window_start(now, latest);
+    let window_start_ts = gate::window_start(now, latest, cfg.material_window_secs);
 
     // 3. Signal window anchors to the last attempt of any outcome (D9).
     let last_attempt = read_last_generation(app).await.map(|r| r.at);
-    let signal_since = gate::signal_window_start(now, last_attempt);
+    let signal_since = gate::signal_window_start(now, last_attempt, cfg.material_window_secs);
 
     // 4. Gate.
     let signals = WindowSignals {
@@ -185,13 +212,41 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
         )
         .await
         .map_err(|e| e.to_string())?;
-    let recent_cards_json =
-        serde_json::to_value(&recent_cards).unwrap_or(serde_json::Value::Array(vec![]));
+    // Lean projection (2026-08-24): materials carry only the dedup minimal
+    // set — id anchors detail lookup via get_recent_intent_cards, gist/title
+    // is what the card was about, status drives the rejected-intent rule,
+    // created_at separates fresh repeats from stale ones. Full prose
+    // (proactive_view) previously dominated the payload and trained the model
+    // to enumerate cards in its own output until the response budget died
+    // (traces 01a033b6 / 01a03407).
+    let recent_cards_json = serde_json::Value::Array(
+        recent_cards
+            .iter()
+            .map(|c| {
+                serde_json::json!({
+                    "id": c.id,
+                    "gist": c.title,
+                    "status": c.status,
+                    "created_at": c.created_at,
+                })
+            })
+            .collect(),
+    );
+    // Draft continuation: active drafts ride the materials so the model
+    // renews, converges, or drops them instead of starting parallel threads.
+    let open_drafts = db
+        .intent_list_active_drafts(cfg.draft_ttl_secs)
+        .await
+        .map_err(|e| e.to_string())?;
+    let open_drafts_json =
+        serde_json::to_value(&open_drafts).unwrap_or(serde_json::Value::Array(vec![]));
     let input = GenerationInput {
+        local_now_text: chrono::Local::now().format("%Y-%m-%d %H:%M (UTC%:z)").to_string(),
         window_start_text: start_dt.to_rfc3339(),
         window_end_text: end.to_rfc3339(),
         activity_summary: summary,
         recent_cards: recent_cards_json,
+        open_drafts: open_drafts_json,
         signals,
     };
 
@@ -226,6 +281,7 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
                     .insert_intent_card(&NewIntentCard {
                         origin: "proactive".into(),
                         card_type: c.card_type.clone(),
+                        title: c.title.clone(),
                         proactive_view: Some(c.proactive_view.clone()),
                         dedup_key: gate::dedup_key(&c.card_type, &dominant),
                         local_date: date,

@@ -932,12 +932,35 @@ async intentGetConfig() : Promise<Result<IntentConfigDto, string>> {
 },
 /**
  * Supply state for the settings card: slot, mirror preset id, last
- * generation outcome. Lazily seeds the builtin default slot (D8) so factory
- * state is non-empty.
+ * generation outcome. Slot stays None unless the user explicitly picked one
+ * — writing a default here would outrank the "follow Chat" mirror in
+ * resolve_chain and silently stop intent cards from using the chat model.
  */
 async intentGetSupply() : Promise<Result<IntentSupplyState, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("intent_get_supply") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Read the intent runtime config (defaults when keys are missing).
+ */
+async intentGetConfig() : Promise<Result<IntentConfigDto, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("intent_get_config") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Persist the intent runtime config (backend clamps again on load).
+ */
+async intentSetConfig(config: IntentConfigDto) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("intent_set_config", { config }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -3105,6 +3128,11 @@ export type IntentConfigDto = { heartbeatIntervalSecs: number; cardTtlHours: num
  * Full supply state surfaced to the settings card (R7).
  */
 export type IntentSupplyState = { slot: PresetQuadruple | null; fallbackPresetId: string | null; lastGeneration: LastGenerationStatus | null }
+/**
+ * Runtime config for the intent heartbeat (settings page: intent cards).
+ * Seconds for cadence, hours elsewhere; backend clamps on load.
+ */
+export type IntentConfigDto = { heartbeatIntervalSecs: number; cardTtlHours: number; draftMaxActive: number; draftTtlHours: number; materialWindowHours: number }
 export type JobEvent = { kind: "started"; jobId: string; label: string; message: string | null } | { kind: "progress"; jobId: string; label: string; progress: number; message: string | null } | { kind: "completed"; jobId: string; label: string; outputPath: string | null; message: string | null } | { kind: "failed"; jobId: string; label: string; error: string }
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key in string]: JsonValue }
 export type KeychainStatus = { state: string }
@@ -3224,6 +3252,12 @@ maxContextChars?: number | null;
  * Optional system prompt from AI preset (appended to Pi's built-in system prompt)
  */
 systemPrompt?: string | null;
+/**
+ * When true, `system_prompt` replaces pi's built-in system prompt
+ * (`--system-prompt`) instead of appending after it. Unattended
+ * sessions set this so the coding-assistant baseline never leaks in.
+ */
+replaceSystemPrompt?: boolean | null;
 /**
  * Optional exact Pi tool allowlist for bounded agent surfaces. `None`
  * preserves the normal Chat tool surface; an empty list disables tools.

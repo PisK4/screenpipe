@@ -3,17 +3,18 @@
 
 ## Philosophy
 
-**"Escher monochrome with phosphor intelligence"**
+**Cue soft-light: calm layered surfaces, ink controls, one blue focus accent**
 
-Screenpipe turns the trace of human work into memory, models, and agents. The
-visual system should feel like a mathematical print becoming executable:
-precise, recursive, slightly uncanny, and still controlled by the person whose
-work created it.
+Cue turns the ambient trace of human work into memory, models, and agents. The
+interface should feel like a quiet, well-lit workspace: cold gray canvas,
+white cards floating on hairline boundaries with soft two-stage shadows, and a
+single ink color carrying weight.
 
-Black and warm bone are the substrate. Phosphor is the learned signal. It
-appears only where captured work becomes useful model context or an agent takes
-an explicit action. Sharp corners, clean typography, and Escher-inspired
-mathematical abstractions remain the core identity.
+Ink (#1F2124) is the only "heavy" color — it paints primary buttons and
+primary text. Status colors exist only as soft-background pill families.
+Phosphor remains the learned signal: it appears only where captured work
+becomes useful model context or an agent takes an explicit action.
+
 
 ---
 
@@ -36,17 +37,15 @@ mathematical abstractions remain the core identity.
 
 | Purpose | Font | Fallbacks |
 |---------|------|-----------|
-| **Headings (sans)** | Space Grotesk | system-ui, sans-serif |
-| **Body (serif)** | Crimson Text | Baskerville, Times New Roman, serif |
-| **Code (mono)** | IBM Plex Mono | monospace |
+| **UI (sans)** | Inter (400/500/600) | -apple-system, Segoe UI, sans-serif |
+| **Data/code (mono)** | JetBrains Mono | SF Mono, IBM Plex Mono, monospace |
 
 ### Usage Patterns
 
-- **Headings**: Space Grotesk, lowercase preferred
-- **Body text**: Crimson Text for readability
-- **Code/technical**: IBM Plex Mono
-- **Buttons**: UPPERCASE with tracking-wide
-- **Labels**: lowercase, medium weight
+- **All UI text**: Inter. Weights 400 for body, 500 for labels/buttons, 600 for headings.
+- **Mono is for data only**: timecodes, task names, code, logs — never for buttons or headings.
+- No UPPERCASE button typography; sentence case everywhere.
+
 
 ---
 
@@ -68,43 +67,36 @@ interface, not legal footnotes.
 
 ### Palette
 
-| Token | Hex | Use |
+Cold gray layered surfaces with ink controls and one blue focus accent
+(cue-tokens v0.4.0, see `app/globals.css`):
+
+- Canvas `#F1F2F3`, sidebar `#FAFAFB`, white cards/popovers
+- Ink `#1F2124` for primary buttons and primary text; hover deepens (`#3A3C40`)
+- Hairline border `#ECEDEF`, strong `#E0E2E5`
+- Accent blue `#0285FF` — small areas only: selection, focus ring, cursor
+
+Status is always a soft-background pill. Five families, each with a soft
+background, soft border, and on-soft text token:
+
+| Family | Soft bg | Use |
 | --- | --- | --- |
-| Ink | `#050505` | Foreground, structure, dark background |
-| Bone | `#F2EFE6` | Main light background and human/source state |
-| Trace | `#78786F` | Secondary evidence and inactive structure |
-| Phosphor | `#C7FF3E` | Active transformation and primary action |
-| Phosphor strong | `#4A6B00` | Small phosphor text and borders on bone |
+| accent | `#E9F3FF` | informational highlight |
+| risk / warning | `#FDF1E5` | needs attention |
+| verified / success | `#E8F5ED` | confirmed good |
+| failure / destructive | `#FCECEC` | errors, loss |
+| unknown / neutral | `#ECEFF0` | rejected/expired/preparing |
 
-The default ratio is roughly 70 percent ink/bone, 20 percent trace neutrals,
-and no more than 10 percent phosphor. Existing app surfaces can adopt this
-incrementally. Do not perform a global color sweep without checking every state
-in light and dark mode.
+No colored card outlines. The default composition is roughly 90 percent
+neutrals, small ink masses, and tiny blue accents.
 
-### Accessibility
+### Where phosphor belongs (unchanged)
 
-- Use ink text on phosphor fills.
-- Do not use bright phosphor for small text on bone. Use phosphor strong.
-- Pair color with a label, icon, shape, or state change. Meaning must never rely
-  on color alone.
-- Keep error, warning, success, privacy, and billing states explicit in text.
-  Phosphor is not a generic success color.
+Phosphor marks the boundary where capture becomes model context or an agent
+acts. It is not a generic accent — see "Narrative model" below and the rules
+in this file before using it anywhere new. Its reserved variables
+(`--phosphor`, `--phosphor-strong`, `--phosphor-ink`, `--trace`) keep their
+existing values in both themes.
 
-### Where phosphor belongs
-
-- The boundary where capture becomes memory or model context
-- The active step in an agent or automation pipeline
-- A user-triggered primary action that starts that transformation
-- A cursor, selection, or focus state inside an otherwise monochrome system
-- A single focal point in a recursive or tessellated composition
-
-### Where phosphor does not belong
-
-- Every button, icon, link, or heading
-- Large decorative backgrounds
-- Generic badges or marketing emphasis
-- Status decoration without a meaningful transformation
-- Rainbow, aurora, or generic AI gradients
 
 ---
 
@@ -112,22 +104,22 @@ in light and dark mode.
 
 ### Border Radius
 
-```
---radius: 0
-```
+| Element | Radius | Token/class |
+| --- | --- | --- |
+| Controls (buttons, inputs) | 8px | `rounded-lg` (`--radius: 8px`) |
+| Cards | 10px | `rounded-[10px]` |
+| Panels / modals | 14px | `rounded-panel` |
+| Chips | 6px | `rounded-md` |
+| Pills / badges | full | `rounded-full` |
 
-**All corners are sharp.** No rounded corners anywhere.
+### Borders & Shadows
 
-### Borders
+- Hairline 1px borders: `--border` #ECEDEF (light), strong `#E0E2E5`.
+- Three elevation levels, theme-aware (`--shadow-card/raised/overlay`,
+  consumed as Tailwind `shadow-card` / `shadow-raised` / `shadow-overlay`):
+  each is a hairline ring plus two-stage soft shadows that deepen
+  automatically in dark mode. Do not hand-roll shadows.
 
-- Width: 1px solid
-- Style: Sharp, binary (on/off)
-- No decorative gradients. A restrained transition may be used only when it
-  communicates metamorphosis or state progression.
-
-### Shadows
-
-**Flat by default — use 1px borders for separation.** Subtle shadows are allowed to lift floating / elevated surfaces (chat input, overlays, popovers, dialogs) off the background. Keep them soft and low-opacity (e.g. `shadow-lg shadow-black/5`); never round corners to sell the lift — corners stay sharp.
 
 ---
 
@@ -136,42 +128,35 @@ in light and dark mode.
 ### Buttons
 
 ```
-- Font: UPPERCASE, tracking-wide
-- Border: 1px solid
-- Corners: Sharp (0px radius)
-- Transition: 150ms
-- Hover: Color inversion
-- Phosphor fill: reserved for a primary action that starts capture-to-model or
-  model-to-agent transformation
+- Primary: ink solid (#1F2124), white text; hover deepens — never inverts
+- Secondary/outline: white surface, hairline border
+- Ghost: transparent, hover shows the accent surface
+- Height: 36px (h-9); radius 8; Inter medium; no uppercase
+- Focus: 2px ring at 40% opacity
 ```
 
 ### Cards
 
 ```
-- Border: 1px solid
-- Shadow: None
-- Corners: Sharp
+- White surface, hairline border, shadow-card, radius 10
 - Padding: 24px (p-6)
 ```
 
 ### Inputs
 
 ```
-- Style: Command-line aesthetic
-- Font: Monospace (IBM Plex Mono)
-- Border: 1px solid
-- Height: 40px (h-10)
-- Focus: Border color change
+- Field gray background (--input #F2F2F3), hairline border
+- Focus: blue border + 2px blue ring at 30% opacity; blue caret
+- Inter, not mono; height 36–40px depending on surface
 ```
 
-### Dialogs
+### Badges
 
 ```
-- Border: 1px solid
-- Shadow: Subtle lift allowed (elevated surface)
-- Animation: 150ms fade
-- Title: lowercase
+- Soft pill from one of the five status families (bg/border/on-soft tokens)
+- rounded-full, xs text, medium weight
 ```
+
 
 ---
 
@@ -216,21 +201,19 @@ Take screenshots of modern apps with great design you find on internet and use i
 
 When creating new UI components:
 
-- [ ] Using Space Grotesk for headings
-- [ ] Using Crimson Text for body (or IBM Plex Mono for technical)
-- [ ] 1px solid border
-- [ ] Flat by default; subtle shadows OK only to lift floating/elevated surfaces
-- [ ] 0px border radius (sharp corners) — always, even on shadowed surfaces
-- [ ] Composition remains mostly ink, bone, and trace grey
-- [ ] Every phosphor use marks transformation, execution, or focus
-- [ ] Bright phosphor uses ink foreground
-- [ ] Small colored text on bone uses phosphor strong
+- [ ] Inter for UI, JetBrains Mono only for data (timecode/code/log)
+- [ ] Sentence case; no UPPERCASE button typography
+- [ ] Status uses a soft pill — pick one of the five families (accent/risk/verified/failure/unknown)
+- [ ] Primary button is ink solid; hover deepens, never inverts
+- [ ] Secondary surfaces are white with hairline borders; no colored card outlines
+- [ ] Radius scale: control 8 / card 10 / panel·modal 14 / chip 6 / pill full
+- [ ] Shadows use shadow-card / shadow-raised / shadow-overlay — never hand-rolled
+- [ ] Accent blue #0285FF only for selection, focus ring, cursor — small areas
+- [ ] Phosphor only at the capture→context boundary; never as generic accent or success
 - [ ] State is understandable without color
 - [ ] 150ms transitions
-- [ ] UPPERCASE for buttons, lowercase for titles
-- [ ] Hover state: color inversion
-- [ ] Focus ring: 1px solid with offset
-- [ ] Always send screenshot of the new UI in PR bodies or design suggestions in ASCII, if you have access to AI image generation you can also leverage it 
+- [ ] Always send screenshot of the new UI in PR bodies or design suggestions in ASCII, if you have access to AI image generation you can also leverage it
+
 
 ---
 

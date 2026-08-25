@@ -78,13 +78,15 @@ pub async fn intent_list(app: AppHandle, filter: String) -> Result<Vec<IntentCar
 }
 
 /// proposed → shown. Idempotent-safe: repeats are rejected at the SQL layer
-/// and never extend the 48h clock (R1); onboarding cards get no clock (D10).
+/// and never extend the expiry clock (R1); onboarding cards get no clock
+/// (D10). The clock length comes from runtime config (settings page).
 #[tauri::command]
 #[specta::specta]
 pub async fn intent_card_mark_shown(app: AppHandle, card_id: i64) -> Result<(), String> {
     let db = live_db(&app).await?;
     let now = chrono::Utc::now().timestamp();
-    db.intent_card_mark_shown(card_id, now)
+    let cfg = db.intent_load_config().await.map_err(|e| e.to_string())?;
+    db.intent_card_mark_shown(card_id, now, cfg.card_ttl_secs)
         .await
         .map_err(|e| e.to_string())?;
     Ok(())
@@ -168,6 +170,7 @@ pub async fn intent_spawn_onboarding_card(app: AppHandle) -> Result<i64, String>
     let card = NewIntentCard {
         origin: "system_onboarding".into(),
         card_type: "read_only".into(),
+        title: "把本机 AI 工具接入 Cue".into(),
         proactive_view: Some("把本机 AI 工具接入 Cue".into()),
         dedup_key: "system_onboarding:onboarding".into(),
         local_date: chrono::Local::now().format("%Y-%m-%d").to_string(),
@@ -249,4 +252,54 @@ pub async fn intent_set_fallback_preset_id(
         ),
         None => supply::extra_remove(&app, supply::INTENT_FALLBACK_PRESET_ID_KEY),
     }
+}
+
+// ---------- runtime config (settings page: intent cards) ----------
+
+/// Wire shape of the intent runtime config. Time values are exposed in
+/// UI-friendly units (seconds for cadence, hours elsewhere); the DB stores
+/// seconds and clamps on load.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct IntentConfigDto {
+    pub heartbeat_interval_secs: i64,
+    pub card_ttl_hours: i64,
+    pub draft_max_active: i64,
+    pub draft_ttl_hours: i64,
+    pub material_window_hours: i64,
+}
+
+/// Read the intent runtime config. Missing keys report compile-time defaults,
+/// so this never fails short of a broken database (surfaced as error string).
+#[tauri::command]
+#[specta::specta]
+pub async fn intent_get_config(app: AppHandle) -> Result<IntentConfigDto, String> {
+    let db = live_db(&app).await?;
+    let cfg = db.intent_load_config().await.map_err(|e| e.to_string())?;
+    Ok(IntentConfigDto {
+        heartbeat_interval_secs: cfg.heartbeat_interval_secs,
+        card_ttl_hours: cfg.card_ttl_secs / 3600,
+        draft_max_active: cfg.draft_max_active,
+        draft_ttl_hours: cfg.draft_ttl_secs / 3600,
+        material_window_hours: cfg.material_window_secs / 3600,
+    })
+}
+
+/// Persist the intent runtime config. Values are clamped again on every load
+/// (see `IntentRuntimeConfig`), so out-of-range writes cannot wedge the
+/// heartbeat; the UI clamps too for immediate feedback.
+#[tauri::command]
+#[specta::specta]
+pub async fn intent_set_config(app: AppHandle, config: IntentConfigDto) -> Result<(), String> {
+    let db = live_db(&app).await?;
+    let to_save = screenpipe_db::IntentRuntimeConfig {
+        heartbeat_interval_secs: config.heartbeat_interval_secs,
+        card_ttl_secs: config.card_ttl_hours * 3600,
+        draft_max_active: config.draft_max_active,
+        draft_ttl_secs: config.draft_ttl_hours * 3600,
+        material_window_secs: config.material_window_hours * 3600,
+    };
+    db.intent_save_config(&to_save)
+        .await
+        .map_err(|e| e.to_string())
 }

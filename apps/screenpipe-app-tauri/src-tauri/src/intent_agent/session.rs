@@ -5,8 +5,10 @@
 //! Pi session orchestration for intent-card generation (D6).
 //!
 //! One dedicated session id (`intent-card`) in an exclusive project dir
-//! (`~/.screenpipe/pi-intent`), a read-only tool allowlist, and baseline-only
-//! skills. The final report is collected in-process from `agent_event`
+//! (`~/.cue/pi-intent`) and a read-only tool allowlist. Skill
+//! visibility is an explicit allowlist: sessions start with `--no-skills` plus
+//! the managed skills under `~/.cue/agent/skills` passed via `--skill`, so
+//! global auto-discovery never leaks in; the boundary is also the TOOL allowlist (no bash/edit/write), not skill hiding. The final report is collected in-process from `agent_event`
 //! broadcasts — the stdout reader hot path is untouched. The session is
 //! stopped after every run so resources stay predictable; spawn frequency is
 //! bounded by the gate anyway.
@@ -26,11 +28,13 @@ pub const SESSION_TIMEOUT_SECS: u64 = 240;
 /// see assets/extensions/intent-card.ts and parse.rs.
 pub const INTENT_TOOL_NAME: &str = "submit_intent_card";
 /// Read-side tool from intent-card-recent.ts: recent cards for soft dedup.
-pub const INTENT_RECENT_TOOL_NAME: &str = "sp_intent_cards_recent";
+pub const INTENT_RECENT_TOOL_NAME: &str = "get_recent_intent_cards";
 /// Read-side allowlist (D6, revised): chat's built-in tools minus bash and
-/// the write side (edit/write), plus the MCP bridge tools and the structured
-/// card-submit tool from the intent-card extension.
-pub const INTENT_ALLOWED_TOOLS: [&str; 8] = [
+/// the write side (edit/write), plus the MCP bridge tools, the structured
+/// card-submit tool from the intent-card extension, the four local
+/// verification tools from intent-search.ts, and the draft-archive tool
+/// from intent-draft.ts.
+pub const INTENT_ALLOWED_TOOLS: [&str; 13] = [
     "read",
     "grep",
     "find",
@@ -39,29 +43,40 @@ pub const INTENT_ALLOWED_TOOLS: [&str; 8] = [
     "sp_mcp_call",
     INTENT_TOOL_NAME,
     INTENT_RECENT_TOOL_NAME,
+    "get_activity_summary",
+    "search_activity",
+    "search_memories",
+    "list_meetings",
+    "save_intent_draft",
 ];
 
 /// Managed extension files installed into the session's exclusive project
 /// dir (same mechanism as the chat-side extensions in `pi.rs`):
 /// - `intent-card.ts`: submit contract (`submit_intent_card`);
-/// - `intent-card-recent.ts`: read side (`sp_intent_cards_recent`), also
-///   distributed standalone to external Pi agents.
-const INTENT_EXTENSION_FILES: [&str; 2] = ["intent-card.ts", "intent-card-recent.ts"];
+/// - `intent-card-recent.ts`: read side (`get_recent_intent_cards`), also
+///   distributed standalone to external Pi agents;
+/// - `intent-search.ts`: local verification tools (activity summary, raw
+///   search, memories, meetings);
+/// - `intent-draft.ts`: draft archive (`save_intent_draft`).
+const INTENT_EXTENSION_FILES: [&str; 4] = [
+    "intent-card.ts",
+    "intent-card-recent.ts",
+    "intent-search.ts",
+    "intent-draft.ts",
+];
 
 fn intent_extension_source(file: &str) -> &'static str {
     match file {
         "intent-card.ts" => include_str!("../../assets/extensions/intent-card.ts"),
         "intent-card-recent.ts" => include_str!("../../assets/extensions/intent-card-recent.ts"),
+        "intent-search.ts" => include_str!("../../assets/extensions/intent-search.ts"),
+        "intent-draft.ts" => include_str!("../../assets/extensions/intent-draft.ts"),
         _ => unreachable!("INTENT_EXTENSION_FILES is exhaustive"),
     }
 }
 
-/// Mirrors `PiExecutor::USER_SKILL_MARKER` (core keeps the const private;
-/// the literal is stable and asserted by core tests).
-const USER_SKILL_MARKER: &str = ".screenpipe-managed";
-
 /// Exclusive project dir for the intent session — never shared with chat or
-/// daily-summary sessions, which is what makes the D7 marker cleanup safe.
+/// daily-summary sessions.
 pub fn intent_project_dir() -> std::path::PathBuf {
     screenpipe_core::paths::default_screenpipe_data_dir().join("pi-intent")
 }
@@ -92,19 +107,22 @@ pub async fn run_intent_session(
     std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create intent dir: {e}"))?;
     ensure_intent_card_extension(&dir)?;
 
-    // Baseline skills, then strip user mirrors (D7): core's installer also
-    // mirrors the user's skill store into the session; the marker cleanup
-    // removes exactly those copies so the intent session sees baseline only.
+    // Baseline skills in the project dir are a degraded-mode fallback only:
+    // normal spawns pass --no-skills plus explicit --skill args pointing at
+    // ~/.cue/agent/skills (see pi.rs), so these copies are not auto-loaded.
+    // Keeping them means a failed agent-skills materialization still yields a
+    // working session under legacy auto-discovery. The hard boundary remains
+    // the TOOL allowlist (no bash/edit/write).
     screenpipe_core::agents::pi::PiExecutor::ensure_screenpipe_skill(&dir)
         .map_err(|e| format!("failed to install baseline skills: {e}"))?;
-    if let Err(e) = strip_user_skill_copies(&dir.join(".pi").join("skills")) {
-        tracing::warn!("intent session: user skill cleanup failed: {e}");
-    }
 
     // D6: allowlist and system prompt ride the session config.
     let mut cfg = base_config;
     cfg.system_prompt = Some(system_prompt);
     cfg.allowed_tools = Some(INTENT_ALLOWED_TOOLS.iter().map(|s| s.to_string()).collect());
+    // Replace (not append) so pi's built-in coding persona never reaches an
+    // unattended analysis run; see instruct::build_system_prompt.
+    cfg.replace_system_prompt = Some(true);
 
     // Final-report collector: buffered text deltas plus an agent_end
     // fallback extracted from the messages array (same shape as
@@ -264,28 +282,6 @@ fn structured_card_from_agent_end(event: &serde_json::Value) -> Option<String> {
     found.map(|args| serde_json::to_string(args).unwrap_or_default())
 }
 
-/// Remove mirrored user skills (dirs stamped with the `.screenpipe-managed`
-/// marker) from a session skills root. Baseline and hand-authored dirs (no
-/// marker) are untouched. Returns how many were removed. Safety rests on the
-/// caller pointing this at the intent session's exclusive project dir (D7).
-fn strip_user_skill_copies(skills_dir: &Path) -> std::io::Result<usize> {
-    let mut removed = 0;
-    let entries = match std::fs::read_dir(skills_dir) {
-        Ok(entries) => entries,
-        // No skills dir yet — nothing mirrored, nothing to do.
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(0),
-        Err(e) => return Err(e),
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.is_dir() && path.join(USER_SKILL_MARKER).exists() {
-            std::fs::remove_dir_all(&path)?;
-            removed += 1;
-        }
-    }
-    Ok(removed)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -324,7 +320,7 @@ mod tests {
     #[test]
     fn structured_card_extraction_reads_the_submit_tool_call() {
         let card = serde_json::json!({
-            "v": 1, "card_type": "light", "proactive_view": "引子",
+            "v": 1, "title": "窗口切换提醒", "card_type": "light", "proactive_view": "引子",
             "recommended_index": 0,
             "plans": [{ "title": "t", "summary": "s" }]
         });
@@ -398,29 +394,6 @@ mod tests {
             )
             .unwrap(),
             submit
-        );
-    }
-
-    #[test]
-    fn strip_user_skill_copies_removes_only_marked_dirs() {
-        let dir = tempfile::TempDir::new().unwrap();
-        let skills = dir.path().join("skills");
-        std::fs::create_dir_all(skills.join("screenpipe-api")).unwrap();
-        std::fs::create_dir_all(skills.join("my-own-skill")).unwrap();
-        std::fs::create_dir_all(skills.join("imported-one")).unwrap();
-        std::fs::write(skills.join("imported-one/.screenpipe-managed"), "").unwrap();
-        assert_eq!(strip_user_skill_copies(&skills).unwrap(), 1);
-        assert!(skills.join("screenpipe-api").exists()); // 基线保留
-        assert!(skills.join("my-own-skill").exists()); // 无 marker 的不动
-        assert!(!skills.join("imported-one").exists()); // marker 目录删除（D7）
-    }
-
-    #[test]
-    fn strip_user_skill_copies_handles_missing_dir() {
-        let dir = tempfile::TempDir::new().unwrap();
-        assert_eq!(
-            strip_user_skill_copies(&dir.path().join("nope")).unwrap(),
-            0
         );
     }
 
