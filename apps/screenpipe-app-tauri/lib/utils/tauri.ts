@@ -907,11 +907,24 @@ async intentCardDecide(cardId: number, decision: string) : Promise<Result<null, 
 },
 /**
  * proposed → shown. Idempotent-safe: repeats are rejected at the SQL layer
- * and never extend the 48h clock (R1); onboarding cards get no clock (D10).
+ * and never extend the expiry clock (R1); onboarding cards get no clock
+ * (D10). The clock length comes from runtime config (settings page).
  */
 async intentCardMarkShown(cardId: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("intent_card_mark_shown", { cardId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Read the intent runtime config. Missing keys report compile-time defaults,
+ * so this never fails short of a broken database (surfaced as error string).
+ */
+async intentGetConfig() : Promise<Result<IntentConfigDto, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("intent_get_config") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -936,6 +949,19 @@ async intentGetSupply() : Promise<Result<IntentSupplyState, string>> {
 async intentList(filter: string) : Promise<Result<IntentCardDto[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("intent_list", { filter }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Persist the intent runtime config. Values are clamped again on every load
+ * (see `IntentRuntimeConfig`), so out-of-range writes cannot wedge the
+ * heartbeat; the UI clamps too for immediate feedback.
+ */
+async intentSetConfig(config: IntentConfigDto) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("intent_set_config", { config }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -3069,6 +3095,12 @@ export type InstallBrainViewTemplateKitRequest = { kitId: string; targetViewId: 
  * Wire shape of one intent card row (mirrors `IntentCardRow`).
  */
 export type IntentCardDto = { id: number; origin: string; cardType: string; status: string; proactiveView: string | null; dedupKey: string; localDate: string; plansJson: string; modelId: string | null; shownAt: number | null; expiresAt: number | null; createdAt: number }
+/**
+ * Wire shape of the intent runtime config. Time values are exposed in
+ * UI-friendly units (seconds for cadence, hours elsewhere); the DB stores
+ * seconds and clamps on load.
+ */
+export type IntentConfigDto = { heartbeatIntervalSecs: number; cardTtlHours: number; draftMaxActive: number; draftTtlHours: number; materialWindowHours: number }
 /**
  * Full supply state surfaced to the settings card (R7).
  */
