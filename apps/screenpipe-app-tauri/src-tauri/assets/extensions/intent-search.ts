@@ -16,8 +16,14 @@
 // not wrapped.
 //
 // Context protection lives in THIS wrapper, not in model discipline:
-// search_activity pins a `fields` allowlist, middle-truncates content, and
-// requires `start_time` so unbounded queries cannot hang the tick.
+// search_activity middle-truncates content, folds unreadable/low-quality
+// rows into counters instead of dumping them, and requires `start_time` so
+// unbounded queries cannot hang the tick. It deliberately does NOT pass
+// `fields=`: the engine projects that allowlist into FLAT dotted keys
+// ("content.app_name"), which this wrapper reads nested — every hit came
+// back as "[OCR] ? | ? |" (trace 01a0348a). Without `fields=` the route
+// passes rows through nested and readable; row normalization below still
+// tolerates dotted keys in case the projection ever comes back.
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
@@ -79,9 +85,11 @@ const summaryParams = {
 
 // ---------- search_activity ----------
 
-const SEARCH_FIELDS =
-  "type,content.app_name,content.window_name,content.text,content.transcription,content.timestamp";
 const SEARCH_MAX_CONTENT_LENGTH = 400;
+// OCR lines shorter than this are near-certainly mojibake (Apple Vision
+// confidence is never thresholded at capture time), so they are folded into
+// a counter instead of being shown. Applies to non-empty text only.
+const SEARCH_MIN_OCR_TEXT = 20;
 
 const searchParams = {
   type: "object",
@@ -116,13 +124,28 @@ const searchParams = {
   },
 } as any;
 
-interface SearchRow {
-  type?: string;
-  content?: {
-    app_name?: string;
-    text?: string;
-    transcription?: string;
-    timestamp?: string;
+// Accepts both nested rows (passthrough shape) and flat dotted-key rows
+// (the engine's `fields=` projection), so a server-side format change
+// degrades gracefully instead of rendering every hit as "[OCR] ? | ? |".
+function normalizeRow(raw: Record<string, unknown>): {
+  type: string;
+  app: string;
+  ts: string;
+  text: string;
+} {
+  const c = (raw.content ?? {}) as Record<string, unknown>;
+  const pick = (...keys: string[]): unknown => {
+    for (const k of keys) {
+      const v = raw[k] !== undefined ? raw[k] : c[k];
+      if (v !== undefined && v !== null) return v;
+    }
+    return undefined;
+  };
+  return {
+    type: String(pick("type") ?? "?"),
+    app: oneLine(pick("content.app_name", "app_name")) || "?",
+    ts: String(pick("content.timestamp", "timestamp") ?? "?"),
+    text: oneLine(pick("content.transcription", "transcription", "content.text", "text")),
   };
 }
 
@@ -210,7 +233,8 @@ export default function (pi: ExtensionAPI) {
     description:
       "原文级查证：在采集数据中搜 verbatim 屏幕文本、OCR、音频转录，"
       + "支持按应用名/窗口标题过滤。摘要说『用户在用 X』时，出卡前用本工具确认 X 里具体发生了什么。"
-      + "start_time 必填以防无界查询超时；结果列已预设白名单并做中段截断，无需（也无法）传 fields。"
+      + "start_time 必填以防无界查询超时；返回已做中段截断，无可读文本与低质 OCR 短行会折叠为计数说明。"
+      + "中文关键词可直搜（引擎按查询语言自动切换匹配策略）。"
       + "空结果不等于没有数据：先调 get_activity_summary 核对 data_status 再下结论。",
     parameters: searchParams,
 
@@ -240,9 +264,9 @@ export default function (pi: ExtensionAPI) {
         if (params.window_name?.trim()) q.set("window_name", params.window_name.trim());
         q.set("limit", String(clampInt(params.limit, 1, 20) ?? 20));
         if (params.offset != null) q.set("offset", String(params.offset));
-        // Guardrails baked in: column allowlist + middle truncation. The
-        // model cannot bypass these because they are not exposed as params.
-        q.set("fields", SEARCH_FIELDS);
+        // Guardrails baked in: middle truncation + unreadable-row folding.
+        // The model cannot bypass these because they are not exposed as
+        // params. `fields` is deliberately NOT set — see the file header.
         q.set("max_content_length", String(SEARCH_MAX_CONTENT_LENGTH));
 
         const res = await fetch(`${API_BASE}/search?${q}`, {
@@ -252,7 +276,7 @@ export default function (pi: ExtensionAPI) {
         if (!res.ok) {
           return fail("search_activity", res.status, await res.text().catch(() => ""));
         }
-        const body = (await res.json()) as { data?: SearchRow[] };
+        const body = (await res.json()) as { data?: Record<string, unknown>[] };
         const rows = body.data ?? [];
         if (rows.length === 0) {
           return {
@@ -266,12 +290,34 @@ export default function (pi: ExtensionAPI) {
             ],
           };
         }
-        const lines = rows.map((r) => {
-          const c = r.content ?? {};
-          const text = oneLine(c.transcription || c.text);
-          return `- [${r.type ?? "?"}] ${c.app_name ?? "?"} | ${c.timestamp ?? "?"} | ${text}`;
-        });
-        return { content: [{ type: "text" as const, text: lines.join("\n").slice(0, 12_000) }] };
+        // Fold instead of dump: rows with no readable text at all, and OCR
+        // mojibake shorter than the threshold, become counters. A textless
+        // row that still carries app+timestamp stays — it proves the app was
+        // open at that time even without body text.
+        const lines: string[] = [];
+        let noText = 0;
+        let shortOcr = 0;
+        for (const raw of rows) {
+          const row = normalizeRow(raw);
+          if (!row.text) {
+            if (row.app === "?" || row.ts === "?") {
+              noText++;
+              continue;
+            }
+          } else if (row.type === "ocr" && row.text.length < SEARCH_MIN_OCR_TEXT) {
+            shortOcr++;
+            continue;
+          }
+          lines.push(`- [${row.type}] ${row.app} | ${row.ts} | ${row.text}`);
+        }
+        const notes: string[] = [];
+        if (noText > 0) notes.push(`${noText} 行无可读文本已省略`);
+        if (shortOcr > 0) notes.push(`${shortOcr} 行低质 OCR 短文本已省略`);
+        const head = lines.length
+          ? lines.join("\n")
+          : "查询窗口内没有可读的匹配结果。";
+        const tail = notes.length ? `\n- （另有${notes.join("、")}）` : "";
+        return { content: [{ type: "text" as const, text: (head + tail).slice(0, 12_000) }] };
       } catch (e) {
         return crash("search_activity", e);
       }
