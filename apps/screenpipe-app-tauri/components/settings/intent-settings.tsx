@@ -26,6 +26,7 @@ const DEFAULTS: IntentConfigDto = {
   draftMaxActive: 3,
   draftTtlHours: 48,
   materialWindowHours: 24,
+  sessionTimeoutSecs: 480,
 };
 
 /**
@@ -109,6 +110,7 @@ export function IntentSettings() {
               </p>
               <div className="mt-3 flex flex-wrap gap-x-6 gap-y-3">
                 {numField("heartbeatIntervalSecs", t("settings.intentSettings.heartbeat"), 300, 86400)}
+                {numField("sessionTimeoutSecs", t("settings.intentSettings.sessionTimeout"), 60, 3600)}
                 {numField("materialWindowHours", t("settings.intentSettings.materialWindow"), 1, 168)}
                 {numField("cardTtlHours", t("settings.intentSettings.cardTtl"), 1, 720)}
                 {numField("draftMaxActive", t("settings.intentSettings.draftCap"), 1, 10)}

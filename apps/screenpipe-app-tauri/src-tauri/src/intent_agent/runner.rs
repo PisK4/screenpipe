@@ -234,8 +234,10 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
 
     let now = chrono::Utc::now().timestamp();
     // Runtime config (shared intent_settings KV): cadence, card TTL, draft
-    // cap/TTL, material window default. Defaults apply on any load failure.
+    // cap/TTL, material window default, per-beat session budget. Defaults
+    // apply on any load failure.
     let cfg = db.intent_load_config().await.unwrap_or_default();
+    let session_timeout_secs = cfg.session_timeout_secs as u64;
     // 1. Settle expirations first (T8 决议 3); drafts settle on their own TTL.
     db.intent_cards_expire_due(now)
         .await
@@ -340,6 +342,7 @@ pub(crate) async fn tick(app: &tauri::AppHandle) -> Result<Option<LastGeneration
         cfg,
         instruct::build_system_prompt(),
         instruct::build_user_payload(&input),
+        session_timeout_secs,
     )
     .await
     {

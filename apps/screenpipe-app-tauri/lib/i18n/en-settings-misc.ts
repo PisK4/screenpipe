@@ -335,6 +335,7 @@ export const settingsMiscEn = {
     description:
       "Cadence and expiry for proactive cards. Applies without an app restart; values are clamped to sane ranges.",
     heartbeat: "Heartbeat (seconds)",
+    sessionTimeout: "Generation time limit (seconds)",
     materialWindow: "Material window (hours)",
     cardTtl: "Card expiry (hours)",
     draftCap: "Max active drafts",

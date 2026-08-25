@@ -3101,7 +3101,7 @@ export type IntentCardDto = { id: number; origin: string; cardType: string; stat
  * UI-friendly units (seconds for cadence, hours elsewhere); the DB stores
  * seconds and clamps on load.
  */
-export type IntentConfigDto = { heartbeatIntervalSecs: number; cardTtlHours: number; draftMaxActive: number; draftTtlHours: number; materialWindowHours: number }
+export type IntentConfigDto = { heartbeatIntervalSecs: number; cardTtlHours: number; draftMaxActive: number; draftTtlHours: number; materialWindowHours: number; sessionTimeoutSecs: number }
 /**
  * Full supply state surfaced to the settings card (R7).
  */

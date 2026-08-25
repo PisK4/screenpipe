@@ -315,6 +315,7 @@ export const settingsMiscZh = {
     description:
       "主动卡片的生成节奏与过期时长。保存后即时生效，无需重启应用；数值会被约束在合理区间。",
     heartbeat: "心跳间隔（秒）",
+    sessionTimeout: "生成时限（秒）",
     materialWindow: "材料窗口（小时）",
     cardTtl: "卡片过期（小时）",
     draftCap: "活跃草稿上限",

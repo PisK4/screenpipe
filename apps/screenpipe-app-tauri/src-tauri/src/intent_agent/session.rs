@@ -21,8 +21,6 @@ use tauri::{AppHandle, Listener, Manager};
 
 /// Fixed session id for the intent generation session (D6).
 pub const INTENT_SESSION_ID: &str = "intent-card";
-/// Whole-session wall-clock budget: start + prompt + final report (D6).
-pub const SESSION_TIMEOUT_SECS: u64 = 240;
 /// Structured-output tool registered by the intent-card extension. The card
 /// payload arrives as this tool call's arguments (schema-validated by pi);
 /// see assets/extensions/intent-card.ts and parse.rs.
@@ -134,6 +132,7 @@ pub async fn run_intent_session(
     base_config: crate::pi::PiProviderConfig,
     system_prompt: String,
     user_message: String,
+    session_timeout_secs: u64,
 ) -> Result<SessionReport, String> {
     let dir = intent_project_dir();
     std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create intent dir: {e}"))?;
@@ -245,7 +244,7 @@ pub async fn run_intent_session(
         )
         .await?;
         match tokio::time::timeout(
-            std::time::Duration::from_secs(SESSION_TIMEOUT_SECS),
+            std::time::Duration::from_secs(session_timeout_secs),
             done_rx,
         )
         .await
@@ -263,7 +262,7 @@ pub async fn run_intent_session(
                     started.elapsed().as_secs(),
                     d.delta_events,
                     d.delta_chars,
-                    SESSION_TIMEOUT_SECS,
+                    session_timeout_secs,
                 ))
             }
         }

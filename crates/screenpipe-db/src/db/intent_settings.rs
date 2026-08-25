@@ -16,6 +16,8 @@ pub const KEY_CARD_TTL_SECS: &str = "card_ttl_secs";
 pub const KEY_DRAFT_MAX_ACTIVE: &str = "draft_max_active";
 pub const KEY_DRAFT_TTL_SECS: &str = "draft_ttl_secs";
 pub const KEY_MATERIAL_WINDOW_SECS: &str = "material_window_secs";
+/// Whole-session wall-clock budget for one generation attempt.
+pub const KEY_SESSION_TIMEOUT_SECS: &str = "session_timeout_secs";
 
 /// Hard ceiling for the material window regardless of config (R2).
 pub const MATERIAL_WINDOW_MAX_SECS: i64 = 7 * 24 * 3600;
@@ -32,6 +34,10 @@ pub struct IntentRuntimeConfig {
     pub draft_ttl_secs: i64,
     /// Default material window when no prior card anchors it.
     pub material_window_secs: i64,
+    /// Wall-clock cap on one generation attempt (spawn through final report).
+    /// The heartbeat loop is sequential, so a long budget only delays the next
+    /// beat; it never makes beats overlap.
+    pub session_timeout_secs: i64,
 }
 
 impl Default for IntentRuntimeConfig {
@@ -42,6 +48,7 @@ impl Default for IntentRuntimeConfig {
             draft_max_active: 3,
             draft_ttl_secs: 48 * 3600,
             material_window_secs: 24 * 3600,
+            session_timeout_secs: 480,
         }
     }
 }
@@ -82,19 +89,28 @@ impl IntentRuntimeConfig {
                             clamp(v, 3_600, MATERIAL_WINDOW_MAX_SECS);
                     }
                 }
+                KEY_SESSION_TIMEOUT_SECS => {
+                    if let Some(v) = parse(Some(&value)) {
+                        // Floor keeps a hopeless beat from burning CPU every
+                        // few seconds; ceiling keeps one dead beat from
+                        // stalling the heartbeat loop for hours.
+                        cfg.session_timeout_secs = clamp(v, 60, 3_600);
+                    }
+                }
                 _ => {}
             }
         }
         cfg
     }
 
-    pub fn set_calls(&self) -> [(&'static str, String); 5] {
+    pub fn set_calls(&self) -> [(&'static str, String); 6] {
         [
             (KEY_HEARTBEAT_INTERVAL_SECS, self.heartbeat_interval_secs.to_string()),
             (KEY_CARD_TTL_SECS, self.card_ttl_secs.to_string()),
             (KEY_DRAFT_MAX_ACTIVE, self.draft_max_active.to_string()),
             (KEY_DRAFT_TTL_SECS, self.draft_ttl_secs.to_string()),
             (KEY_MATERIAL_WINDOW_SECS, self.material_window_secs.to_string()),
+            (KEY_SESSION_TIMEOUT_SECS, self.session_timeout_secs.to_string()),
         ]
     }
 }
@@ -157,6 +173,7 @@ mod tests {
         assert_eq!(cfg.draft_max_active, 3);
         assert_eq!(cfg.draft_ttl_secs, 48 * 3600);
         assert_eq!(cfg.material_window_secs, 24 * 3600);
+        assert_eq!(cfg.session_timeout_secs, 480);
     }
 
     #[tokio::test]

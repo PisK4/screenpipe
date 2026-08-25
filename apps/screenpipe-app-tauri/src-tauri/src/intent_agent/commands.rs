@@ -269,6 +269,7 @@ pub struct IntentConfigDto {
     pub draft_max_active: i64,
     pub draft_ttl_hours: i64,
     pub material_window_hours: i64,
+    pub session_timeout_secs: i64,
 }
 
 /// Read the intent runtime config. Missing keys report compile-time defaults,
@@ -284,6 +285,7 @@ pub async fn intent_get_config(app: AppHandle) -> Result<IntentConfigDto, String
         draft_max_active: cfg.draft_max_active,
         draft_ttl_hours: cfg.draft_ttl_secs / 3600,
         material_window_hours: cfg.material_window_secs / 3600,
+        session_timeout_secs: cfg.session_timeout_secs,
     })
 }
 
@@ -300,6 +302,7 @@ pub async fn intent_set_config(app: AppHandle, config: IntentConfigDto) -> Resul
         draft_max_active: config.draft_max_active,
         draft_ttl_secs: config.draft_ttl_hours * 3600,
         material_window_secs: config.material_window_hours * 3600,
+        session_timeout_secs: config.session_timeout_secs,
     };
     db.intent_save_config(&to_save)
         .await
