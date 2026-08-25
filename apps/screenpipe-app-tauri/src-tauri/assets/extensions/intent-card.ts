@@ -26,7 +26,13 @@ const submitParams = {
     v: { type: "integer" },
     title: { type: "string", minLength: 1 },
     card_type: { type: "string", enum: ["light", "side_effect", "read_only"] },
-    proactive_view: { type: "string" },
+    proactive_view: {
+      type: "string",
+      description:
+        "The evidence paragraph the user reads on the card. 1-2 sentences of fact from THIS window only:"
+      + " which app/document the user was in, what they were doing or stuck on, and how this card helps."
+      + " Never a category label or machine token — write it as plain prose addressed to the user.",
+    },
     recommended_index: { type: "integer", minimum: 0 },
     plans: {
       type: "array",
@@ -54,6 +60,7 @@ export default function (pi: ExtensionAPI) {
       "The only exit for submitting an intent card. Once analysis is done you MUST call this tool; never write the conclusion as plain text."
       + "title (required): your own one-line summary of the card — it becomes the card's display name and the dedup context for future runs."
       + "Two mutually exclusive forms: a proposal card passes {v:1, card_type, proactive_view, recommended_index, plans} (plans is 1-3 objects of {title, summary, consequence?});"
+      + " proactive_view is the user-facing evidence paragraph — behavioral facts from this window in plain prose, never a label like \"next_step\"."
       + " insufficient material passes only {insufficient_material:true}"
       + " — and once a card has been submitted, do not send insufficient_material."
       + "card_type is one of three: read_only = suggestion that only reads (query, summarize, open for viewing); side_effect = suggestion that changes system state (settings, automations), consequence is REQUIRED;"
