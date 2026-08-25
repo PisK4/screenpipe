@@ -65,6 +65,7 @@ type MockIntentCard = {
   origin: string;
   cardType: string;
   status: string;
+  title: string | null;
   proactiveView: string | null;
   dedupKey: string;
   localDate: string;
@@ -86,6 +87,7 @@ function mockIntentCard(
     origin: isOnboarding ? "system_onboarding" : "proactive",
     cardType: isOnboarding ? "read_only" : "light_proposal",
     status,
+    title: isOnboarding ? null : "Standup summary from today's coding",
     proactiveView: isOnboarding
       ? null
       : "You spent 3h in VS Code today — want a standup summary?",

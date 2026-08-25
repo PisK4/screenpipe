@@ -3095,7 +3095,7 @@ export type InstallBrainViewTemplateKitRequest = { kitId: string; targetViewId: 
 /**
  * Wire shape of one intent card row (mirrors `IntentCardRow`).
  */
-export type IntentCardDto = { id: number; origin: string; cardType: string; status: string; proactiveView: string | null; dedupKey: string; localDate: string; plansJson: string; modelId: string | null; shownAt: number | null; expiresAt: number | null; createdAt: number }
+export type IntentCardDto = { id: number; origin: string; cardType: string; status: string; title: string | null; proactiveView: string | null; dedupKey: string; localDate: string; plansJson: string; modelId: string | null; shownAt: number | null; expiresAt: number | null; createdAt: number }
 /**
  * Wire shape of the intent runtime config. Time values are exposed in
  * UI-friendly units (seconds for cadence, hours elsewhere); the DB stores

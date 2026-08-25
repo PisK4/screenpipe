@@ -71,10 +71,19 @@ export function IntentCard({
     >
       <header className="mb-2 flex items-center justify-between gap-2">
         <h3 className="text-sm font-medium">
-          {isOnboarding ? t("workbench.card.onboardingTitle") : card.proactiveView}
+          {isOnboarding
+            ? t("workbench.card.onboardingTitle")
+            : card.title || card.proactiveView}
         </h3>
         <StatusBadge status={card.status} t={t} />
       </header>
+
+      {/* Card body: the proactive_view prose sits under the title (top-down:
+          title → proactive_view → plans). Skipped when the title already IS
+          the prose, i.e. legacy rows without a stored title. */}
+      {!isOnboarding && card.title && card.proactiveView && (
+        <p className="mb-3 text-sm text-muted-foreground">{card.proactiveView}</p>
+      )}
 
       {card.status === "proposed" && (
         <p className="mb-2 text-xs text-muted-foreground">

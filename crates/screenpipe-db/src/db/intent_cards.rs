@@ -15,6 +15,9 @@ pub struct IntentCardRow {
     pub origin: String,
     pub card_type: String,
     pub status: String,
+    /// Generator-authored one-line summary; NULL only for rows that somehow
+    /// predate both the title contract and the backfill migration.
+    pub title: Option<String>,
     pub proactive_view: Option<String>,
     pub dedup_key: String,
     pub local_date: String,
@@ -62,6 +65,7 @@ fn row_to_card(row: sqlx::sqlite::SqliteRow) -> IntentCardRow {
         origin: row.get("origin"),
         card_type: row.get("card_type"),
         status: row.get("status"),
+        title: row.get("title"),
         proactive_view: row.get("proactive_view"),
         dedup_key: row.get("dedup_key"),
         local_date: row.get("local_date"),
