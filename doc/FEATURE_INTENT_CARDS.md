@@ -130,7 +130,7 @@ Rust 侧从 agent_end 的 messages 数组按调用顺序提取全部 `submit_int
 
 会话专属项目目录 `~/.screenpipe/pi-intent`，与其他会话互不共享。技能可见面与 Chat 对齐（全局发现 + 基线三件照常安装；2026-08-24 修订 D7——原镜像剥离对 pi 全局技能发现本就无效，轨迹取证见 01a02f23/01a02f15）。隔离边界收敛到工具白名单：bash 与一切写侧工具不进白名单；残余的技能正文注入风险由工具白名单兜底（sp_mcp_call 的外部副作用为已知并接受的残留面）。
 
-工具白名单十三项：read / grep / find / ls（本机文件读取）、sp_mcp_list_tools / sp_mcp_call（查询用户注册的 MCP 服务）、submit_intent_card（交卡）、get_recent_intent_cards（近期卡片查询）、get_activity_summary / search_activity / search_memories / list_meetings（本地查证四件）、save_intent_draft / get_intent_draft（草稿写读）。会话 transcript 天然留存于 pi-intent 目录，排查某张烂卡能看到完整推理与工具调用过程。
+工具白名单十四项：read / grep / find / ls（本机文件读取）、sp_mcp_list_tools / sp_mcp_call（查询用户注册的 MCP 服务）、submit_intent_card（交卡）、get_recent_intent_cards（近期卡片查询）、get_activity_summary / search_activity / search_memories / list_meetings（本地查证四件）、save_intent_draft / get_intent_draft（草稿写读）。白名单同时是 pi 的 `--tools` 硬门控：扩展注册了但不在名单里的工具对模型不可见，新增工具必须同步此数组。会话 transcript 天然留存于 pi-intent 目录，排查某张烂卡能看到完整推理与工具调用过程。
 
 角色名为 **Intent card Agent**（system prompt REPLACE 文本首句）；完整的生成流程正典——四要件门槛、五步流程、自检问句、默认出口倾斜、草稿纪律——的唯一权威版本在 cue-tools skill 的「角色边界与生成流程」节，由 system prompt 第三段的强制读指令兜底执行；prompt 本体只携带角色、边界与不可让渡的契约指针。
 
