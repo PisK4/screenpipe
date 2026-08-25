@@ -12,6 +12,10 @@ ponytail
 ata
 ```
 
+## 开发流程
+
+新功能落地后, 参考 `./apps/screenpipe-app-tauri/Makefile` 进行 app 重建重装
+
 
 Cue captures accessibility trees (OCR as fallback) and conversations, and
 indexes them locally for AI consumption. It is the context layer for agents.
@@ -23,6 +27,12 @@ boundary before changing any user-visible string.
 
 This file is loaded into every agent's context. Keep it short; put detail behind
 a pointer.
+
+## Code comments are self-contained
+
+Never reference planning artifacts in code comments (wayfinder tickets, map
+decisions, "T3 决议"-style tags). A future reader without the tracker gains
+nothing from them. State the rule, reason, or trace evidence directly instead.
 
 ## Read on demand
 
