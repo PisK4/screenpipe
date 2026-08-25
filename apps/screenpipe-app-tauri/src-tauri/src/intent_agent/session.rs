@@ -81,6 +81,18 @@ pub fn intent_project_dir() -> std::path::PathBuf {
     screenpipe_core::paths::default_screenpipe_data_dir().join("pi-intent")
 }
 
+/// Streamed-output accumulator with failure diagnostics (A3): the delta
+/// counters distinguish a mid-stream stall from a session that never
+/// produced anything, which is the difference between an endpoint problem
+/// and a model/prompt problem when classifying dead beats.
+#[derive(Default)]
+struct SessionCollector {
+    text: String,
+    final_text: Option<String>,
+    delta_events: u64,
+    delta_chars: usize,
+}
+
 /// Install the managed intent extensions into the session's exclusive
 /// project dir. Idempotent per run by construction.
 pub fn ensure_intent_card_extension(dir: &Path) -> Result<(), String> {
@@ -127,8 +139,10 @@ pub async fn run_intent_session(
     // Final-report collector: buffered text deltas plus an agent_end
     // fallback extracted from the messages array (same shape as
     // lib/first-run/summarize-with-ai.ts). Listener goes up before the
-    // prompt so no event can race the subscription.
-    let collector: Arc<Mutex<(String, Option<String>)>> = Arc::default();
+    // prompt so no event can race the subscription. Delta counters feed the
+    // failure diagnostics: "stalled after N chars" reads very differently
+    // from "never produced output" when classifying a dead beat.
+    let collector: Arc<Mutex<SessionCollector>> = Arc::default();
     let (done_tx, done_rx) = tokio::sync::oneshot::channel::<String>();
     let done_tx = Arc::new(Mutex::new(Some(done_tx)));
     let sid = INTENT_SESSION_ID.to_string();
@@ -158,25 +172,29 @@ pub async fn run_intent_session(
                 // the tool (parse.rs still rejects non-JSON text).
                 let final_text = structured_card_from_agent_end(event)
                     .or_else(|| {
-                        (!buf.0.trim().is_empty()).then(|| buf.0.clone())
+                        (!buf.text.trim().is_empty()).then(|| buf.text.clone())
                     })
                     .or_else(|| {
                         let t = text_from_agent_end_messages(event);
                         (!t.trim().is_empty()).then_some(t)
                     })
                     .unwrap_or_default();
-                buf.1 = Some(final_text.clone());
+                buf.final_text = Some(final_text.clone());
                 if let Some(tx) = done_tx.lock().unwrap().take() {
                     let _ = tx.send(final_text);
                 }
                 return;
             }
             if let Some(delta) = extract_text_delta(event) {
-                collector.lock().unwrap().0.push_str(&delta);
+                let mut buf = collector.lock().unwrap();
+                buf.delta_events += 1;
+                buf.delta_chars += delta.chars().count();
+                buf.text.push_str(&delta);
             }
         })
     };
 
+    let started = std::time::Instant::now();
     let result = async {
         {
             let pi_state = app.state::<crate::pi::PiState>();
@@ -206,7 +224,21 @@ pub async fn run_intent_session(
         .await
         {
             Ok(Ok(text)) if !text.trim().is_empty() => Ok(text),
-            _ => Err("intent session produced no final text".to_string()),
+            // Failure visibility (A3): the detail lands in the heartbeat log
+            // and the settings-page last-generation record. Delta counters
+            // separate "endpoint stalled mid-stream" from "never produced
+            // output" without re-reading traces.
+            _ => {
+                let d = collector.lock().unwrap();
+                Err(format!(
+                    "intent session produced no final text after {}s \
+                     (text_delta events: {}, streamed chars: {}, elapsed budget: {}s)",
+                    started.elapsed().as_secs(),
+                    d.delta_events,
+                    d.delta_chars,
+                    SESSION_TIMEOUT_SECS,
+                ))
+            }
         }
     }
     .await;
