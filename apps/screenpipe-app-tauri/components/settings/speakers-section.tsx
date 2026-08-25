@@ -11,6 +11,7 @@ export const searchIndex: SettingsField[] = [
   { label: "Speakers", keywords: ["voice", "diarization", "identify"] },
 ];
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
@@ -402,9 +403,8 @@ function ClusterCard({
             </div>
           </div>
           {isMulti && (
-            <span className="text-[10px] font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/50 px-1.5 py-0.5 rounded">
-              {t("settings.speakers.clusterBadge")}
-            </span>
+            // cue soft-light: risk soft pill
+            <Badge variant="warning">{t("settings.speakers.clusterBadge")}</Badge>
           )}
         </div>
 

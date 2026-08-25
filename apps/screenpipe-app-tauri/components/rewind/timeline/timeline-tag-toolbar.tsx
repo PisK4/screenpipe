@@ -8,6 +8,7 @@ import { Tag, Plus, Trash2, RefreshCw, Loader2, X } from "lucide-react";
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "@/components/ui/use-toast";
+import { Badge } from "@/components/ui/badge";
 import { clearTimelineCache } from "@/lib/hooks/use-timeline-cache";
 import { clearTextCache } from "@/lib/hooks/use-frame-text-data";
 import posthog from "posthog-js";
@@ -497,10 +498,12 @@ export function TimelineTagToolbar({ anchorRect, onAskAI, onRunPipe, templatePip
 				{/* Existing tags on selection */}
 				{existingTags.length > 0 && (
 					<div className="flex flex-wrap gap-1 max-h-[52px] overflow-y-auto scrollbar-hide">
+						{/* cue soft-light: accent soft pills */}
 						{existingTags.map((t) => (
-							<span
+							<Badge
 								key={t}
-								className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/25 max-w-[140px]"
+								variant="soft"
+								className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 max-w-[140px]"
 							>
 								<span className="truncate">{t}</span>
 								<button
@@ -511,7 +514,7 @@ export function TimelineTagToolbar({ anchorRect, onAskAI, onRunPipe, templatePip
 								>
 									<X className="w-2.5 h-2.5" />
 								</button>
-							</span>
+							</Badge>
 						))}
 					</div>
 				)}

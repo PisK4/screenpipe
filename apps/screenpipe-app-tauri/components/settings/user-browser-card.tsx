@@ -18,6 +18,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useInterval } from "@/lib/hooks/use-interval";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -65,28 +66,26 @@ export function UserBrowserCard() {
     switch (status.kind) {
       case "loading":
         return (
-          <span className="px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground rounded-full inline-flex items-center gap-1">
+          // cue soft-light: neutral soft pill (checking state)
+          <Badge variant="neutral" className="inline-flex items-center gap-1">
             <Loader2 className="h-3 w-3 animate-spin" />
             checking
-          </span>
+          </Badge>
         );
       case "connected":
         return (
-          <span className="px-2 py-0.5 text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400 rounded-full">
-            connected
-          </span>
+          // cue soft-light: verified soft pill
+          <Badge variant="success">connected</Badge>
         );
       case "disconnected":
         return (
-          <span className="px-2 py-0.5 text-xs font-medium bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-full">
-            extension not installed or not running
-          </span>
+          // cue soft-light: risk soft pill
+          <Badge variant="warning">extension not installed or not running</Badge>
         );
       case "error":
         return (
-          <span className="px-2 py-0.5 text-xs font-medium bg-red-500/10 text-red-600 dark:text-red-400 rounded-full">
-            unreachable
-          </span>
+          // cue soft-light: failure soft pill
+          <Badge variant="destructive">unreachable</Badge>
         );
     }
   })();

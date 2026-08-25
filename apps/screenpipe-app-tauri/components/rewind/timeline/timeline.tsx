@@ -20,6 +20,7 @@ import { AppContextPopover } from "./app-context-popover";
 import { TimelineTagToolbar } from "./timeline-tag-toolbar";
 import { extractDomain, FaviconImg } from "./favicon-utils";
 import { localFetch } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
 import { getFrameThumbnailSources } from "@/lib/frame-thumbnails";
 
 // Global cache: preloads app-icon images so they render instantly on scroll.
@@ -1657,9 +1658,10 @@ export const TimelineSlider = ({
 											className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap z-10"
 											style={{ direction: 'ltr' }}
 										>
-											<span className="text-[9px] font-medium text-primary bg-primary/15 border border-primary/25 rounded-full px-2 py-0.5">
+											{/* cue soft-light: accent soft pill */}
+											<Badge variant="soft" className="text-[9px] px-2 py-0.5">
 												{group.dayBoundaryDate}
-											</span>
+											</Badge>
 										</div>
 									</div>
 								)}

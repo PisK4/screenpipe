@@ -6,6 +6,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Check, Circle, ExternalLink, Loader2, RefreshCw, X } from "lucide-react";
 import { commands } from "@/lib/utils/tauri";
 import { platform } from "@tauri-apps/plugin-os";
@@ -104,13 +105,11 @@ export function BrowserUrlCard({ onStatusChange }: BrowserUrlCardProps) {
               <h3 className="text-sm font-semibold text-foreground">
                 Browser URL Capture
               </h3>
-              <span className="px-2 py-0.5 text-xs font-medium bg-muted text-muted-foreground rounded-full">
-                macOS
-              </span>
+              {/* cue soft-light: neutral soft pill */}
+              <Badge variant="neutral">macOS</Badge>
               {allGranted && (
-                <span className="px-2 py-0.5 text-xs font-medium bg-green-500/10 text-green-600 rounded-full">
-                  all enabled
-                </span>
+                // cue soft-light: verified soft pill
+                <Badge variant="success">all enabled</Badge>
               )}
             </div>
 

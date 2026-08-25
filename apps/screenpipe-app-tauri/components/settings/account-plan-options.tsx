@@ -6,6 +6,7 @@
 
 import { Check, ExternalLinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   getBusinessCapacityUpgrade,
   type BusinessCapacityUpgrade,
@@ -224,20 +225,16 @@ export function AccountPlanOptions({
                 {plan.name}
               </span>
               {isCurrent ? (
-                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                  current
-                </span>
+                // cue soft-light: accent soft pill
+                <Badge variant="soft" className="shrink-0">current</Badge>
               ) : isFallback ? (
-                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                  next
-                </span>
+                // cue soft-light: neutral soft pill
+                <Badge variant="neutral" className="shrink-0">next</Badge>
               ) : isRecommended ? (
-                <span
-                  className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
-                  data-testid="account-plan-next-step"
-                >
+                // cue soft-light: neutral soft pill
+                <Badge variant="neutral" className="shrink-0" data-testid="account-plan-next-step">
                   next step
-                </span>
+                </Badge>
               ) : null}
             </div>
 

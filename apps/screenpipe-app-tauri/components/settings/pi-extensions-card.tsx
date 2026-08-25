@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
@@ -35,7 +36,8 @@ import {
 
 const MODEL_FIT_CLASS: Record<PiExtensionModelFit, string> = {
   "local-friendly": "border-border bg-muted/40 text-foreground",
-  "strong-model": "border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300",
+  // cue soft-light: risk soft family
+  "strong-model": "border-risk-soft-border bg-risk-soft text-risk-on-soft",
   "cloud-preferred": "border-destructive/40 bg-destructive/10 text-destructive",
 };
 
@@ -112,9 +114,8 @@ function PiExtensionRow({
               </span>
             )}
             {stale && (
-              <span className="border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-800 dark:text-amber-300">
-                repair needed
-              </span>
+              // cue soft-light: risk soft pill
+              <Badge variant="warning">repair needed</Badge>
             )}
             <span
               className={`border px-1.5 py-0.5 text-[10px] font-medium ${compatibilityClass(item)}`}
