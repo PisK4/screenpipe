@@ -1,8 +1,8 @@
 # 意图卡片 v1
 
 <!-- doc-covers: crates/screenpipe-db/src/migrations/20260822120000_create_intent_cards.sql, crates/screenpipe-db/src/migrations/20260823120000_drop_intent_cards_dedup_index.sql, crates/screenpipe-db/src/db/intent_cards.rs, crates/screenpipe-engine/src/routes/intent_cards.rs, crates/screenpipe-engine/src/server.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/mod.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/gate.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/parse.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/instruct.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/session.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/supply.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/commands.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/runner.rs, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card-recent.ts, apps/screenpipe-app-tauri/src-tauri/src/events.rs, apps/screenpipe-app-tauri/src-tauri/src/main.rs, crates/screenpipe-engine/src/cli/agent.rs, apps/screenpipe-app-tauri/components/intent-workbench/index.tsx, apps/screenpipe-app-tauri/components/intent-workbench/plans-list.tsx, apps/screenpipe-app-tauri/lib/intent-events.ts, apps/screenpipe-app-tauri/lib/i18n/en-workbench.ts, apps/screenpipe-app-tauri/lib/i18n/zh-workbench.ts, apps/screenpipe-app-tauri/components/settings/ai-settings.tsx, apps/screenpipe-app-tauri/lib/active-ai-preset.ts, apps/screenpipe-app-tauri/components/chat/standalone/hooks/use-pi-session-lifecycle.ts -->
-<!-- doc-verified: 2bfc1d058（分支 feat/intent-cards） -->
-> **Current。** 本文核验于 `feat/intent-cards` 分支的 2bfc1d058。该分支合入 cue-branding 前，主线的 `doc-verified` 不覆盖意图卡片代码。
+<!-- doc-verified: 7c3a14c5d（分支 cue-branding） -->
+> **Current。** 本文核验于 `cue-branding` 分支的 7c3a14c5d。该分支合入 cue-branding 前，主线的 `doc-verified` 不覆盖意图卡片代码。
 
 ## 1. 目的与产品目标
 
@@ -18,7 +18,7 @@ v1 只做生成与展示闭环。执行链路、重写流程、记忆基底不�
 
 **出卡那一刻。** 过门后取一份 activity-summary 有界摘要和近 48 小时的历史卡片清单，起一个 Pi 子进程会话生成卡片。会话挂着只读工具白名单，模型可以自行查证本地数据，最后通过结构化工具调用交卡（第 5 节）。落库后两件事同时发生：工作台列表收到刷新事件，通知面板弹一条提醒。提醒走 notification-panel 现成的闸门，静音、勿扰、冷却照旧生效；被抑制也算通过闸门验证。
 
-**裁决。** 提醒的「查看」动作跳进主窗口「工作台」section（左栏新增一行，不动 chat 首屏）。两个 Filter：待决定、已结束。一张提案卡是一句 proactive_view 加方案列表——推荐项预选、选中显示后果行、末行「自己写一个新方案」输入框。按钮：「接受选中方案 / 不要」；轻提示卡没有方案列表，「知道了 / 不要」。
+**裁决。** 提醒的「查看」动作跳进主窗口「工作台」section（左栏新增一行，不动 chat 首屏）。两个 Filter：待决定、已结束。一张提案卡自上而下是 title、proactive_view、方案列表——推荐项预选、选中显示后果行、末行「自己写一个新方案」输入框，选中自选项即聚焦输入框开始编辑；单选圆点由前端自绘，不依赖 webview 原生控件的填充渲染。按钮：「接受选中方案 / 不要」；轻提示卡没有方案列表，「知道了 / 不要」。
 
 **接受之后，第一版什么也不发生。** 接受只写终态，不开 Thread 不触发执行。唯一例外是新手接入卡（第 9 节）。
 
@@ -152,7 +152,7 @@ Rust 侧从 agent_end 的 messages 数组提取最后一个 `submit_intent_card`
 
 ## 10. 工作台与前端接线
 
-工作台是 Home 的 sidebar section（?section=workbench），pending = proposed+shown。文案全部走 i18n 字典 workbench.*，en 先行 zh 同构。方案列表单选、推荐项预选、选中显 consequence、末行自定义输入框；点击后乐观移出，command 报错才 toast。pending 渲染后逐张 mark_shown 回写。通知动作 open_intent_workbench 由前端监听 notification:action 跳转；该事件 cfg 门控 macOS/Windows，Linux 降级为仅面板展示。
+工作台是 Home 的 sidebar section（?section=workbench），pending = proposed+shown。文案全部走 i18n 字典 workbench.*，en 先行 zh 同构。卡片正文自上而下渲染 title（`intent_cards.title` 列，经 `IntentCardDto.title` 透传）、proactive_view、方案列表；无 title 的历史行回退用 proactive_view 当标题，且不再重复显示正文段。方案列表单选、推荐项预选、选中显 consequence、末行自定义输入框（选中即聚焦）；点击后乐观移出，command 报错才 toast。pending 渲染后逐张 mark_shown 回写。通知动作 open_intent_workbench 由前端监听 notification:action 跳转；该事件 cfg 门控 macOS/Windows，Linux 降级为仅面板展示。
 
 ## 11. Evaluation 怎么追【分层提案】
 
