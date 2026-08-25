@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>T7 · 意图卡片文案风格对照</title>
+<style>
+  :root { color-scheme: dark; }
+  body { background:#121212; color:#e8e8e8; font-family:-apple-system,"PingFang SC",sans-serif;
+         max-width:880px; margin:0 auto; padding:32px 24px 64px; }
+  h1 { font-size:20px; font-weight:600; margin-bottom:4px; }
+  .scene { color:#9a9a9a; font-size:13px; margin-bottom:28px; line-height:1.6; }
+  .axis { font-size:12px; color:#c9a86a; margin:26px 0 10px; letter-spacing:.05em; }
+  .card { background:#1c1c1e; border:1px solid #2c2c2e; border-radius:10px; padding:16px 18px; margin-bottom:8px; }
+  .title { font-size:15px; font-weight:600; line-height:1.45; }
+  .chip { display:inline-block; font-size:11px; color:#8ab4f8; border:1px solid #3a3f47;
+          border-radius:4px; padding:1px 6px; margin-left:8px; vertical-align:1px; }
+  .view { font-size:13px; color:#cfcfcf; line-height:1.65; margin:10px 0 12px; }
+  .plans { list-style:none; margin:0; padding:0; }
+  .plans li { font-size:13px; padding:6px 0 6px 26px; position:relative; border-top:1px solid #26262a; }
+  .plans li::before { content:""; position:absolute; left:4px; top:11px; width:12px; height:12px;
+                      border:1.5px solid #555; border-radius:50%; }
+  .plans li.rec::before { background:#8ab4f8; border-color:#8ab4f8;
+                          box-shadow:inset 0 0 0 2.5px #1c1c1e; }
+  .plans li.rec::after { content:"推荐"; font-size:10px; color:#8ab4f8; margin-left:6px; }
+  .actions { margin-top:12px; display:flex; gap:10px; }
+  .btn { font-size:12px; border-radius:6px; padding:5px 14px; }
+  .primary { background:#fff; color:#111; border:none; font-weight:500; }
+  .ghost { background:transparent; color:#aaa; border:1px solid #3a3a3d; }
+  .banned .card { border-color:#7a3538; }
+  .banned .title { color:#d98a8d; }
+  .strike { text-decoration:line-through; color:#777; }
+  .note { font-size:12px; color:#888; margin-top:10px; line-height:1.7; }
+</style>
+</head>
+<body>
+<h1>意图卡片 · 三种文案风格对照</h1>
+<p class="scene">同一组底层事实：用户今天下午在 <b>Fenri</b> 项目连续调试 2 小时（Xcode），崩溃栈一直没对上源码行号，
+期间搜索过两次「symbolicate crash log」。四要件全部满足，差别只在文案风格。</p>
+
+<div class="axis">风格甲 · 克制引据 —— 每个字段都带行为证据，语气中性</div>
+<div class="card">
+  <div class="title">Fenri 崩溃栈符号化卡住——整理复现材料找老张核对<span class="chip">read_only</span></div>
+  <div class="view">你在 Fenri 上调了 2 小时 Xcode，崩溃栈始终没对上源码行号，中途两次搜索「symbolicate crash log」。
+  卡点在符号化配置，靠继续堆时间不太会自己好。</div>
+  <ul class="plans">
+    <li class="rec">导出这次崩溃的 .crash 文件和 dSYM 路径清单</li>
+    <li>用 symbolicatecrash 重跑一遍，核对能否对上行号</li>
+    <li>仍对不上就把栈和 dSYM 路径发给老张确认配置</li>
+  </ul>
+  <div class="actions"><button class="btn primary">采纳</button><button class="btn ghost">忽略</button></div>
+</div>
+
+<div class="axis">风格乙 · 贴心助手 —— 第二人称、有温度，先接情绪再给动作</div>
+<div class="card">
+  <div class="title">被 Fenri 的崩溃卡住了？让符号化工具替你跑一遍<span class="chip">read_only</span></div>
+  <div class="view">整个下午你都在跟 Fenri 的崩溃较劲，连搜索都是「怎么把崩溃栈对应到代码行」。
+  这种活儿其实不必手抠，交给命令行跑一遍更快。</div>
+  <ul class="plans">
+    <li class="rec">找到对应的 dSYM 文件</li>
+    <li>跑一次符号化，看能不能对上源码行号</li>
+    <li>对不上就归档现场，明天换个思路再来</li>
+  </ul>
+  <div class="actions"><button class="btn primary">采纳</button><button class="btn ghost">忽略</button></div>
+</div>
+
+<div class="axis">风格丙 · 极简简报 —— 无寒暄、清单化，一眼扫完</div>
+<div class="card">
+  <div class="title">Fenri 崩溃符号化未解，整理材料跟进<span class="chip">read_only</span></div>
+  <div class="view">Xcode 连续调试 2 小时，崩溃栈未对上源码；相关搜索 2 次。</div>
+  <ul class="plans">
+    <li class="rec">归档崩溃日志与 dSYM 路径</li>
+    <li>重跑符号化验证</li>
+    <li>结果同步老张</li>
+  </ul>
+  <div class="actions"><button class="btn primary">采纳</button><button class="btn ghost">忽略</button></div>
+</div>
+
+<div class="axis" style="color:#d98a8d">反例 · 当前病根的样子（质量标准明令禁止）</div>
+<div class="banned">
+<div class="card">
+  <div class="title strike">工作建议<span class="chip">light</span></div>
+  <div class="view strike">检测到你今天处于开发状态，可能需要一些帮助。记得适当休息。</div>
+  <ul class="plans">
+    <li class="strike">了解一下相关的解决方案</li>
+    <li class="strike">持续关注问题进展</li>
+  </ul>
+</div>
+</div>
+<p class="note">反例病灶：title 无对象无动作（主题级）｜proactive_view 无任何具体行为事实，还有帧数式的机器视角残留｜
+plans 全是「了解一下／持续关注」类不可判定措辞｜「记得休息」是关心不是任务。</p>
+</body>
+</html>
