@@ -945,28 +945,6 @@ async intentGetSupply() : Promise<Result<IntentSupplyState, string>> {
 }
 },
 /**
- * Read the intent runtime config (defaults when keys are missing).
- */
-async intentGetConfig() : Promise<Result<IntentConfigDto, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("intent_get_config") };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Persist the intent runtime config (backend clamps again on load).
- */
-async intentSetConfig(config: IntentConfigDto) : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("intent_set_config", { config }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
  * List cards: `"pending"` (proposed+shown) or `"accepted"`.
  */
 async intentList(filter: string) : Promise<Result<IntentCardDto[], string>> {
@@ -3128,11 +3106,6 @@ export type IntentConfigDto = { heartbeatIntervalSecs: number; cardTtlHours: num
  * Full supply state surfaced to the settings card (R7).
  */
 export type IntentSupplyState = { slot: PresetQuadruple | null; fallbackPresetId: string | null; lastGeneration: LastGenerationStatus | null }
-/**
- * Runtime config for the intent heartbeat (settings page: intent cards).
- * Seconds for cadence, hours elsewhere; backend clamps on load.
- */
-export type IntentConfigDto = { heartbeatIntervalSecs: number; cardTtlHours: number; draftMaxActive: number; draftTtlHours: number; materialWindowHours: number }
 export type JobEvent = { kind: "started"; jobId: string; label: string; message: string | null } | { kind: "progress"; jobId: string; label: string; progress: number; message: string | null } | { kind: "completed"; jobId: string; label: string; outputPath: string | null; message: string | null } | { kind: "failed"; jobId: string; label: string; error: string }
 export type JsonValue = null | boolean | number | string | JsonValue[] | { [key in string]: JsonValue }
 export type KeychainStatus = { state: string }
