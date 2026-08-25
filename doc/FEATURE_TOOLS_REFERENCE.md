@@ -1,7 +1,7 @@
 # Cue Tools 参考
 
 <!-- doc-covers: apps/screenpipe-app-tauri/src-tauri/assets/extensions/web-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/mcp-bridge.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/save-artifact.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/live-views.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/connection-gate.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card-recent.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-draft.ts, crates/screenpipe-core/assets/extensions/sub-agent.ts, crates/screenpipe-engine/src/routes/intent_cards.rs, crates/screenpipe-db/src/db/intent_drafts.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/session.rs, crates/screenpipe-core/src/agents/pi.rs（§6.1 技能装载） -->
-<!-- doc-verified: cc5881bf4（分支 feat/intent-agent-prompt-fix） -->
+<!-- doc-verified: 2ae2c19a4（分支 cue-branding） -->
 
 ## 1. 这份文档管什么
 
@@ -108,9 +108,9 @@ Response：每行一张卡的文本列表 `- #<id> [<card_type>/<status>] <proac
 | `limit` | integer | 否 | 夹取 1–20，翻页用 offset |
 | `offset` | integer | 否 | 缺省 0 |
 
-三条纪律焊死在 wrapper 里，模型不可绕过：fields 列预设白名单（type / app_name / window_name / text / transcription / timestamp）、max_content_length=400 中段截断、start_time 强制必填。这是把 screenpipe-api skill 的上下文保护规则从「靠模型自觉」升级成「代码保证」，也是包工具相对塞 skill 的核心收益。
+三条纪律焊死在 wrapper 里，模型不可绕过：max_content_length=400 中段截断、start_time 强制必填、无可读文本与低质 OCR 短行（type=ocr 且文本 < 20 字符）折叠为行数计数而非原样吐出。wrapper 刻意**不传 `fields=`**：引擎对该参数的投影输出是扁平点号 key（`"content.app_name"`），与 wrapper 的嵌套读取错位，曾让每个命中都渲染成 `[OCR] ? | ? |`（trace 01a0348a）；去掉后路由走原始嵌套 JSON，行归一化仍兼容两种形态。这是把 screenpipe-api skill 的上下文保护规则从「靠模型自觉」升级成「代码保证」，也是包工具相对塞 skill 的核心收益。
 
-Response：逐行 `- [type] app | timestamp | text`，整体截至前 12,000 字符。空结果的返回体要提示回退 get_activity_summary 核对 data_status，不得据此直接断言「没有数据」。
+Response：逐行 `- [type] app | timestamp | text`（无文本但带 app+timestamp 的行保留——它能证明该时刻应用在前台），折叠计数以「另有 N 行……已省略」附在末尾；整体截至前 12,000 字符。空结果的返回体要提示回退 get_activity_summary 核对 data_status，不得据此直接断言「没有数据」。中文子串查询可用：引擎检测到 CJK 查询词时对 full_text 动态降级为 LIKE 匹配（frames_fts 的 unicode61 分词器把连续汉字当单一 token，FTS 路径对中文子串系统性零命中），英文查询不受影响。
 
 #### 4.1.4 `search_memories`
 
