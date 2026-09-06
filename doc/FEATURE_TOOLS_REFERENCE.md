@@ -1,7 +1,7 @@
 # Cue Tools 参考
 
 <!-- doc-covers: apps/screenpipe-app-tauri/src-tauri/assets/extensions/web-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/mcp-bridge.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/save-artifact.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/live-views.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/connection-gate.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card-recent.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-search.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-draft.ts, crates/screenpipe-core/assets/extensions/sub-agent.ts, crates/screenpipe-engine/src/routes/intent_cards.rs, crates/screenpipe-db/src/db/intent_drafts.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/session.rs, crates/screenpipe-core/src/agents/pi.rs（§6.1 技能装载） -->
-<!-- doc-verified: 2ae2c19a4（分支 cue-branding） -->
+<!-- doc-verified: ce25c09a7 -->
 
 ## 1. 这份文档管什么
 
@@ -29,19 +29,20 @@ Cue 里「agent 能调用的每一个工具」的目录级参考：它是什么�
 | `search_memories` | intent-search.ts | intent 白名单 | 只读 | 本地 `/memories`（仅 GET） | 已上线 |
 | `list_meetings` | intent-search.ts | intent 白名单 | 只读 | 本地 `/meetings` | 已上线 |
 | `query_data` | 待定 | intent 白名单 | 只读（wrapper 强制） | 本地 `/raw_sql` | **二期议** |
-| `sp_web_search` | web-search.ts | chat 全量 | 读，出网 | Cue Cloud 搜索接口 | 已上线 |
+| `sp_web_search` | web-search.ts；ACP 预设另有同名本地变体 web-search-local.ts | chat 全量 | 读，出网 | Cue Cloud 搜索接口 | 已上线 |
 | `sp_mcp_list_tools` | mcp-bridge.ts | chat 全量；intent 白名单 | 读 | 本地 `/mcp-servers` | 已上线 |
 | `sp_mcp_call` | mcp-bridge.ts | chat 全量；intent 白名单 | **可能产生外部副作用** | 本地 `/mcp-servers/{id}/call` | 已上线 |
 | `screenpipe_list_connections` | connection-gate.ts | chat 全量 | 读 | 本地 `/connections` | 已上线 |
 | `screenpipe_connect_app` | connection-gate.ts | chat 全量 | 发起用户授权流程（阻塞等待） | 授权 UI + 连接刷新 | 已上线 |
 | `submit_intent_card` | intent-card.ts | 仅意图生成会话 | 受控交卡出口 | 无网络调用，宿主从 transcript 提取 | 已上线 |
 | `save_intent_draft` | intent-draft.ts | 仅意图生成会话 | 非终态存档 | 本地 `/intent-cards/drafts` | 已上线 |
+| `get_intent_draft` | intent-draft.ts | intent 白名单 | 只读 | 本地 `/intent-cards/drafts` | 已上线 |
 | `save_artifact` | save-artifact.ts | chat 全量 | 写入 Artifacts 库 | 本地 `/artifacts/register` | 已上线 |
 | `screenpipe_live_view` | live-views.ts | chat 全量 | 读 / 写 Live View 定义 | 本地 live-views 路由族 | 已上线 |
 | `screenpipe_live_view_propose` | live-views.ts | chat 全量 | 提议变更，schema 内校验 | 无网络调用，返回提案文本 | 已上线 |
 | Pi 内置七件（read/grep/find/ls/bash/edit/write） | Pi 自带 | 见第 3 节矩阵 | 视具体工具 | 本机文件系统 | 已上线 |
 
-状态取值：「已上线」为现状。「规划中」指契约已定稿、代码尚未落地，逐工具小节即实现应遵循的规格；引用它们描述现状前，先确认对应扩展文件是否存在。「二期议」表示方向认可但前置条件未满足（见 §4.1.6）。四件只读取证工具由自包含扩展 `intent-search.ts` 实现（fetch+env，模式同 intent-card-recent.ts），已进 `INTENT_ALLOWED_TOOLS` 受管安装；App 外分发同理可行，暂未纳入双通道清单。
+状态取值：「已上线」为现状。「规划中」指契约已定稿、代码尚未落地，逐工具小节即实现应遵循的规格；引用它们描述现状前，先确认对应扩展文件是否存在。「二期议」表示方向认可但前置条件未满足（见 §4.1.7）。四件只读取证工具由自包含扩展 `intent-search.ts` 实现（fetch+env，模式同 intent-card-recent.ts），已进 `INTENT_ALLOWED_TOOLS` 受管安装；App 外分发同理可行，暂未纳入双通道清单。
 
 ## 3. 会话矩阵
 
@@ -50,10 +51,10 @@ Cue 里「agent 能调用的每一个工具」的目录级参考：它是什么�
 | 会话 | 内置工具 | 扩展工具 |
 | --- | --- | --- |
 | Chat | 全量含 bash/edit/write | 上表 chat 全量各工具 |
-| 意图卡片生成会话（session id `intent-card`） | 仅 read / grep / find / ls | `sp_mcp_list_tools`、`sp_mcp_call`、`submit_intent_card`、`get_recent_intent_cards`、`get_activity_summary`、`search_activity`、`search_memories`、`list_meetings`、`save_intent_draft`（与内置四件合成十三项白名单，常量 `INTENT_ALLOWED_TOOLS`） |
+| 意图卡片生成会话（session id `intent-card`） | 仅 read / grep / find / ls | `sp_mcp_list_tools`、`sp_mcp_call`、`submit_intent_card`、`get_recent_intent_cards`、`get_activity_summary`、`search_activity`、`search_memories`、`list_meetings`、`save_intent_draft` / `get_intent_draft`（与内置四件合成十四项白名单，常量 `INTENT_ALLOWED_TOOLS`） |
 | 外部 Pi agent（用户自装） | 该 agent 自己的默认面 | 仅拷入的扩展文件（现例：intent-card-recent.ts） |
 
-白名单机制：会话配置带 `allowedTools` 数组，Pi 只暴露名单内工具。意图会话的隔离边界有两处：专属项目目录 `~/.screenpipe/pi-intent`，以及 bash 与一切写侧工具不进白名单。技能可见面与 Chat 对齐——原「运行前剥离用户技能镜像」一条已于 2026-08-24 作废（pi 自动发现全局技能目录，剥离从未真正生效，裁决记录见 FEATURE_INTENT_CARDS §6），技能正文注入的残余风险由工具白名单兜底。
+白名单机制：会话配置带 `allowedTools` 数组，Pi 只暴露名单内工具。意图会话的隔离边界有两处：专属项目目录 `~/.cue/pi-intent`，以及 bash 与一切写侧工具不进白名单。技能可见面与 Chat 对齐——原「运行前剥离用户技能镜像」一条已于 2026-08-24 作废（pi 自动发现全局技能目录，剥离从未真正生效，裁决记录见 FEATURE_INTENT_CARDS §6），技能正文注入的残余风险由工具白名单兜底。
 
 ## 4. 逐工具参考
 
@@ -141,7 +142,21 @@ Response：逐行 `- [type] app | timestamp | text`（无文本但带 app+timest
 
 Response：`/meetings` 清单 JSON。错误行为照 §9.3 纪律。
 
-#### 4.1.6 `query_data`（二期议）
+#### 4.1.6 `get_intent_draft`
+
+取回活跃草稿的全量详情。生成材料的 `[OPEN_DRAFTS]` 投影只列最新 3 条且不含 evidence_so_far；续写既有草稿前先用本工具取回完整线索，避免凭 gist 想象着写。
+
+参数：
+
+| 字段 | 类型 | 必填 | 含义 |
+| --- | --- | --- | --- |
+| `limit` | integer | 否 | 取多少条，缺省 10，夹取 1–10 |
+
+Response：全量活跃草稿清单（gist、evidence_so_far、ripe_when、renew_count 与时间戳），按最近活动倒序；无活跃草稿时明说（`No active drafts.`）。
+
+错误行为：HTTP 非 2xx 照 §9.3 纪律返回状态码与原因。边界：草稿只读，写路径只有 save_intent_draft；数据来自引擎 `GET /intent-cards/drafts`，仅 TTL 内的 active 行可见。
+
+#### 4.1.7 `query_data`（二期议）
 
 包装 `POST /raw_sql` 的自由查询出口。方向认可、暂不实现：引擎对 raw_sql 的只读约束目前是纪律约定而非强制，落地前置条件是 wrapper 强制单条 SELECT、自动注入 LIMIT、拒绝 PRAGMA/ATTACH 与多语句。契约待上述护栏定稿后回填本节。
 
@@ -232,14 +247,14 @@ Response：JSON 文本 `{ status: connected | declined | failed, connectionId, n
 | `v` | integer | 卡载荷必填 | 契约版本，恒为数字 1 |
 | `title` | string ≥1 字符 | 卡载荷必填 | 生成器自拟的一行标题，卡片的显示名与后续判重语境（2026-08-24 起一等公民；历史行由迁移回填） |
 | `card_type` | enum：light / side_effect / read_only | 卡载荷必填 | 卡片类型，语义见下 |
-| `proactive_view` | string | 否 | 给用户看的一句话引子，中文 |
+| `proactive_view` | string | 否 | 用户在卡上读到的证据段落：仅本窗口事实的一两句散文（哪个 app/文档、在做或卡在什么、这张卡怎么帮上忙），不得写成类别标签或机器 token |
 | `recommended_index` | integer ≥0 | 否 | 推荐方案下标 |
 | `plans` | array 1–3 项 | 卡载荷必填 | 方案列表，每项 `{title*, summary*, consequence?}` |
 | `insufficient_material` | boolean | 材料不足形态必填 | 恒为 true，与卡载荷互斥 |
 
-card_type 语义：read_only=只读操作建议（查询、汇总、打开查看某内容）；side_effect=改变系统状态的建议（改设置、启动自动化），必须给 consequence；light=一句话轻提示，不带 plans。light 与 plans 互斥由 execute 强制，违反会被打回并附二选一的改法。
+card_type 语义：read_only=只读操作建议（查询、汇总、打开查看某内容）；side_effect=改变系统状态的建议（改设置、启动自动化），必须给 consequence；light=一句话轻提示，不带 plans。light 与 plans 互斥由 execute 强制，违反会被打回并附二选一的改法。工具 description 同样承载契约：proactive_view 写法约束、单次会话至多交 2 卡且各卡意图须不同，均由模型直读 description 获得。
 
-Response：execute 回执 `Intent card submitted.`——真正的载荷由宿主从会话 transcript 的最后一个 submit_intent_card 工具调用里提取（见 FEATURE_INTENT_CARDS.md 第 5 节）。此工具仅在 App 内意图会话安装，不经 HTTP，外部分发版不含。
+Response：execute 回执 `Intent card submitted.`——真正的载荷由宿主从 transcript 收集全部 submit_intent_card 调用（SessionReport.submissions，按调用序），每拍至多落库 2 张、同名折叠、超限丢弃（见 FEATURE_INTENT_CARDS.md 第 5 节）。此工具仅在 App 内意图会话安装，不经 HTTP，外部分发版不含。
 
 #### 4.3.2 `save_intent_draft`
 
@@ -254,9 +269,9 @@ Response：execute 回执 `Intent card submitted.`——真正的载荷由宿主
 | `evidence_so_far` | string | 是 | 已观察到的材料要点 |
 | `ripe_when` | string | 是 | 成熟条件：出现什么就升级为卡 |
 
-Response：`Draft #<id> saved|updated (renew_count=N, active budget left: M).`。新建撞上限时返回 409，附「先收敛或废弃」指引（工具层会把这个指引拼进错误文本）；其余非 2xx 照 §9.3 纪律。
+Response：`Draft #<id> saved|updated (renew_count=N, updated <本地时间>, active budget left: M).`，时间戳来自 upsert 响应的 updated_at 字段。新建撞上限时返回 409，附「先收敛或废弃」指引（工具层会把这个指引拼进错误文本）；其余非 2xx 照 §9.3 纪律。
 
-边界与宿主侧纪律：草稿持久化在引擎侧 SQLite 表 `intent_drafts`（status: active/submitted/discarded/expired），不经 transcript 提取——跨心跳续写要求它独立于单次会话存在，App 重启不丢。防拖延三条全部宿主强制：活跃草稿数超上限（`INTENT_DRAFT_MAX_ACTIVE`，缺省 3）拒绝新建；存活超时（`INTENT_DRAFT_TTL_SECS`，缺省 48 小时，对齐卡片过期钟）由心跳每拍结算为 expired；renew_count 由 runner 注入材料并附收敛规则（≥3 或 ripe_when 已满足必须升级交卡或放弃）。
+边界与宿主侧纪律：草稿持久化在引擎侧 SQLite 表 `intent_drafts`（status: active/submitted/discarded/expired），不经 transcript 提取——跨心跳续写要求它独立于单次会话存在，App 重启不丢。防拖延三条全部宿主强制：活跃草稿数超上限（运行时设置 `draft_max_active`，缺省 3，可调至多 10）拒绝新建；存活超时（运行时设置 `draft_ttl_secs`，缺省 48 小时，对齐卡片过期钟）由心跳每拍结算为 expired；renew_count 由 runner 注入材料并附收敛规则（≥3 或 ripe_when 已满足必须升级交卡或放弃）。
 
 两项阈值与心跳间隔、卡片 TTL、材料窗口默认值同属运行时配置：存共享 KV 表 `intent_settings`（引擎与 App 同库各读一份定义），设定页「意图卡片」写入，心跳每拍与每次 drafts 请求即时生效，无需重启；加载时夹取到合理区间。
 
@@ -356,11 +371,11 @@ store 镜像永不遮蔽基线名与 cue-tools（导入端拒绝 + 同步端双�
 | `since_hours` | number | 48 | 回看小时数，夹取 0–744 |
 | `limit` | integer | 20 | 上限数，夹取 1–100 |
 
-响应 `{ cards: [{ id, origin, card_type, status, title, proactive_view, dedup_key, created_at }], generated_at }`，title 为合并后的显示名（存储 title → 首方案 title → 正文前 120 字），created_at 为 unixepoch 秒，cards 按 created_at 倒序。错误：500 带 `{"error"}`。
+响应 `{ cards: [{ id, origin, card_type, status, proactive_view, dedup_key, created_at }], generated_at }`，created_at 为 unixepoch 秒，cards 按 created_at 倒序。错误：500 带 `{"error"}`。
 
 ### `GET /intent-cards/drafts` · `POST /intent-cards/drafts`
 
-GET 返回 `{ drafts: [{ id, gist, evidence_so_far, ripe_when, renew_count, created_at, updated_at }], generated_at }`，只含 TTL 内的 active 行，按创建时间正序（续写顺序）。POST 请求体 `{ id?, gist, evidence_so_far, ripe_when }`，id 给值即续写（renew_count +1）；新建撞上限返回 409。错误：400 空字段、409 超限、500 带 `{"error"}`。
+GET 返回 `{ drafts: [{ id, gist, evidence_so_far, ripe_when, renew_count, created_at, updated_at }], generated_at }`，只含 TTL 内的 active 行，按最近活动倒序（`updated_at DESC, id DESC`）。POST 请求体 `{ id?, gist, evidence_so_far, ripe_when }`，id 给值即续写（renew_count +1）；新建撞上限返回 409。错误：400 空字段、409 超限、500 带 `{"error"}`。
 
 ### `GET /mcp-servers` · `GET /mcp-servers/{id}/tools` · `POST /mcp-servers/{id}/call`
 

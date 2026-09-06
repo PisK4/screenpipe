@@ -59,7 +59,7 @@ description: Read before generating an intent card, querying or verifying the us
 ### 草稿纪律
 
 - save_intent_draft 是 upsert：带 draft_id 即更新（renew_count 加一），不带则新建；ripe_when 必填，写可判定的成熟条件。
-- [OPEN_DRAFTS] 计数头 n/10：n 是已展示数，10 是活跃总量；其余草稿用 get_intent_draft(limit) 取回，续写前先取回 evidence_so_far。
+- [OPEN_DRAFTS] 是对象：active_total 是活跃草稿总量，shown 至多列最新 3 条；不在 shown 里的草稿，以及续写所需的 evidence_so_far，用 get_intent_draft(limit) 取回。
 - 时间戳是本地绝对时间，对照 [CURRENT_TIME] 判断陈旧度；两天没动静的草稿优先收敛。
 - 收敛线：renew_count 达到 3 或 ripe_when 已满足的草稿必须收敛——升级交卡或判定不再值得追踪，不允许无限续写。
 

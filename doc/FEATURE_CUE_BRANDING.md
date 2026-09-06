@@ -1,7 +1,7 @@
 # Cue 品牌与文案边界
 
 <!-- doc-covers: AGENTS.md, apps/screenpipe-app-tauri/lib/i18n/en.ts, apps/screenpipe-app-tauri/lib/i18n/zh-CN.ts, apps/screenpipe-app-tauri/src-tauri/src/dock_menu.rs, apps/screenpipe-app-tauri/src-tauri/src/tray.rs, apps/screenpipe-app-tauri/src-tauri/Info.plist -->
-<!-- doc-verified: b6bed101f1763d9baf570e2b2cdedeca56152291 -->
+<!-- doc-verified: ce25c09a7 -->
 > **Current。** 本文按上述提交核验，记录 Cue 品牌化的文案边界。后续改动应以代码为准。
 
 ## 1. 目的
@@ -48,4 +48,4 @@
 ## 5. 证据索引
 
 - 品牌替换的 Rust 提交范围：tray/dock/process_exit/meeting_live_notes/meeting_stall_notifications/engine_events/audio_device/recording/overlay_health/meeting_export/gate + Info.plist。
-- 前端文案以字典为准：`lib/i18n/en.ts` 与各分片 `en-*.ts` 中不含 "screenpipe"（路径、URL 类值除外）。
+- 前端文案以字典为准：新增文案一律写 Cue；存量分片个别正文句仍含 Screenpipe 字样（如 en-chat.ts、en-connections.ts，锚点时代即存在），属待清理存量而非新增违规（路径、URL 类值除外）。

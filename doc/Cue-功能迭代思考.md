@@ -2,6 +2,34 @@
 
 
 
+
+
+### 当前遇到的一些问题
+
+1. 随着 Agent 的角色增多，每个 Agent 都有自己的业务逻辑、可调用工具范围，如何动态可靠地注入规则类信息到 Agent Loop
+
+
+
+### 待办事项
+
+1. 构建事件处理机制，将所有外部输入事件进行结构化建模
+2. 构建新 Agent
+   1. Intent Agent: 根据用户的活动记录, 向用户推送用户待处理事项解决方案
+   2. Todo agent, 捕获与记录用户的 todo 项并列出
+   3. Connection Agent: 梳理与记录用户与各 App /Agent 的关系, 来往记录
+   4. Session Agent: 捕获 Claude code/Codex/Pi 中用户与 Agent 协作记录, 整理用户数据
+   5. Summary Agent: 为用户产生日报/周报
+
+
+
+
+
+
+
+
+
+### 观察到的点
+
 1. 有 bug, 上一轮加 title 的的本意是加一个卡片的 title, 能在前端从上到下展示 title, proactive_view, plans 让用户快速理解到意图卡片的重点, 但误把 title 加到 plans 中, 参考:
 
    ```

@@ -1,7 +1,7 @@
 # 界面多语言（i18n）
 
 <!-- doc-covers: apps/screenpipe-app-tauri/lib/i18n, apps/screenpipe-app-tauri/lib/i18n/en.ts, apps/screenpipe-app-tauri/lib/i18n/zh-CN.ts, apps/screenpipe-app-tauri/lib/i18n/translate.ts, apps/screenpipe-app-tauri/lib/i18n/index.ts, apps/screenpipe-app-tauri/lib/utils/locale.ts, apps/screenpipe-app-tauri/lib/hooks/use-settings.tsx, apps/screenpipe-app-tauri/components/settings/display-section.tsx -->
-<!-- doc-verified: b6bed101f1763d9baf570e2b2cdedeca56152291 -->
+<!-- doc-verified: ce25c09a7 -->
 > **Current。** 本文按上述提交核验，记录 UI 多语言层的结构与约定。后续改动应以代码和测试为准。
 
 ## 1. 目的
@@ -55,7 +55,7 @@ lib/i18n/
 
 尚未抽取（界面仍为英文硬编码）：live-view 系列（settings 下 canvas/card/ai-composer 等）、ai-presets-selector、mermaid-diagram、根组件 app-entitlement-gate 与 notification-feedback。这些文件继续按第 4 节规则分批迁移即可，架构无需再动。
 
-Rust 侧（tray/dock/通知）暂未接语言切换，当前只完成品牌替换；接入时从设置读 locale，在菜单构建与通知发送处选字典。
+Rust 侧（tray/dock/通知）暂未接语言切换，当前只完成品牌替换；接入时从设置读 locale，在菜单构建与通知发送处选字典。意图卡通知的动作 label 与兜底标题（`intent_agent/runner.rs`）目前为硬编码英文，是这条已声明缺口的实例化，不另立违约项。
 
 ## 7. 证据索引
 

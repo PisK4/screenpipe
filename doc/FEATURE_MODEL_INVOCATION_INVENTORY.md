@@ -1,7 +1,7 @@
 # 模型调用路径盘点与重构路线
 
 <!-- doc-covers: crates/screenpipe-core/src/agents, crates/screenpipe-core/src/pipes, crates/screenpipe-audio/src, apps/screenpipe-app-tauri/lib, apps/screenpipe-app-tauri/src-tauri/src -->
-<!-- doc-verified: b6bed101f1763d9baf570e2b2cdedeca56152291 -->
+<!-- doc-verified: ce25c09a7 -->
 > **Current。** 本文按上述提交核验，是重构基线，不代表后续实现不会变化。
 
 ## 1. 文档目的
@@ -277,7 +277,7 @@ Screenpipe 当前通过多个运行时访问模型。主 Chat 和 Pipe 路径使
 
 **场景。** 应用常驻心跳（默认 900 秒，首轮延迟 120 秒）在信号门槛（窗口内 app_switch+window_focus ≥ 3 或 frame 变化 ≥ 5）满足时生成一张意图卡片提案；另有新手接入卡由前端显式触发。
 
-**实现。** `src-tauri/src/intent_agent/` 的 runner 先结算过期、拉取 activity-summary，再经 Pi Session（项目目录 `pi-intent`）发起单次直调；输出必须为版本化 JSON（D4）。供给按三级解析：意图专用槽 → 按 id 现查 Chat active preset → 内置 Ollama（`qwen3.5:9b` @ `http://localhost:11434/v1`）。
+**实现。** `src-tauri/src/intent_agent/` 的 runner 先结算过期、拉取 activity-summary，再经 Pi Session（项目目录 `pi-intent`）发起单次直调；输出必须为版本化 JSON（D4）。供给按三级解析：意图专用槽 → 按 id 现查 Chat active preset → 内置 Ollama（`qwen3.5:9b` @ `http://localhost:11434/v1`）。心跳间隔与会话超时经共享 KV 表 `intent_settings` 运行时可调（超时缺省 480 秒，夹取 60–3600），设定页写入即时生效。
 
 **Pi SDK。** 会话由 Pi 承载，Provider 请求为 OpenAI 兼容直调（`direct-http` 语义）；与 Chat 不同，会话一次性、不进入 Chat History。
 

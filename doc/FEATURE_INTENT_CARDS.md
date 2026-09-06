@@ -1,8 +1,8 @@
 # 意图卡片 v1
 
 <!-- doc-covers: crates/screenpipe-db/src/migrations/20260822120000_create_intent_cards.sql, crates/screenpipe-db/src/migrations/20260823120000_drop_intent_cards_dedup_index.sql, crates/screenpipe-db/src/db/intent_cards.rs, crates/screenpipe-engine/src/routes/intent_cards.rs, crates/screenpipe-engine/src/server.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/mod.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/gate.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/parse.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/instruct.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/session.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/supply.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/commands.rs, apps/screenpipe-app-tauri/src-tauri/src/intent_agent/runner.rs, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card.ts, apps/screenpipe-app-tauri/src-tauri/assets/extensions/intent-card-recent.ts, apps/screenpipe-app-tauri/src-tauri/src/events.rs, apps/screenpipe-app-tauri/src-tauri/src/main.rs, crates/screenpipe-engine/src/cli/agent.rs, apps/screenpipe-app-tauri/components/intent-workbench/index.tsx, apps/screenpipe-app-tauri/components/intent-workbench/plans-list.tsx, apps/screenpipe-app-tauri/lib/intent-events.ts, apps/screenpipe-app-tauri/lib/i18n/en-workbench.ts, apps/screenpipe-app-tauri/lib/i18n/zh-workbench.ts, apps/screenpipe-app-tauri/components/settings/ai-settings.tsx, apps/screenpipe-app-tauri/lib/active-ai-preset.ts, apps/screenpipe-app-tauri/components/chat/standalone/hooks/use-pi-session-lifecycle.ts -->
-<!-- doc-verified: 7c3a14c5d（分支 cue-branding） -->
-> **Current。** 本文核验于 `cue-branding` 分支的 7c3a14c5d。该分支合入 cue-branding 前，主线的 `doc-verified` 不覆盖意图卡片代码。
+<!-- doc-verified: ce25c09a7 -->
+> **Current。** 本文核验于 ce25c09a7。
 
 ## 1. 目的与产品目标
 
@@ -42,7 +42,7 @@ P1 每次 tick 的固定顺序：
 4. 数增量信号过门槛；
 5. GET activity-summary（ISO 8601 参数）＋ 预载近 48h 卡片清单（软去重材料，见第 4 节）；
 6. 解析供给三级链（slot → mirror → builtin，见第 7 节）;
-7. 起 Pi 会话（240 秒超时，用完即停），模型经 `submit_intent_card` 工具逐张交卡，一拍至多两张；
+7. 起 Pi 会话（墙钟超时为运行时设置 `session_timeout_secs`，缺省 480 秒、可调 60–3600 秒，用完即停），模型经 `submit_intent_card` 工具逐张交卡，一拍至多两张；
 8. 按提交顺序归约全部载荷（同名折叠、超上限丢弃）、入库、emit 事件、发面板提醒；tick 状态四分类见下；
 9. 成败写入 `intent_last_generation` 供设置页展示。任何一步失败记 tracing，循环不退出，下一拍同级重试。
 
@@ -51,7 +51,7 @@ tick 状态四分类（优先级从高到低）：
 1. **cards**：落库 ≥1 张卡。detail 仅在张数 ≠1 时写 `"<n> cards"`；
 2. **draft-progress**：零卡但会话里有 `save_intent_draft` 操作。detail 形如 `"<n> draft op(s), no card"`；
 3. **insufficient**：零卡零草稿操作且模型显式声明材料不足。detail 为 `"material insufficient"`；
-4. **failed**：解析错误或空报告。detail 带首个解析错误或 `"empty session report"`。
+4. **failed**：解析错误或空报告。detail 带首个解析错误或 `"empty session report"`；超时失败附流式诊断（text_delta 事件数与已收字符数），区分中途停滞与零产出。
 
 P2 是唯一能改卡片状态的通道：前端按钮只调 command，SQL 层带 WHERE status 守卫，模型侧没有任何路径能写 status。Pi 会话产出的只是工具调用参数，写库永远在 Rust 侧确定性代码手里。
 
@@ -79,7 +79,7 @@ proposed 与 shown 分开，是为了让过期时钟从「用户有机会看到�
 现行机制：
 
 - 迁移 `20260823120000_drop_intent_cards_dedup_index.sql` 删除唯一索引（DROP INDEX，不重建表）。`dedup_key` 列保留继续写，降级为记录字段（格式仍是 `{card_type}:{dominant_app}`），排查有用、不构成约束。
-- 心跳预载近 48 小时卡片清单进生成材料（`RECENT_CARDS_WINDOW_SECS` / `RECENT_CARDS_LIMIT`，gate.rs）。system prompt 写明判重规则：与清单中某卡意图相同或高度相近——尤其那张是 rejected——必须提交 `{"insufficient_material": true}`，不要出卡。rejected 从此有跨日记忆。
+- 心跳预载近 48 小时卡片清单进生成材料（`RECENT_CARDS_WINDOW_SECS` / `RECENT_CARDS_LIMIT`，gate.rs）；清单以瘦身投影进材料，每卡只带 `{id, gist(=title), status, created_at}` 四字段，不带 proactive_view 全文，防止枚举历史吃掉响应预算。system prompt 写明判重规则：与清单中某卡意图相同或高度相近——尤其那张是 rejected——必须提交 `{"insufficient_material": true}`，不要出卡。rejected 从此有跨日记忆。
 - 模型要查更早历史时调 `get_recent_intent_cards` 工具（第 8 节）。
 - 新手卡幂等从唯一索引改为 command 内显式当日预检（`intent_find_id_by_dedup_key`）；`InsertOutcome::DedupHit` 已移除，insert 直接返回新行 id。
 - 成本边界：心跳节拍（900s）是硬顶，判重失效的最坏结果是一天几十次会话里多几张重复卡，通知面板兜底。不设机械保险丝；实测命中率不可接受时，最粗兜底是同 app 单日 COUNT 检查，届时另议。
@@ -90,8 +90,8 @@ proposed 与 shown 分开，是为了让过期时钟从「用户有机会看到�
 
 状态四值 `active → submitted | discarded | expired`：
 
-1. `upsert`：新建或按 id 续写（renew_count +1）；活跃数达上限（`INTENT_DRAFT_MAX_ACTIVE=10`）由 POST 路由以 409 拒绝并引导先收敛或丢弃；
-2. `expire_due`：心跳每拍结算超过 TTL（`INTENT_DRAFT_TTL_SECS=48h`，锚定 created_at）的 active 行；
+1. `upsert`：新建或按 id 续写（renew_count +1）；活跃数达运行时上限（设置键 `draft_max_active`，缺省 3，可调至多 10）由 POST 路由以 409 拒绝并引导先收敛或丢弃；
+2. `expire_due`：心跳每拍结算超过 TTL（设置键 `draft_ttl_secs`，缺省 48h，锚定 created_at）的 active 行；
 3. submitted / discarded 为终态，不可续写复活。
 
 防拖延是宿主职责而非模型自觉：收敛线为 renew_count 达到 3 或 ripe_when 已满足——必须升级交卡或判定不再值得追踪，不允许无限续写；该规则的权威文本在 cue-tools skill 的草稿纪律节，由 system prompt 的强制读指令兜底。gate 的 spawn 门槛暂不因活跃草稿降低，先观察真实续写率。
@@ -102,19 +102,22 @@ proposed 与 shown 分开，是为了让过期时钟从「用户有机会看到�
 
 ### 运行时配置与设定页（2026-08-24）
 
-心跳间隔、卡片 TTL、草稿上限、草稿 TTL、材料窗口默认值五项为运行时配置：存共享 KV 表 `intent_settings`（迁移 `20260824130000_create_intent_settings.sql`），引擎进程（drafts 路由的上限校验）与 App 进程（心跳循环、mark_shown 时钟、窗口锚定）读同一份定义；设定页「意图卡片」（`components/settings/intent-settings.tsx` 对应的 `intent-cards` section）写入后即时生效，无需重启。加载侧统一夹取区间，手改数据库不会卡死心跳。gate 阈值、会话超时等判据仍留编译期常量——暴露给用户只会制造误调。
+心跳间隔、卡片 TTL、草稿上限、草稿 TTL、材料窗口默认值、会话超时六项为运行时配置：存共享 KV 表 `intent_settings`（迁移 `20260824130000_create_intent_settings.sql`），引擎进程（drafts 路由的上限校验）与 App 进程（心跳循环、mark_shown 时钟、窗口锚定、会话超时）读同一份定义；设定页「意图卡片」（`components/settings/intent-settings.tsx` 对应的 `intent-cards` section）写入后即时生效，无需重启。加载侧统一夹取区间，手改数据库不会卡死心跳。gate 阈值仍留编译期常量——暴露给用户只会制造误调。
 
 ## 5. 输出契约：submit_intent_card 结构化交卡
 
-结论必须通过调用 `submit_intent_card` 工具提交，不写普通文字。工具参数 schema 内嵌完整卡片契约（oneOf 两分支），pi 在协议层做 TypeBox 编译校验：非法调用在 execute 之前被拒并回灌错误让模型自纠。第三方结构化输出包评估后未采纳——Ajv 校验与 steering 重试都有更便宜的等价物（协议层校验、心跳下拍自然重试）。
+结论必须通过调用 `submit_intent_card` 工具提交，不写普通文字。工具参数 schema 是单层平面 object：早期用 oneOf 两分支靠 pi 协议层 TypeBox 校验先行拦截，代价是非法调用到不了 execute、也带不出可修正的指引；两种载荷的互斥与完整性检查因此全部下沉到 execute 内自检，非法时抛出错误文本回灌模型重试。第三方结构化输出包评估后未采纳——Ajv 校验与 steering 重试都有更便宜的等价物（execute 自检、心跳下拍自然重试）。工具 description 也是契约面：proactive_view 的写法约束与一拍至多两卡、意图互异的规则写在 description 里由模型直读。
 
 两种合法载荷：
 
 ```jsonc
-// 普通提案卡
-{ "v": 1, "card_type": "light|side_effect|read_only",
+// 提案卡（read_only / side_effect；title 必填）
+{ "v": 1, "title": "", "card_type": "side_effect",
   "proactive_view": "", "recommended_index": 0,
   "plans": [{ "title": "", "summary": "", "consequence": "" }] }
+
+// light 轻提示卡：一句话观察，不带 plans
+{ "v": 1, "title": "", "card_type": "light", "proactive_view": "" }
 
 // 材料不足（含判重命中后的主动放弃）
 { "insufficient_material": true }
@@ -128,9 +131,9 @@ Rust 侧从 agent_end 的 messages 数组按调用顺序提取全部 `submit_int
 
 为什么用会话不用单次直调：aha moment 藏在 activity-summary 压缩掉的部分里，会话形态下模型拿只读工具自己查证，「材料不足」也从客套话变成查证后的有据结论；且加工具从一轮架构改动变成一行白名单配置。
 
-会话专属项目目录 `~/.screenpipe/pi-intent`，与其他会话互不共享。技能可见面与 Chat 对齐（全局发现 + 基线三件照常安装；2026-08-24 修订 D7——原镜像剥离对 pi 全局技能发现本就无效，轨迹取证见 01a02f23/01a02f15）。隔离边界收敛到工具白名单：bash 与一切写侧工具不进白名单；残余的技能正文注入风险由工具白名单兜底（sp_mcp_call 的外部副作用为已知并接受的残留面）。
+会话专属项目目录 `~/.cue/pi-intent`，与其他会话互不共享。技能可见面与 Chat 对齐（全局发现 + 基线三件照常安装；2026-08-24 修订 D7——原镜像剥离对 pi 全局技能发现本就无效，轨迹取证见 01a02f23/01a02f15）。隔离边界收敛到工具白名单：bash 与一切写侧工具不进白名单；残余的技能正文注入风险由工具白名单兜底（sp_mcp_call 的外部副作用为已知并接受的残留面）。
 
-工具白名单十四项：read / grep / find / ls（本机文件读取）、sp_mcp_list_tools / sp_mcp_call（查询用户注册的 MCP 服务）、submit_intent_card（交卡）、get_recent_intent_cards（近期卡片查询）、get_activity_summary / search_activity / search_memories / list_meetings（本地查证四件）、save_intent_draft / get_intent_draft（草稿写读）。白名单同时是 pi 的 `--tools` 硬门控：扩展注册了但不在名单里的工具对模型不可见，新增工具必须同步此数组。会话 transcript 天然留存于 pi-intent 目录，排查某张烂卡能看到完整推理与工具调用过程。
+工具白名单十四项：read / grep / find / ls（本机文件读取）、sp_mcp_list_tools / sp_mcp_call（查询用户注册的 MCP 服务）、submit_intent_card（交卡）、get_recent_intent_cards（近期卡片查询）、get_activity_summary / search_activity / search_memories / list_meetings（本地查证四件）、save_intent_draft / get_intent_draft（草稿写读）。白名单同时是 pi 的 `--tools` 硬门控：扩展注册了但不在名单里的工具对模型不可见，新增工具必须同步此数组。会话 transcript 天然留存于 pi-intent 目录，排查某张烂卡能看到完整推理与工具调用过程。会话输出预算 `INTENT_MAX_TOKENS = 128_000`（supply.rs）：早期沿用 chat 的 4096 默认值时长查证被截成废载荷，抬升后不再半途截断。
 
 角色名为 **Intent card Agent**（system prompt REPLACE 文本首句）；完整的生成流程正典——四要件门槛、五步流程、自检问句、默认出口倾斜、草稿纪律——的唯一权威版本在 cue-tools skill 的「角色边界与生成流程」节，由 system prompt 第三段的强制读指令兜底执行；prompt 本体只携带角色、边界与不可让渡的契约指针。
 
@@ -196,7 +199,7 @@ L2（执行链路落地后才可能）：真实价值是「接受的方案被执
 
 - screenpipe-db：迁移 ×2（建表、删索引）；db/intent_cards.rs 数据层与状态机守卫，含 9 个单元测试。
 - screenpipe-engine：routes/intent_cards.rs 只读路由；server.rs 注册行。
-- src-tauri intent_agent：runner.rs 心跳流水线；gate.rs 双窗口与软去重常量；instruct.rs 判重规则与载荷组装；session.rs 会话编排、白名单与扩展安装；supply.rs 三级链；commands.rs 七个 command；parse.rs D4 解析。
+- src-tauri intent_agent：runner.rs 心跳流水线；gate.rs 双窗口与软去重常量；instruct.rs 判重规则与载荷组装；session.rs 会话编排、白名单与扩展安装；supply.rs 三级链；commands.rs 九个 command（含 intent_get_config / intent_set_config）；parse.rs D4 解析。
 - assets/extensions/：intent-card.ts（交卡契约）、intent-card-recent.ts（读侧，双通道分发单源）。
 - 前端：components/intent-workbench/、lib/active-ai-preset.ts（镜像汇点）、use-pi-session-lifecycle.ts（启动上报腿）。
 - 决策记录：wayfinder/tickets/10-软去重重设计.md（T10，作废 D2，补录 D6–D9）。
